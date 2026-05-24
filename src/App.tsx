@@ -47,19 +47,9 @@ const SEED_TRANSACTIONS: Transaction[] = [
   { id: '10', type: 'expense', amount: 200, category: 'Savings', date: '2026-05-22', description: 'Locked monthly emergency reserve outflow' }
 ];
 
-const SEED_BUDGETS: Budget[] = [
-  { category: 'Housing', limit: 1400 },
-  { category: 'Food', limit: 500 },
-  { category: 'Utilities', limit: 200 },
-  { category: 'Transport', limit: 150 },
-  { category: 'Shopping', limit: 300 },
-  { category: 'Entertainment', limit: 200 }
-];
+const SEED_BUDGETS: Budget[] = [];
 
-const SEED_SAVINGS: SavingsGoal[] = [
-  { id: 's1', name: 'Emergency Safety Lock', target: 8000, current: 3500, deadline: '2026-12-31' },
-  { id: 's2', name: 'Alps Snowboarding Vacation', target: 2500, current: 850, deadline: '2026-09-15' }
-];
+const SEED_SAVINGS: SavingsGoal[] = [];
 
 export default function App() {
   // Current active frame tab

@@ -217,20 +217,20 @@ export default function Dashboard({
       </div>
 
       {/* AI-Powered Weekly Insights Box */}
-      <div className="bg-gradient-to-br from-violet-600/10 via-fuchsia-600/5 to-transparent border border-fuchsia-100/40 dark:border-fuchsia-905/30 p-5 rounded-2xl shadow-3xs space-y-4">
+      <div className="bg-white dark:bg-slate-905 border border-slate-105 dark:border-slate-800 p-6 rounded-2xl shadow-3xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg animate-pulse">
+            <div className="p-2 bg-blue-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-xl">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-xs text-slate-805 dark:text-slate-100 uppercase tracking-wider">AI Weekly Insights & Diagnostics</h3>
-              <p className="text-[9px] text-fuchsia-500 dark:text-fuchsia-400 font-bold font-mono tracking-wider">GEMINI STRATEGIC COPILOT REPORT</p>
+              <h3 className="font-semibold text-sm text-slate-900 dark:text-slate-150">AI Smart Insights</h3>
+              <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono">Automated Advisor Synthesis</p>
             </div>
           </div>
           {loadingInsights && (
-            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-705 dark:text-slate-300 font-bold px-2.5 py-1 rounded-md animate-pulse">
-              Analyzing velocity...
+            <span className="text-[10px] bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 font-bold px-2.5 py-1 rounded-md animate-pulse">
+              Analyzing cash flow...
             </span>
           )}
         </div>
@@ -238,31 +238,31 @@ export default function Dashboard({
         {/* Content detail layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Col 1: Spending Velocity analysis */}
-          <div className="p-4 bg-white/95 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl space-y-1 shadow-3xs">
-            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Velocity Core Spends</span>
+          <div className="p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl space-y-1">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Top Expenditure Category</span>
             <p className="text-sm font-black text-slate-800 dark:text-white">
               {fastestCategory ? `${fastestCategory} (${currencySymbol}${fastestAmount.toLocaleString('en-US', {maximumFractionDigits:0})})` : "No Spends Recorded"}
             </p>
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal mt-1">
               {fastestCategory 
-                ? `Expense patterns show "${fastestCategory}" has the absolute highest spending volume in this billing period.` 
+                ? `Expense patterns show "${fastestCategory}" has the absolute highest spending volume in this tracking period.` 
                 : "Active journal contains no expense lines yet. Log expenses to pinpoint leakage."}
             </p>
           </div>
 
           {/* Col 2 & 3: Recommendation summary */}
-          <div className="md:col-span-2 p-4 bg-white/95 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl shadow-3xs flex flex-col justify-between gap-3">
+          <div className="md:col-span-2 p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl flex flex-col justify-between gap-3">
             <div className="space-y-1">
-              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Tactical Action Recommendation</span>
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-250 leading-relaxed">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Recommended Strategy</span>
+              <p className="text-xs text-slate-700 dark:text-slate-250 leading-relaxed mt-1">
                 {aiInsights?.summaryMessage || activeSavingTip}
               </p>
             </div>
 
             {aiInsights?.actionableInsights && aiInsights.actionableInsights.length > 0 && (
-              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+              <div className="pt-2 border-t border-slate-150 dark:border-slate-800 flex flex-wrap gap-2 text-[10px] font-mono font-bold text-blue-650 dark:text-blue-400">
                 {aiInsights.actionableInsights.slice(0, 2).map((insight, idx) => (
-                  <span key={idx} className="bg-indigo-50/70 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md border border-indigo-150/30">
+                  <span key={idx} className="bg-blue-50/50 dark:bg-slate-950/40 px-2 py-0.5 rounded-md border border-blue-100/30">
                     💡 {insight}
                   </span>
                 ))}
