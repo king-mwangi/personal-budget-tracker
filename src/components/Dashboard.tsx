@@ -22,6 +22,7 @@ interface DashboardProps {
     savingsOpportunities: { category: string; savingEstimate: number; actionableTip: string }[];
   } | null;
   loadingInsights?: boolean;
+  userFirstName?: string;
 }
 
 export default function Dashboard({ 
@@ -29,7 +30,8 @@ export default function Dashboard({
   budgets, 
   currencySymbol = "$",
   aiInsights = null,
-  loadingInsights = false
+  loadingInsights = false,
+  userFirstName = "User"
 }: DashboardProps) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
@@ -207,7 +209,7 @@ export default function Dashboard({
       {/* Top Welcome Panel */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Financial Overview</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Welcome, {userFirstName}!</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time balances, tracking statistics, and cash flow velocities.</p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-2 bg-gray-50 dark:bg-slate-950 rounded-lg py-1.5 px-3 border border-gray-200 dark:border-slate-800 w-fit self-start sm:self-auto">

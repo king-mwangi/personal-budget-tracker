@@ -875,6 +875,12 @@ export default function App() {
     );
   }
 
+  // Compute user first name
+  const rawFirstName = user?.user_metadata?.first_name || user?.user_metadata?.firstName;
+  const userFirstName = rawFirstName
+    ? rawFirstName.charAt(0).toUpperCase() + rawFirstName.slice(1).toLowerCase()
+    : (user?.email ? user.email.split('@')[0].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[0].split('.')[0].slice(1).toLowerCase() : 'User');
+
   // Detect if database contains seeded dummy data to offer one-click cleanup
   const hasSeededData = transactions.some(t => t.id === '1' || t.id === '2');
 
@@ -889,7 +895,11 @@ export default function App() {
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-905 dark:text-white tracking-tight">Ledger Smart</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-bold text-gray-905 dark:text-white tracking-tight">Ledger Smart</h1>
+                <span className="hidden sm:inline-block h-3.5 w-px bg-gray-200 dark:bg-slate-800" />
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Welcome, {userFirstName}!</span>
+              </div>
               <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono tracking-wider font-semibold">PERSONAL FINANCE COMPANION</p>
             </div>
           </div>
@@ -1290,6 +1300,7 @@ export default function App() {
               currencySymbol={currencySymbol}
               aiInsights={aiInsights}
               loadingInsights={loadingInsights}
+              userFirstName={userFirstName}
             />
           )}
 
