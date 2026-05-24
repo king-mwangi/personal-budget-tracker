@@ -261,6 +261,11 @@ export default function Login({ onDemoBypass }: LoginProps) {
             </button>
           </div>
         </div>
+
+        {/* Attribution Footer */}
+        <div className="mt-8 text-center text-xs text-slate-500 dark:text-slate-400 font-medium">
+          Created by Lincoln Mwangi ©
+        </div>
       </div>
     </div>
   );

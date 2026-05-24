@@ -245,53 +245,12 @@ export default function App() {
           timestamp: c.timestamp
         })) : [];
 
-        // When a newly registered user logs in with zero preconfigured states, insert seeding placeholders inside DB for beautiful UX
-        if (budgetsLoaded.length === 0 && transactionsLoaded.length === 0 && goalsLoaded.length === 0) {
-          console.log("Seeding fresh Supabase account records.");
-          
-          for (const b of SEED_BUDGETS) {
-            await supabase.from('budgets').insert({
-              id: `b-${user.id}-${b.category}`,
-              user_id: user.id,
-              category: b.category,
-              limit: b.limit
-            });
-          }
-
-          for (const s of SEED_SAVINGS) {
-            await supabase.from('savings_goals').insert({
-              id: s.id,
-              user_id: user.id,
-              name: s.name,
-              target: s.target,
-              current: s.current,
-              deadline: s.deadline || null
-            });
-          }
-
-          for (const t of SEED_TRANSACTIONS) {
-            await supabase.from('transactions').insert({
-              id: t.id,
-              user_id: user.id,
-              type: t.type,
-              amount: t.amount,
-              category: t.category,
-              date: t.date,
-              description: t.description
-            });
-          }
-
-          setBudgets(SEED_BUDGETS);
-          setTransactions(SEED_TRANSACTIONS);
-          setGoals(SEED_SAVINGS);
-        } else {
-          setBudgets(budgetsLoaded);
-          setTransactions(transactionsLoaded);
-          setGoals(goalsLoaded);
-          setCustomTemplates(templatesLoaded);
-          setRecurringItems(recurringLoaded);
-          setChatMessages(chatsLoaded);
-        }
+        setBudgets(budgetsLoaded);
+        setTransactions(transactionsLoaded);
+        setGoals(goalsLoaded);
+        setCustomTemplates(templatesLoaded);
+        setRecurringItems(recurringLoaded);
+        setChatMessages(chatsLoaded);
       } catch (err) {
         console.error("Supabase user data fetch failure:", err);
       } finally {
