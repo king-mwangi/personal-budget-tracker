@@ -8,6 +8,8 @@ import SavingsGoals from './components/SavingsGoals';
 import AIAssistant from './components/AIAssistant';
 import BudgetTemplates from './components/BudgetTemplates';
 import RecurringManager from './components/RecurringManager';
+import Login from './components/Login';
+import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -26,7 +28,8 @@ import {
   AlertTriangle,
   Sun,
   Moon,
-  CalendarClock
+  CalendarClock,
+  LogOut
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -62,21 +65,17 @@ export default function App() {
 
   const [showResetModal, setShowResetModal] = useState(false);
 
+  // Authentication & Loading State
+  const [user, setUser] = useState<any>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem('fin_tracker_dark_mode');
       return stored === 'true';
     } catch {
       return false;
-    }
-  });
-
-  const [recurringItems, setRecurringItems] = useState<RecurringTransaction[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_recurring');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
     }
   });
 
@@ -91,65 +90,13 @@ export default function App() {
 
   const currencySymbol = currency === 'Ksh' ? 'Ksh ' : currency === 'EUR' ? '€' : '$';
 
-  useEffect(() => {
-    localStorage.setItem('fin_tracker_currency', currency);
-  }, [currency]);
-
-  useEffect(() => {
-    localStorage.setItem('fin_tracker_dark_mode', String(darkMode));
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
-
-  const [customTemplates, setCustomTemplates] = useState<BudgetTemplate[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_custom_templates');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Load state stores from LocalStorage if matching, otherwise fallback to seed data
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_transactions');
-      return stored ? JSON.parse(stored) : SEED_TRANSACTIONS;
-    } catch {
-      return SEED_TRANSACTIONS;
-    }
-  });
-
-  const [budgets, setBudgets] = useState<Budget[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_budgets');
-      return stored ? JSON.parse(stored) : SEED_BUDGETS;
-    } catch {
-      return SEED_BUDGETS;
-    }
-  });
-
-  const [goals, setGoals] = useState<SavingsGoal[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_goals');
-      return stored ? JSON.parse(stored) : SEED_SAVINGS;
-    } catch {
-      return SEED_SAVINGS;
-    }
-  });
-
-  // Chat memory state stores
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const stored = localStorage.getItem('fin_tracker_chats');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // State Stores loaded from Supabase
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<BudgetTemplate[]>([]);
+  const [recurringItems, setRecurringItems] = useState<RecurringTransaction[]>([]);
 
   const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
@@ -166,66 +113,254 @@ export default function App() {
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
 
-  // Synchronizers syncing state changes into localStorage target
+  // Safe client-side preferences (currency, darkmode) preserved in localStorage
   useEffect(() => {
-    localStorage.setItem('fin_tracker_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    localStorage.setItem('fin_tracker_currency', currency);
+  }, [currency]);
 
   useEffect(() => {
-    localStorage.setItem('fin_tracker_budgets', JSON.stringify(budgets));
-  }, [budgets]);
+    localStorage.setItem('fin_tracker_dark_mode', String(darkMode));
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
+  // Hook subscription monitoring Supabase authentication session lifecycle
   useEffect(() => {
-    localStorage.setItem('fin_tracker_goals', JSON.stringify(goals));
-  }, [goals]);
+    setIsAuthLoading(true);
 
-  useEffect(() => {
-    localStorage.setItem('fin_tracker_chats', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+      setIsAuthLoading(false);
+    }).catch((err) => {
+      console.error("Retrieve active auth session error:", err);
+      setIsAuthLoading(false);
+    });
 
-  useEffect(() => {
-    localStorage.setItem('fin_tracker_custom_templates', JSON.stringify(customTemplates));
-  }, [customTemplates]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
+      setIsAuthLoading(false);
+    });
 
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sync state changes loading from Supabase Cloud on successful authentication transition
   useEffect(() => {
-    localStorage.setItem('fin_tracker_recurring', JSON.stringify(recurringItems));
-  }, [recurringItems]);
+    if (!user) {
+      setTransactions([]);
+      setBudgets([]);
+      setGoals([]);
+      setChatMessages([]);
+      setCustomTemplates([]);
+      setRecurringItems([]);
+      setIsDataLoaded(false);
+      return;
+    }
+
+    const loadUserData = async () => {
+      // Demo authentication bypass loading pre-filled static content
+      if (user.isDemo) {
+        setTransactions(SEED_TRANSACTIONS);
+        setBudgets(SEED_BUDGETS);
+        setGoals(SEED_SAVINGS);
+        setChatMessages([]);
+        setCustomTemplates([]);
+        setRecurringItems([]);
+        setIsDataLoaded(true);
+        return;
+      }
+
+      setIsDataLoaded(false);
+      try {
+        // Fetch budgets
+        const { data: budgetData } = await supabase.from('budgets').select('*').eq('user_id', user.id);
+        const budgetsLoaded = budgetData ? budgetData.map((b: any) => ({
+          category: b.category,
+          limit: parseFloat(b.limit)
+        })) : [];
+
+        // Fetch transactions
+        const { data: txData } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
+        const transactionsLoaded = txData ? txData.map((t: any) => ({
+          id: t.id,
+          type: t.type as any,
+          amount: parseFloat(t.amount),
+          category: t.category,
+          date: t.date,
+          description: t.description || ''
+        })) : [];
+
+        // Fetch savings goals
+        const { data: goalData } = await supabase.from('savings_goals').select('*').eq('user_id', user.id);
+        const goalsLoaded = goalData ? goalData.map((g: any) => ({
+          id: g.id,
+          name: g.name,
+          target: parseFloat(g.target),
+          current: parseFloat(g.current),
+          deadline: g.deadline || undefined
+        })) : [];
+
+        // Fetch custom templates
+        const { data: templateData } = await supabase.from('budget_templates').select('*').eq('user_id', user.id);
+        const templatesLoaded = templateData ? templateData.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description || '',
+          incomes: typeof t.incomes === 'string' ? JSON.parse(t.incomes) : t.incomes,
+          expenses: typeof t.expenses === 'string' ? JSON.parse(t.expenses) : t.expenses
+        })) : [];
+
+        // Fetch recurring items
+        const { data: recData } = await supabase.from('recurring_transactions').select('*').eq('user_id', user.id);
+        const recurringLoaded = recData ? recData.map((r: any) => ({
+          id: r.id,
+          type: r.type as any,
+          amount: parseFloat(r.amount),
+          category: r.category,
+          description: r.description || '',
+          dayOfMonth: r.day_of_month,
+          autoLog: r.auto_log,
+          lastLoggedDate: r.last_logged_date || undefined
+        })) : [];
+
+        // Fetch chat messages
+        const { data: chatData } = await supabase.from('chat_messages').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
+        const chatsLoaded = chatData ? chatData.map((c: any) => ({
+          id: c.id,
+          role: c.role as any,
+          text: c.text,
+          timestamp: c.timestamp
+        })) : [];
+
+        // When a newly registered user logs in with zero preconfigured states, insert seeding placeholders inside DB for beautiful UX
+        if (budgetsLoaded.length === 0 && transactionsLoaded.length === 0 && goalsLoaded.length === 0) {
+          console.log("Seeding fresh Supabase account records.");
+          
+          for (const b of SEED_BUDGETS) {
+            await supabase.from('budgets').insert({
+              id: `b-${user.id}-${b.category}`,
+              user_id: user.id,
+              category: b.category,
+              limit: b.limit
+            });
+          }
+
+          for (const s of SEED_SAVINGS) {
+            await supabase.from('savings_goals').insert({
+              id: s.id,
+              user_id: user.id,
+              name: s.name,
+              target: s.target,
+              current: s.current,
+              deadline: s.deadline || null
+            });
+          }
+
+          for (const t of SEED_TRANSACTIONS) {
+            await supabase.from('transactions').insert({
+              id: t.id,
+              user_id: user.id,
+              type: t.type,
+              amount: t.amount,
+              category: t.category,
+              date: t.date,
+              description: t.description
+            });
+          }
+
+          setBudgets(SEED_BUDGETS);
+          setTransactions(SEED_TRANSACTIONS);
+          setGoals(SEED_SAVINGS);
+        } else {
+          setBudgets(budgetsLoaded);
+          setTransactions(transactionsLoaded);
+          setGoals(goalsLoaded);
+          setCustomTemplates(templatesLoaded);
+          setRecurringItems(recurringLoaded);
+          setChatMessages(chatsLoaded);
+        }
+      } catch (err) {
+        console.error("Supabase user data fetch failure:", err);
+      } finally {
+        setIsDataLoaded(true);
+      }
+    };
+
+    loadUserData();
+  }, [user]);
 
   // Automated recurring expense trigger checking schedules once a month
   useEffect(() => {
-    if (recurringItems.length === 0) return;
+    if (!isDataLoaded || recurringItems.length === 0) return;
     const today = new Date();
     const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     const currentDay = today.getDate();
 
     let hasChanges = false;
-    const updated = recurringItems.map(item => {
-      if (item.autoLog && item.lastLoggedDate !== currentYearMonth && currentDay >= item.dayOfMonth) {
-        hasChanges = true;
-        const newTx: Transaction = {
-          id: 'auto-' + Math.random().toString(36).substring(2, 9),
-          type: item.type,
-          amount: item.amount,
-          category: item.category,
-          date: today.toISOString().split('T')[0],
-          description: `[Auto-Logged] ${item.description}`
-        };
-        setTransactions(prev => [newTx, ...prev]);
-        return {
-          ...item,
-          lastLoggedDate: currentYearMonth
-        };
-      }
-      return item;
-    });
+    const processAutologs = async () => {
+      const updated = await Promise.all(recurringItems.map(async (item) => {
+        if (item.autoLog && item.lastLoggedDate !== currentYearMonth && currentDay >= item.dayOfMonth) {
+          hasChanges = true;
+          const freshTxId = 'auto-' + Math.random().toString(36).substring(2, 9);
+          const newTx: Transaction = {
+            id: freshTxId,
+            type: item.type,
+            amount: item.amount,
+            category: item.category,
+            date: today.toISOString().split('T')[0],
+            description: `[Auto-Logged] ${item.description}`
+          };
+          
+          setTransactions(prev => [newTx, ...prev]);
 
-    if (hasChanges) {
-      setRecurringItems(updated);
-    }
-  }, [recurringItems]);
+          if (user && !user.isDemo) {
+            await supabase.from('transactions').insert({
+              id: freshTxId,
+              user_id: user.id,
+              type: newTx.type,
+              amount: newTx.amount,
+              category: newTx.category,
+              date: newTx.date,
+              description: newTx.description
+            });
+
+            await supabase.from('recurring_transactions').update({
+              last_logged_date: currentYearMonth
+            }).eq('id', item.id);
+          }
+
+          return {
+            ...item,
+            lastLoggedDate: currentYearMonth
+          };
+        }
+        return item;
+      }));
+
+      if (hasChanges) {
+        setRecurringItems(updated);
+      }
+    };
+
+    processAutologs();
+  }, [isDataLoaded]);
 
   // Request real-time structured advisors tips using `/api/insights`
   const fetchAIInsights = async () => {
+    if (transactions.length === 0 && budgets.length === 0) return;
     setLoadingInsights(true);
     setInsightsError(null);
     try {
@@ -250,36 +385,67 @@ export default function App() {
 
   // Run dynamic advisor insights on startup or currency change
   useEffect(() => {
-    fetchAIInsights();
-  }, [currency]);
+    if (isDataLoaded) {
+      fetchAIInsights();
+    }
+  }, [currency, isDataLoaded]);
 
   // Handler adding transactions
-  const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
+  const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
     const fresh: Transaction = {
       ...newTx,
       id: Math.random().toString(36).substring(2, 9)
     };
     setTransactions(prev => [fresh, ...prev]);
+
+    if (user && !user.isDemo) {
+      await supabase.from('transactions').insert({
+        id: fresh.id,
+        user_id: user.id,
+        type: fresh.type,
+        amount: fresh.amount,
+        category: fresh.category,
+        date: fresh.date,
+        description: fresh.description
+      });
+    }
+
     // Refresh insights automatically to match new balance logs
     setTimeout(() => fetchAIInsights(), 1500);
   };
 
   // Handler editing transactions
-  const handleUpdateTransaction = (id: string, updated: Partial<Transaction>) => {
+  const handleUpdateTransaction = async (id: string, updated: Partial<Transaction>) => {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updated } : t));
     setEditingTx(null);
+
+    if (user && !user.isDemo) {
+      await supabase.from('transactions').update({
+        type: updated.type,
+        amount: updated.amount,
+        category: updated.category,
+        date: updated.date,
+        description: updated.description
+      }).eq('id', id);
+    }
+
     setTimeout(() => fetchAIInsights(), 1500);
   };
 
-  const handleDeleteTransaction = (id: string) => {
+  const handleDeleteTransaction = async (id: string) => {
     if (confirm("Are you sure you want to delete this log entry?")) {
       setTransactions(prev => prev.filter(t => t.id !== id));
+
+      if (user && !user.isDemo) {
+        await supabase.from('transactions').delete().eq('id', id);
+      }
+
       setTimeout(() => fetchAIInsights(), 1550);
     }
   };
 
   // Handler modifying limits
-  const handleUpdateBudget = (category: string, limit: number) => {
+  const handleUpdateBudget = async (category: string, limit: number) => {
     setBudgets(prev => {
       const idx = prev.findIndex(b => b.category === category);
       if (idx !== -1) {
@@ -288,66 +454,143 @@ export default function App() {
         return [...prev, { category, limit }];
       }
     });
+
+    if (user && !user.isDemo) {
+      const budgetId = `b-${user.id}-${category}`;
+      await supabase.from('budgets').upsert({
+        id: budgetId,
+        user_id: user.id,
+        category: category,
+        limit: limit
+      });
+    }
+
     setTimeout(() => fetchAIInsights(), 500);
   };
 
-  const handleDeleteBudget = (category: string) => {
+  const handleDeleteBudget = async (category: string) => {
     setBudgets(prev => prev.filter(b => b.category !== category));
+
+    if (user && !user.isDemo) {
+      await supabase.from('budgets').delete().eq('user_id', user.id).eq('category', category);
+    }
+
     setTimeout(() => fetchAIInsights(), 500);
   };
 
   // Goal update handler
-  const handleAddGoal = (newGoal: Omit<SavingsGoal, 'id'>) => {
+  const handleAddGoal = async (newGoal: Omit<SavingsGoal, 'id'>) => {
     const fresh: SavingsGoal = {
       ...newGoal,
       id: Math.random().toString(36).substring(2, 9)
     };
     setGoals(prev => [...prev, fresh]);
+
+    if (user && !user.isDemo) {
+      await supabase.from('savings_goals').insert({
+        id: fresh.id,
+        user_id: user.id,
+        name: fresh.name,
+        target: fresh.target,
+        current: fresh.current,
+        deadline: fresh.deadline || null
+      });
+    }
   };
 
-  const handleUpdateGoalProgress = (id: string, amount: number) => {
-    setGoals(prev => prev.map(g => g.id === id ? { ...g, current: parseFloat((g.current + amount).toFixed(2)) } : g));
+  const handleUpdateGoalProgress = async (id: string, amount: number) => {
+    const currentGoal = goals.find(g => g.id === id);
+    if (!currentGoal) return;
+    
+    const nextVal = parseFloat((currentGoal.current + amount).toFixed(2));
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, current: nextVal } : g));
+
+    if (user && !user.isDemo) {
+      await supabase.from('savings_goals').update({
+        current: nextVal
+      }).eq('id', id);
+    }
   };
 
-  const handleDeleteGoal = (id: string) => {
+  const handleDeleteGoal = async (id: string) => {
     if (confirm("Are you sure you want to delete this savings target?")) {
       setGoals(prev => prev.filter(g => g.id !== id));
+
+      if (user && !user.isDemo) {
+        await supabase.from('savings_goals').delete().eq('id', id);
+      }
     }
   };
 
   // Recurring schedules control handlers
-  const handleAddRecurring = (item: Omit<RecurringTransaction, 'id'>) => {
+  const handleAddRecurring = async (item: Omit<RecurringTransaction, 'id'>) => {
     const fresh: RecurringTransaction = {
       ...item,
       id: Math.random().toString(36).substring(2, 9)
     };
     setRecurringItems(prev => [...prev, fresh]);
-  };
 
-  const handleDeleteRecurring = (id: string) => {
-    if (confirm("Are you sure you want to remove this recurring schedule template?")) {
-      setRecurringItems(prev => prev.filter(r => r.id !== id));
+    if (user && !user.isDemo) {
+      await supabase.from('recurring_transactions').insert({
+        id: fresh.id,
+        user_id: user.id,
+        type: fresh.type,
+        amount: fresh.amount,
+        category: fresh.category,
+        description: fresh.description,
+        day_of_month: fresh.dayOfMonth,
+        auto_log: fresh.autoLog,
+        last_logged_date: fresh.lastLoggedDate || null
+      });
     }
   };
 
-  const handleTriggerRecurringManually = (id: string) => {
+  const handleDeleteRecurring = async (id: string) => {
+    if (confirm("Are you sure you want to remove this recurring schedule template?")) {
+      setRecurringItems(prev => prev.filter(r => r.id !== id));
+
+      if (user && !user.isDemo) {
+        await supabase.from('recurring_transactions').delete().eq('id', id);
+      }
+    }
+  };
+
+  const handleTriggerRecurringManually = async (id: string) => {
     const targetItem = recurringItems.find(r => r.id === id);
     if (!targetItem) return;
 
     const today = new Date();
+    const freshTxId = 'man-rec-' + Math.random().toString(36).substring(2, 9);
+    const dateStr = today.toISOString().split('T')[0];
+    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
     const newTx: Transaction = {
-      id: 'man-rec-' + Math.random().toString(36).substring(2, 9),
+      id: freshTxId,
       type: targetItem.type,
       amount: targetItem.amount,
       category: targetItem.category,
-      date: today.toISOString().split('T')[0],
+      date: dateStr,
       description: `[Manual-Post] ${targetItem.description}`
     };
 
     setTransactions(prev => [newTx, ...prev]);
-
-    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     setRecurringItems(prev => prev.map(r => r.id === id ? { ...r, lastLoggedDate: currentYearMonth } : r));
+
+    if (user && !user.isDemo) {
+      await supabase.from('transactions').insert({
+        id: freshTxId,
+        user_id: user.id,
+        type: newTx.type,
+        amount: newTx.amount,
+        category: newTx.category,
+        date: newTx.date,
+        description: newTx.description
+      });
+
+      await supabase.from('recurring_transactions').update({
+        last_logged_date: currentYearMonth
+      }).eq('id', id);
+    }
 
     setTimeout(() => {
       fetchAIInsights();
@@ -365,6 +608,16 @@ export default function App() {
 
     setChatMessages(prev => [...prev, userMsg]);
     setIsGeneratingMessage(true);
+
+    if (user && !user.isDemo) {
+      await supabase.from('chat_messages').insert({
+        id: userMsg.id,
+        user_id: user.id,
+        role: userMsg.role,
+        text: userMsg.text,
+        timestamp: userMsg.timestamp
+      });
+    }
 
     try {
       const history = [...chatMessages, userMsg];
@@ -395,6 +648,16 @@ export default function App() {
       };
 
       setChatMessages(prev => [...prev, aiMsg]);
+
+      if (user && !user.isDemo) {
+        await supabase.from('chat_messages').insert({
+          id: aiMsg.id,
+          user_id: user.id,
+          role: aiMsg.role,
+          text: aiMsg.text,
+          timestamp: aiMsg.timestamp
+        });
+      }
     } catch (e: any) {
       console.error(e);
       const errBubble: ChatMessage = {
@@ -409,23 +672,29 @@ export default function App() {
     }
   };
 
-  const handleClearHistory = () => {
+  const handleClearHistory = async () => {
     if (confirm("Confirm erasing chatbot conversational memory?")) {
       setChatMessages([]);
+      if (user && !user.isDemo) {
+        await supabase.from('chat_messages').delete().eq('user_id', user.id);
+      }
     }
   };
 
-  const handleResetAllData = () => {
+  const handleResetAllData = async () => {
     setTransactions([]);
     setBudgets([]);
     setGoals([]);
     setChatMessages([]);
     setRecurringItems([]);
-    localStorage.removeItem('fin_tracker_transactions');
-    localStorage.removeItem('fin_tracker_budgets');
-    localStorage.removeItem('fin_tracker_goals');
-    localStorage.removeItem('fin_tracker_chats');
-    localStorage.removeItem('fin_tracker_recurring');
+
+    if (user && !user.isDemo) {
+      await supabase.from('transactions').delete().eq('user_id', user.id);
+      await supabase.from('budgets').delete().eq('user_id', user.id);
+      await supabase.from('savings_goals').delete().eq('user_id', user.id);
+      await supabase.from('chat_messages').delete().eq('user_id', user.id);
+      await supabase.from('recurring_transactions').delete().eq('user_id', user.id);
+    }
     
     setShowResetModal(false);
     
@@ -434,7 +703,7 @@ export default function App() {
     }, 500);
   };
 
-  const handleSaveTemplate = (newTemplate: BudgetTemplate) => {
+  const handleSaveTemplate = async (newTemplate: BudgetTemplate) => {
     setCustomTemplates(prev => {
       const idx = prev.findIndex(t => t.id === newTemplate.id);
       if (idx !== -1) {
@@ -442,11 +711,26 @@ export default function App() {
       }
       return [newTemplate, ...prev];
     });
+
+    if (user && !user.isDemo) {
+      await supabase.from('budget_templates').upsert({
+        id: newTemplate.id,
+        user_id: user.id,
+        name: newTemplate.name,
+        description: newTemplate.description,
+        incomes: JSON.stringify(newTemplate.incomes),
+        expenses: JSON.stringify(newTemplate.expenses)
+      });
+    }
   };
 
-  const handleDeleteTemplate = (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     if (confirm("Are you sure you want to delete this blueprint?")) {
       setCustomTemplates(prev => prev.filter(t => t.id !== id));
+
+      if (user && !user.isDemo) {
+        await supabase.from('budget_templates').delete().eq('id', id);
+      }
     }
   };
 
@@ -458,7 +742,6 @@ export default function App() {
   }) => {
     const { templateId, targetMonth, updateBudgets, generateTransactions } = options;
     
-    // Fallback options combining default system templates with custom ones
     const defaults: BudgetTemplate[] = [
       {
         id: 't-default-1',
@@ -490,7 +773,7 @@ export default function App() {
           { category: 'Food', targetAmount: 300 },
           { category: 'Utilities', targetAmount: 180 },
           { category: 'Transport', targetAmount: 100 },
-          { category: 'Savings', targetAmount: 2600 }
+          { category: 'Savings', targetAmount: 2605 }
         ]
       }
     ];
@@ -502,12 +785,22 @@ export default function App() {
     if (updateBudgets) {
       setBudgets(prev => {
         const updated = [...prev];
-        template.expenses.forEach(exp => {
+        template.expenses.forEach(async (exp) => {
           const idx = updated.findIndex(b => b.category === exp.category);
           if (idx !== -1) {
             updated[idx] = { category: exp.category, limit: exp.targetAmount };
           } else {
             updated.push({ category: exp.category, limit: exp.targetAmount });
+          }
+
+          if (user && !user.isDemo) {
+            const budgetId = `b-${user.id}-${exp.category}`;
+            await supabase.from('budgets').upsert({
+              id: budgetId,
+              user_id: user.id,
+              category: exp.category,
+              limit: exp.targetAmount
+            });
           }
         });
         return updated;
@@ -522,27 +815,55 @@ export default function App() {
 
       // Expected Inflows
       template.incomes.forEach(inc => {
-        generated.push({
-          id: 'gen-inc-' + Math.random().toString(36).substring(2, 9),
+        const txId = 'gen-inc-' + Math.random().toString(36).substring(2, 9);
+        const newTx: Transaction = {
+          id: txId,
           type: 'income',
           amount: inc.expectedAmount,
           category: 'Income',
           date: fullDatePattern,
           description: `Loaded Expected Inflow: ${inc.name}`
-        });
+        };
+        generated.push(newTx);
+
+        if (user && !user.isDemo) {
+          supabase.from('transactions').insert({
+            id: txId,
+            user_id: user.id,
+            type: newTx.type,
+            amount: newTx.amount,
+            category: newTx.category,
+            date: newTx.date,
+            description: newTx.description
+          });
+        }
       });
 
       // Targets Spends (skip savings category logs since that acts strictly as transfer in actual app)
       template.expenses.forEach(exp => {
         if (exp.category === 'Savings') return;
-        generated.push({
-          id: 'gen-exp-' + Math.random().toString(36).substring(2, 9),
+        const txId = 'gen-exp-' + Math.random().toString(36).substring(2, 9);
+        const newTx: Transaction = {
+          id: txId,
           type: 'expense',
           amount: exp.targetAmount,
           category: exp.category,
           date: fullDatePattern,
           description: `Loaded Target: Rent/Baseline for ${exp.category}`
-        });
+        };
+        generated.push(newTx);
+
+        if (user && !user.isDemo) {
+          supabase.from('transactions').insert({
+            id: txId,
+            user_id: user.id,
+            type: newTx.type,
+            amount: newTx.amount,
+            category: newTx.category,
+            date: newTx.date,
+            description: newTx.description
+          });
+        }
       });
 
       setTransactions(prev => [...generated, ...prev]);
@@ -554,11 +875,29 @@ export default function App() {
     }, 1500);
   };
 
-  // Helper trigger action chip matching budget optimizes queries
   const triggerAIBudgetAssistant = () => {
     setActiveTab('ai');
     handleSendMessage("Analyze my category budgets constraints vs spent volumes, and suggest optimization strategies.");
   };
+
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 dark:bg-slate-950 flex flex-col items-center justify-center text-white p-4">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-4 border-slate-700 border-t-blue-500 animate-spin" />
+          <h2 className="text-sm font-bold tracking-widest uppercase font-mono text-slate-400">Securing Ledger Smart...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950' : 'bg-slate-50'} transition-colors duration-250`}>
+        <Login onDemoBypass={(mockUser) => setUser(mockUser)} />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
@@ -577,6 +916,23 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Supabase Authentication Status & Sign Out */}
+            {user && (
+              <div className="flex items-center gap-2 mr-1">
+                <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400 max-w-[100px] truncate hidden sm:inline" title={user.email}>
+                  {user.isDemo ? 'Demo-Mode' : user.email}
+                </span>
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                  }}
+                  title="Sign Out of Ledger Smart"
+                  className="p-2.5 border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
