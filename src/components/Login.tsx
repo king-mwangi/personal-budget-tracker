@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { 
   Building2, 
@@ -22,10 +22,23 @@ export default function Login({ onDemoBypass }: LoginProps) {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('fin_tracker_saved_email');
+    const savedPassword = localStorage.getItem('fin_tracker_saved_password');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+    if (savedPassword) {
+      setPassword(savedPassword);
+    }
+  }, []);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +58,14 @@ export default function Login({ onDemoBypass }: LoginProps) {
     setLoading(true);
 
     try {
+      if (rememberMe) {
+        localStorage.setItem('fin_tracker_saved_email', email);
+        localStorage.setItem('fin_tracker_saved_password', password);
+      } else {
+        localStorage.removeItem('fin_tracker_saved_email');
+        localStorage.removeItem('fin_tracker_saved_password');
+      }
+
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -52,10 +73,17 @@ export default function Login({ onDemoBypass }: LoginProps) {
         });
         if (error) throw error;
         
-        if (data?.user && !data.session) {
-          setSuccessMsg("Registration successful! Please check your email inbox to confirm your account, or sign in if email confirmation is disabled.");
-        } else {
-          setSuccessMsg("Account successfully registered and logged in!");
+        // Attempt automatic login immediately using the credentials provided
+        if (data?.user) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          if (signInError) {
+            setSuccessMsg("Registration successful! Please check your email inbox to confirm your account.");
+          } else {
+            setSuccessMsg("Account successfully registered and logged in!");
+          }
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -73,6 +101,16 @@ export default function Login({ onDemoBypass }: LoginProps) {
   };
 
   const handleDemoMode = () => {
+    if (rememberMe) {
+      localStorage.setItem('fin_tracker_saved_email', email);
+      if (password) {
+        localStorage.setItem('fin_tracker_saved_password', password);
+      }
+    } else {
+      localStorage.removeItem('fin_tracker_saved_email');
+      localStorage.removeItem('fin_tracker_saved_password');
+    }
+
     // Generate a beautiful persistent mock user object
     const mockUser = {
       id: "mock-user-db-9999",
@@ -165,6 +203,21 @@ export default function Login({ onDemoBypass }: LoginProps) {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+            </div>
+
+            {/* Remember Me Option */}
+            <div className="flex items-center">
+              <input
+                id="remember-me"
+                name="remember-me"
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700/60 rounded bg-white dark:bg-slate-950 cursor-pointer"
+              />
+              <label htmlFor="remember-me" className="ml-2 block text-[11px] text-slate-600 dark:text-slate-400 font-bold tracking-wider uppercase cursor-pointer select-none">
+                Remember credentials on this device
+              </label>
             </div>
 
             {/* Display error if exists */}
