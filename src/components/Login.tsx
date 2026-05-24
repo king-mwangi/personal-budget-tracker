@@ -131,11 +131,13 @@ export default function Login({ onDemoBypass }: LoginProps) {
           
           if (data?.user) {
             // Log in right away if possible
+            sessionStorage.setItem('just_logged_in', 'true');
             const { error: signInError } = await supabase.auth.signInWithPassword({
               email: targetEmail,
               password: authPassword,
             });
             if (signInError) {
+              sessionStorage.removeItem('just_logged_in');
               setSuccessMsg("Registration successful! Check your inbox to confirm your account.");
             } else {
               setSuccessMsg("Account registered and authenticated successfully!");
@@ -143,11 +145,15 @@ export default function Login({ onDemoBypass }: LoginProps) {
           }
         } else {
           // Normal logging in
+          sessionStorage.setItem('just_logged_in', 'true');
           const { error } = await supabase.auth.signInWithPassword({
             email: targetEmail,
             password: authPassword,
           });
-          if (error) throw error;
+          if (error) {
+            sessionStorage.removeItem('just_logged_in');
+            throw error;
+          }
         }
       } else {
         // Fallback mock sandbox mode
@@ -176,6 +182,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
           localStorage.setItem('fin_tracker_mock_users', JSON.stringify(existingUsers));
           
           setSuccessMsg("Simulated registration successful!");
+          sessionStorage.setItem('just_logged_in', 'true');
           setTimeout(() => {
             onDemoBypass(newMockUser);
           }, 800);
@@ -184,6 +191,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
           const existingUsers = JSON.parse(existingUsersStr);
           const matchedUser = existingUsers.find((u: any) => u.email.toLowerCase() === targetEmail.toLowerCase());
 
+          sessionStorage.setItem('just_logged_in', 'true');
           if (matchedUser) {
             onDemoBypass(matchedUser);
           } else {

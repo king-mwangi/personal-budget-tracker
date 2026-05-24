@@ -36,7 +36,8 @@ import {
   User,
   Bell,
   BellRing,
-  Printer
+  Printer,
+  CheckCircle
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -99,6 +100,22 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [loginNotification, setLoginNotification] = useState<string | null>(null);
+
+  // Monitor login success messages
+  useEffect(() => {
+    if (user) {
+      const justLoggedIn = sessionStorage.getItem('just_logged_in');
+      if (justLoggedIn === 'true') {
+        setLoginNotification("Successfully logged in");
+        sessionStorage.removeItem('just_logged_in');
+        const timer = setTimeout(() => {
+          setLoginNotification(null);
+        }, 4000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
 
   const [darkMode, setDarkMode] = useState<boolean>(() => {
     try {
@@ -1319,6 +1336,29 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
+      
+      {/* Toast Alert Banner for Login Success */}
+      {loginNotification && (
+        <div id="login-success-toast" className="fixed top-5 right-5 z-100 max-w-sm w-full">
+          <div className="bg-emerald-600 text-white rounded-2xl shadow-xl p-3.5 border border-emerald-500/30 flex items-center justify-between gap-3 backdrop-blur-md bg-opacity-95 transform translate-y-0 transition-all duration-300">
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-white/15 rounded-xl">
+                <CheckCircle className="w-4.5 h-4.5 text-white animate-pulse" />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold leading-normal mb-0.5">Successfully logged in</p>
+                <p className="text-[10px] text-emerald-100/90 font-mono leading-none">Secure session active</p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setLoginNotification(null)}
+              className="text-white hover:text-emerald-100 p-1 cursor-pointer hover:bg-white/10 rounded-lg transition-colors border-0 bg-transparent"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Top Elegant bar */}
       <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-4 px-6 sticky top-0 z-40 shadow-2xs transition-colors">
