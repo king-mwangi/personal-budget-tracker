@@ -1,8 +1,4 @@
-declare global {
-  interface Window {
-    supabase: any;
-  }
-}
+import { createClient } from '@supabase/supabase-js';
 
 // Read variables from import.meta.env with fallback placeholders that users can replace or configure in .env
 const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://fplazoesowrayfixlxzk.supabase.co';
@@ -14,12 +10,10 @@ export const isSupabaseConfigured =
   supabaseUrl.trim() !== '' &&
   supabaseKey.trim() !== '';
 
-export const getSupabaseClient = () => {
-  const win = typeof window !== 'undefined' ? (window as any) : null;
-  
-  if (isSupabaseConfigured && win && win.supabase) {
+export const getSupabaseClient = (): any => {
+  if (isSupabaseConfigured) {
     try {
-      return win.supabase.createClient(supabaseUrl, supabaseKey);
+      return createClient(supabaseUrl, supabaseKey);
     } catch (e) {
       console.error("Failed to initialize Supabase client:", e);
     }
