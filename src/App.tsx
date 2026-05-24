@@ -858,6 +858,9 @@ export default function App() {
     );
   }
 
+  // Detect if database contains seeded dummy data to offer one-click cleanup
+  const hasSeededData = transactions.some(t => t.id === '1' || t.id === '2');
+
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
       
@@ -1039,14 +1042,14 @@ export default function App() {
           </div>
 
           {/* Preferences & Utilities Card */}
-          <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-3xs space-y-2.5">
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 block">System Utilities</span>
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-2xl shadow-3xs space-y-2.5 transition-colors">
+            <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-3 block">System Utilities</span>
             
             <button
               onClick={() => setShowResetModal(true)}
-              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-600 hover:text-red-750 hover:bg-red-50/50 border border-transparent hover:border-red-100 transition-all cursor-pointer"
+              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-650 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
             >
-              <Trash2 className="w-4 h-4 text-red-500" />
+              <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
               Reset App Data
             </button>
           </div>
@@ -1076,7 +1079,33 @@ export default function App() {
           
           {/* Top Real-time Smart Advice Banner (on overview) */}
           {activeTab === 'dash' && (
-            <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs space-y-5">
+            <div className="space-y-6">
+              {/* Proactive Seeding Wiping Alert Card */}
+              {hasSeededData && user && !user.isDemo && (
+                <div className="p-4 bg-amber-50/70 dark:bg-amber-955/20 border border-amber-200 dark:border-amber-900/35 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-amber-900 dark:text-amber-400 flex items-center gap-1.5">
+                      <AlertTriangle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-500 animate-bounce" />
+                      Sample Seeding Records Detected
+                    </h4>
+                    <p className="text-[11px] text-amber-700 dark:text-slate-400 font-medium leading-relaxed">
+                      Your cloud database holds mock demo inputs. Wipe them out instantly to start tracking with a completely clean slate and $0.00 balances.
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to delete all sample transactions, budgets, and savings goals? This clears your ledger to exactly $0.00.")) {
+                        await handleResetAllData();
+                      }
+                    }}
+                    className="py-1.5 px-3.5 bg-amber-600 hover:bg-amber-750 dark:bg-amber-700 dark:hover:bg-amber-600 text-white text-[10px] font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0 animate-pulse font-sans font-semibold"
+                  >
+                    Wipe & Start Fresh
+                  </button>
+                </div>
+              )}
+
+              <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-5 transition-colors">
               <div className="flex items-center justify-between border-b border-gray-50 pb-3">
                 <div className="flex items-center gap-2.5">
                   <Sparkles className="w-5 h-5 text-purple-600" />
@@ -1161,6 +1190,7 @@ export default function App() {
                 </div>
               ) : null}
             </div>
+          </div>
           )}
 
           {/* Active rendering tabs content */}
@@ -1306,56 +1336,56 @@ export default function App() {
       {/* Reset Confirmation Drawer / Modal */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowResetModal(false)}
-              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-red-550/10 text-red-600 rounded-2xl mt-0.5">
+              <div className="p-3 bg-red-550/10 text-red-650 dark:text-red-400 rounded-2xl mt-0.5">
                 <Trash2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-gray-900">Reset Application Data</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Reset Application Data</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
                   You are about to wipe out all seed placeholder transactions, category budgets, and savings goals. This allows you to start tracking your real funds and statistics on a completely clean canvas.
                 </p>
               </div>
             </div>
 
-            <div className="bg-red-50/50 rounded-xl p-4 border border-red-100 text-[11px] leading-relaxed text-red-800 space-y-2">
-              <p className="font-bold uppercase tracking-wider text-[9px] text-red-650">Warning: Irreversible Operation</p>
+            <div className="bg-red-50/50 dark:bg-red-955/10 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-800 dark:text-red-305 space-y-2">
+              <p className="font-bold uppercase tracking-wider text-[9px] text-red-650 dark:text-red-400">Warning: Irreversible Operation</p>
               <ul className="list-disc pl-4 space-y-1 font-medium">
                 <li>Permanently deletes the {transactions.length} pre-filled placeholder transactions inside your Ledger ledger.</li>
                 <li>Clears your {budgets.length} budget limit constraints entirely.</li>
                 <li>Wipes out {goals.length} active savings Goals and their accrued progressions.</li>
                 <li>Purges historical conversational chatbot logs.</li>
               </ul>
-              <p className="mt-2 text-red-700/80">
+              <p className="mt-2 text-red-700/80 dark:text-red-300/80">
                 Your selected currency settings (<span className="font-bold underline">{currency}</span>) will be retained.
               </p>
             </div>
 
             {/* Checkbox option to also erase custom templates */}
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-2 pt-1 font-sans">
               <input
                 type="checkbox"
                 id="delete-templates-chk"
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded-md focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-slate-750 bg-white dark:bg-slate-950 rounded-md focus:ring-blue-500 cursor-pointer"
                 defaultChecked={false}
               />
-              <label htmlFor="delete-templates-chk" className="text-xs text-gray-600 font-medium select-none cursor-pointer">
+              <label htmlFor="delete-templates-chk" className="text-xs text-gray-650 dark:text-slate-350 font-medium select-none cursor-pointer">
                 Also remove my {customTemplates.length} custom saved budget templates/blueprints
               </label>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
               <button
                 onClick={() => setShowResetModal(false)}
-                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-750 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-300 text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -1368,7 +1398,7 @@ export default function App() {
                   }
                   handleResetAllData();
                 }}
-                className="py-2.5 px-5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                className="py-2.5 px-5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
               >
                 Clean App Slate
               </button>
