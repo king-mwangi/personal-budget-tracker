@@ -1,0 +1,6 @@
+{
+  "name": "Personal Finance & Budget Tracker",
+  "description": "A personal finance manager and smart monthly budget tracker with Gemini AI financial insights and an interactive advisor.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
