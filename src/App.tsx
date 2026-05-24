@@ -873,8 +873,8 @@ export default function App() {
             {/* Supabase Authentication Status & Sign Out */}
             {user && (
               <div className="flex items-center gap-2 mr-1">
-                <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400 max-w-[100px] truncate hidden sm:inline" title={user.email}>
-                  {user.isDemo ? 'Demo-Mode' : user.email}
+                <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400 max-w-[150px] truncate hidden sm:inline" title={user.email}>
+                  {user.isDemo ? (user.email === 'demo_user@ledgersmart.com' ? 'Local Workspace' : user.email) : user.email}
                 </span>
                 <button
                   onClick={async () => {
@@ -1087,29 +1087,29 @@ export default function App() {
           {activeTab === 'dash' && (
             <div className="space-y-6">
               {/* Proactive Seeding Wiping Alert Card */}
-              {hasSeededData && user && !user.isDemo && (
-                <div className="p-4 bg-amber-50/70 dark:bg-amber-955/20 border border-amber-200 dark:border-amber-900/35 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-amber-900 dark:text-amber-400 flex items-center gap-1.5">
-                      <AlertTriangle className="w-4.5 h-4.5 text-amber-600 dark:text-amber-500 animate-bounce" />
-                      Sample Seeding Records Detected
-                    </h4>
-                    <p className="text-[11px] text-amber-700 dark:text-slate-400 font-medium leading-relaxed">
-                      Your cloud database holds mock demo inputs. Wipe them out instantly to start tracking with a completely clean slate and $0.00 balances.
-                    </p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (window.confirm("Are you sure you want to delete all sample transactions, budgets, and savings goals? This clears your ledger to exactly $0.00.")) {
-                        await handleResetAllData();
-                      }
-                    }}
-                    className="py-1.5 px-3.5 bg-amber-600 hover:bg-amber-750 dark:bg-amber-700 dark:hover:bg-amber-600 text-white text-[10px] font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0 animate-pulse font-sans font-semibold"
-                  >
-                    Wipe & Start Fresh
-                  </button>
-                </div>
-              )}
+               {hasSeededData && user && (
+                 <div className="p-4 bg-amber-50/70 dark:bg-amber-955/10 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
+                   <div className="space-y-1">
+                     <h4 className="text-xs font-semibold text-amber-900 dark:text-amber-400 flex items-center gap-1.5">
+                       <Info className="w-4.5 h-4.5 text-amber-600 dark:text-amber-500 animate-pulse" />
+                       Initial Portfolio Setup Active
+                     </h4>
+                     <p className="text-[11px] text-amber-700 dark:text-slate-400 font-medium leading-relaxed">
+                       To start your ledger tracker with a completely clean slate, clear the default entries and start from a fresh $0.00 balance state.
+                     </p>
+                   </div>
+                   <button
+                     onClick={async () => {
+                       if (window.confirm("Are you sure you want to delete all initial transactions, budgets, and savings goals? This clears your ledger of all custom files and records.")) {
+                         await handleResetAllData();
+                       }
+                     }}
+                     className="py-1.5 px-3.5 bg-amber-600 hover:bg-amber-750 dark:bg-amber-700 dark:hover:bg-amber-600 text-white text-[10px] font-bold rounded-xl shadow-xs transition-colors cursor-pointer self-start sm:self-auto shrink-0 animate-pulse font-sans font-semibold"
+                   >
+                     Clear & Start Fresh
+                   </button>
+                 </div>
+               )}
 
               <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-5 transition-colors">
               <div className="flex items-center justify-between border-b border-gray-50 pb-3">
@@ -1133,16 +1133,46 @@ export default function App() {
                   <span className="text-xs text-gray-400 font-bold uppercase tracking-widest font-mono">Synthesizing spend logs...</span>
                 </div>
               ) : insightsError ? (
-                /* Gemini unavailable fallback template */
-                <div className="flex items-start gap-4 p-4.5 bg-gray-50 border border-gray-150 rounded-xl">
-                  <Info className="w-5 h-5 text-gray-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-gray-700">Advisory Demo Mode</h4>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
-                      To activate custom live diagnostic metrics, supply your <span className="font-mono text-[10px] bg-gray-150 font-bold px-1.5 py-0.5 rounded text-gray-700">GEMINI_API_KEY</span> inside your app secrets or `.env` configuration file. 
+                /* Sleek static general wealth tips fallback */
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase py-0.5 px-2.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800">
+                      Standard Guidelines Active
+                    </span>
+                    <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 leading-relaxed">
+                      Structured guidelines to benchmark and improve your cash flow stability.
                     </p>
-                    <div className="pt-2 text-[11px] font-medium text-purple-700">
-                      💡 Quick Budget Tip: Try keeping total fixed expenses under 50% of monthly income to guarantee a 20% savings margin.
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100 dark:border-slate-805">
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800/60 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">The 50/30/20 Rule</h4>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Benchmark your capital inflows: assign 50% to essential needs, 30% to wants, and reserve 20% for future stability goals.
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800/60 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-emerald-500" />
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Reserve Safe Buffer</h4>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Aim to construct an Emergency Safety Net covering 3 to 6 months of fundamental outflows to stand firm against unexpected events.
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800/60 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-blue-500" />
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Evaluate Fixed Costs</h4>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                        Wipe out under-utilized sub-bills! Auditing fixed contracts monthly avoids sneaky wealth drain lines inside empty spaces.
+                      </p>
                     </div>
                   </div>
                 </div>
