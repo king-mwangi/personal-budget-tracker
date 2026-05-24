@@ -80,6 +80,14 @@ export default function App() {
     }
   });
   const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [readBudgetAlerts, setReadBudgetAlerts] = useState<string[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_read_budget_alerts');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [notificationPermissionState, setNotificationPermissionState] = useState<string>(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       return Notification.permission;
@@ -180,6 +188,13 @@ export default function App() {
       };
     }).filter(item => item.percent >= 90);
   }, [transactions, budgets]);
+
+  const unreadBudgetAlerts = React.useMemo(() => {
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    return currentMonthBudgetAlerts.filter(alert => 
+      !readBudgetAlerts.includes(`${currentMonth}:${alert.category}`)
+    );
+  }, [currentMonthBudgetAlerts, readBudgetAlerts]);
 
   // Request browser Notification permissions and dispatch triggers
   useEffect(() => {
@@ -945,6 +960,25 @@ export default function App() {
     setTimeout(() => setNotificationStatusMsg(null), 3500);
   };
 
+  const handleMarkAllAsRead = () => {
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const alertKeys = currentMonthBudgetAlerts.map(alert => `${currentMonth}:${alert.category}`);
+    setReadBudgetAlerts(prev => {
+      const next = Array.from(new Set([...prev, ...alertKeys]));
+      localStorage.setItem('fin_tracker_read_budget_alerts', JSON.stringify(next));
+      return next;
+    });
+    setNotificationStatusMsg("All notifications marked as read.");
+    setTimeout(() => setNotificationStatusMsg(null), 3000);
+  };
+
+  const handleResetReadAlerts = () => {
+    setReadBudgetAlerts([]);
+    localStorage.removeItem('fin_tracker_read_budget_alerts');
+    setNotificationStatusMsg("Dismissed alerts restaged into unread queue!");
+    setTimeout(() => setNotificationStatusMsg(null), 3000);
+  };
+
   const handleClearHistory = async () => {
     if (confirm("Confirm erasing chatbot conversational memory?")) {
       setChatMessages([]);
@@ -1253,19 +1287,19 @@ export default function App() {
                 onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
                 title="Current Month Budget Alerts & Notifications"
                 className={`p-2 border rounded-xl transition-all cursor-pointer flex items-center justify-center relative ${
-                  currentMonthBudgetAlerts.length > 0 
-                    ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-105 dark:hover:bg-slate-900' 
+                  unreadBudgetAlerts.length > 0 
+                    ? 'bg-amber-50/50 dark:bg-amber-955/15 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-105 dark:hover:bg-slate-900' 
                     : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                {currentMonthBudgetAlerts.length > 0 ? (
+                {unreadBudgetAlerts.length > 0 ? (
                   <BellRing className="w-4 h-4 text-amber-500 shrink-0" />
                 ) : (
                   <Bell className="w-4 h-4 shrink-0" />
                 )}
-                {currentMonthBudgetAlerts.length > 0 && (
+                {unreadBudgetAlerts.length > 0 && (
                   <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 text-[9px] text-white flex items-center justify-center rounded-full font-extrabold border-2 border-white dark:border-slate-905">
-                    {currentMonthBudgetAlerts.length}
+                    {unreadBudgetAlerts.length}
                   </span>
                 )}
               </button>
@@ -1325,14 +1359,19 @@ export default function App() {
                     </div>
 
                     {/* Main items triggers */}
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {currentMonthBudgetAlerts.length === 0 ? (
-                        <div className="text-center py-4 text-slate-400/80 space-y-1">
-                          <p className="font-bold">✓ All Under Limit</p>
-                          <p className="text-[10px] leading-relaxed">Every monitored expense category is healthy and under 90% of budget constraints for this month.</p>
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1 text-left">
+                      {unreadBudgetAlerts.length === 0 ? (
+                        <div className="text-center py-4 text-slate-450 dark:text-slate-500 space-y-1">
+                          <p className="font-bold text-gray-800 dark:text-slate-200">✓ All Alerts Handled</p>
+                          <p className="text-[10px] leading-relaxed">
+                            {currentMonthBudgetAlerts.length > 0 
+                              ? `You have marked all ${currentMonthBudgetAlerts.length} active budget alerts as read.` 
+                              : "Every monitored expense category is healthy and under 90% of budget constraints for this month."
+                            }
+                          </p>
                         </div>
                       ) : (
-                        currentMonthBudgetAlerts.map(alert => (
+                        unreadBudgetAlerts.map(alert => (
                           <div key={alert.category} className="p-2.5 border border-amber-100/60 dark:border-amber-955/30 bg-amber-50/25 dark:bg-amber-955/5 rounded-xl flex items-center justify-between gap-3">
                             <div className="space-y-0.5 text-left flex-1 min-w-0">
                               <p className="font-bold text-gray-800 dark:text-slate-200 truncate">{alert.category}</p>
@@ -1358,15 +1397,35 @@ export default function App() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-gray-100 dark:border-slate-800 pt-2.5 text-[10px] gap-2">
-                      <span className="text-slate-400">Rules configured at &gt;= 90%</span>
-                      <button
-                        onClick={resetNotificationTriggerHistory}
-                        title="Clear triggered triggers log so you can test them again"
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
-                      >
-                        Reset Trigger History
-                      </button>
+                    <div className="flex flex-col gap-2 border-t border-gray-100 dark:border-slate-800 pt-2.5">
+                      <div className="flex items-center justify-between text-[10px] gap-2 pt-0.5">
+                        {unreadBudgetAlerts.length > 0 && (
+                          <button
+                            onClick={handleMarkAllAsRead}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-750 dark:hover:text-blue-355 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
+                          >
+                            ✓ Mark all as read
+                          </button>
+                        )}
+                        {readBudgetAlerts.length > 0 && (
+                          <button
+                            onClick={handleResetReadAlerts}
+                            className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:underline cursor-pointer bg-transparent border-0 p-0 flex items-center gap-1"
+                          >
+                            Show Dismissed
+                          </button>
+                        )}
+                        <span className="text-slate-450 dark:text-slate-500 ml-auto select-none">Rules at &gt;= 90%</span>
+                      </div>
+                      <div className="flex items-center justify-end border-t border-gray-50 dark:border-slate-805/40 pt-1.5 text-[10px]">
+                        <button
+                          onClick={resetNotificationTriggerHistory}
+                          title="Clear triggered triggers log so you can test them again"
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
+                        >
+                          Reset Trigger History
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </>
