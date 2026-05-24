@@ -96,10 +96,17 @@ app.post("/api/insights", async (req, res) => {
     res.json(parsedResult);
   } catch (error: any) {
     console.error("Gemini Insights Error:", error);
-    // Graceful fallback for demo resilience when API key is missing
-    res.status(error.message && error.message.includes("GEMINI_API_KEY") ? 403 : 500).json({
-      error: error.message || "An issue occurred while calling Gemini AI",
-      isKeyMissing: !process.env.GEMINI_API_KEY
+    const errMsg = error?.message || String(error || "");
+    const isKeyMissing = !process.env.GEMINI_API_KEY;
+    let status = 500;
+    if (errMsg.includes("GEMINI_API_KEY")) {
+      status = 403;
+    } else if (error?.status === 429 || errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+      status = 429;
+    }
+    res.status(status).json({
+      error: errMsg || "An issue occurred while calling Gemini AI",
+      isKeyMissing
     });
   }
 });
@@ -151,9 +158,17 @@ app.post("/api/advisor", async (req, res) => {
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Gemini Advisor Error:", error);
-    res.status(error.message && error.message.includes("GEMINI_API_KEY") ? 403 : 500).json({
-      error: error.message || "An issue occurred while calling Gemini AI",
-      isKeyMissing: !process.env.GEMINI_API_KEY
+    const errMsg = error?.message || String(error || "");
+    const isKeyMissing = !process.env.GEMINI_API_KEY;
+    let status = 500;
+    if (errMsg.includes("GEMINI_API_KEY")) {
+      status = 403;
+    } else if (error?.status === 429 || errMsg.includes("429") || errMsg.includes("quota") || errMsg.includes("RESOURCE_EXHAUSTED")) {
+      status = 429;
+    }
+    res.status(status).json({
+      error: errMsg || "An issue occurred while calling Gemini AI",
+      isKeyMissing
     });
   }
 });

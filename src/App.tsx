@@ -104,6 +104,7 @@ export default function App() {
   } | null>(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
+  const [isInsightsStale, setIsInsightsStale] = useState(false);
 
   // Safe client-side preferences (currency, darkmode) preserved in localStorage
   useEffect(() => {
@@ -322,10 +323,20 @@ export default function App() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Server returned and error invoking Insights.');
+        const isQuota = response.status === 429 || (errorData.error && (errorData.error.includes("RESOURCE_EXHAUSTED") || errorData.error.includes("quota") || errorData.error.includes("429")));
+        if (isQuota) {
+          throw new Error("QUOTA_EXHAUSTED: You exceeded your current Gemini daily API quota limit (20 free calls per day). Displaying high-quality static financial advisory checklists below to keep you fully on track!");
+        }
+        throw new Error(errorData.error || 'Server returned an error invoking Insights.');
       }
       const data = await response.json();
       setAIInsights(data);
+      setIsInsightsStale(false);
+      try {
+        localStorage.setItem('fin_tracker_ai_insights', JSON.stringify(data));
+      } catch (e) {
+        console.warn("Could not cache insights locally:", e);
+      }
     } catch (err: any) {
       console.error(err);
       setInsightsError(err.message || "Insights could not be computed.");
@@ -334,10 +345,23 @@ export default function App() {
     }
   };
 
-  // Run dynamic advisor insights on startup or currency change
+  // Run dynamic advisor insights on startup or currency change with localStorage resilience
   useEffect(() => {
     if (isDataLoaded) {
-      fetchAIInsights();
+      const cached = localStorage.getItem('fin_tracker_ai_insights');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          setAIInsights(parsed);
+          // If loaded from cache on startup, mark it stale relative to live database but don't force auto-fetch
+          setIsInsightsStale(true);
+        } catch (e) {
+          console.warn("Could not parse cached insights:", e);
+          fetchAIInsights();
+        }
+      } else {
+        fetchAIInsights();
+      }
     }
   }, [currency, isDataLoaded]);
 
@@ -361,8 +385,8 @@ export default function App() {
       });
     }
 
-    // Refresh insights automatically to match new balance logs
-    setTimeout(() => fetchAIInsights(), 1500);
+    // Mark insights stale to recommend on-demand compilation
+    setIsInsightsStale(true);
   };
 
   // Handler editing transactions
@@ -380,7 +404,7 @@ export default function App() {
       }).eq('id', id);
     }
 
-    setTimeout(() => fetchAIInsights(), 1500);
+    setIsInsightsStale(true);
   };
 
   const handleDeleteTransaction = async (id: string) => {
@@ -391,7 +415,7 @@ export default function App() {
         await supabase.from('transactions').delete().eq('id', id);
       }
 
-      setTimeout(() => fetchAIInsights(), 1550);
+      setIsInsightsStale(true);
     }
   };
 
@@ -416,7 +440,7 @@ export default function App() {
       });
     }
 
-    setTimeout(() => fetchAIInsights(), 500);
+    setIsInsightsStale(true);
   };
 
   const handleDeleteBudget = async (category: string) => {
@@ -426,7 +450,7 @@ export default function App() {
       await supabase.from('budgets').delete().eq('user_id', user.id).eq('category', category);
     }
 
-    setTimeout(() => fetchAIInsights(), 500);
+    setIsInsightsStale(true);
   };
 
   // Goal update handler
@@ -543,9 +567,7 @@ export default function App() {
       }).eq('id', id);
     }
 
-    setTimeout(() => {
-      fetchAIInsights();
-    }, 1500);
+    setIsInsightsStale(true);
   };
 
   // Send message chat proxy call handler to `/api/advisor`
@@ -649,9 +671,7 @@ export default function App() {
     
     setShowResetModal(false);
     
-    setTimeout(() => {
-      fetchAIInsights();
-    }, 500);
+    setIsInsightsStale(true);
   };
 
   const handleSaveTemplate = async (newTemplate: BudgetTemplate) => {
@@ -820,10 +840,8 @@ export default function App() {
       setTransactions(prev => [...generated, ...prev]);
     }
 
-    // Auto update advisor insight summaries
-    setTimeout(() => {
-      fetchAIInsights();
-    }, 1500);
+    // Mark insights stale to require compilations on user command
+    setIsInsightsStale(true);
   };
 
   const triggerAIBudgetAssistant = () => {
@@ -1120,10 +1138,16 @@ export default function App() {
                 <button
                   onClick={fetchAIInsights}
                   disabled={loadingInsights}
-                  className="text-[10px] font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 py-1 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="text-[10px] font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 py-1 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer relative"
                 >
+                  {isInsightsStale && (
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                  )}
                   <RefreshCw className={`w-3 h-3 ${loadingInsights ? 'animate-spin' : ''}`} />
-                  Refresh
+                  {isInsightsStale ? 'Update' : 'Refresh'}
                 </button>
               </div>
 
@@ -1133,8 +1157,30 @@ export default function App() {
                   <span className="text-xs text-gray-400 font-bold uppercase tracking-widest font-mono">Synthesizing spend logs...</span>
                 </div>
               ) : insightsError ? (
-                /* Sleek static general wealth tips fallback */
+                /* Sleek static general wealth tips fallback with specific error handling alerts */
                 <div className="space-y-4">
+                  {insightsError.includes("QUOTA_EXHAUSTED") ? (
+                    <div className="p-3.5 bg-amber-50/70 border border-amber-200/60 dark:bg-amber-955/15 dark:border-amber-900/40 rounded-xl space-y-1.5 shadow-2xs">
+                      <div className="flex items-center gap-2 text-amber-805 dark:text-amber-400">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Gemini Rate Limit Throttled (429)</span>
+                      </div>
+                      <p className="text-[11px] font-medium text-amber-850/80 dark:text-amber-400/80 leading-relaxed">
+                        You have fully consumed the 20 queries daily standard Gemini free quota limit on your API key. To safeguard your experience, Ledger Smart has automatically engaged the offline analytical framework below!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3.5 bg-slate-50/70 border border-slate-200/60 dark:bg-slate-905 dark:border-slate-805 rounded-xl space-y-1 my-1">
+                      <div className="flex items-center gap-2 text-slate-700 dark:text-slate-400">
+                        <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
+                        <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Diagnostics Fallback Engaged</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed font-mono">
+                        {insightsError}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] font-bold uppercase py-0.5 px-2.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800">
                       Standard Guidelines Active
