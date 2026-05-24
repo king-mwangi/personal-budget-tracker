@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction } from './types';
+import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
@@ -127,6 +127,14 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [customTemplates, setCustomTemplates] = useState<BudgetTemplate[]>([]);
   const [recurringItems, setRecurringItems] = useState<RecurringTransaction[]>([]);
+  const [snapshots, setSnapshots] = useState<MonthlySnapshot[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_snapshots');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
@@ -245,7 +253,22 @@ export default function App() {
   useEffect(() => {
     setIsAuthLoading(true);
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Retrieve active auth session error:", error);
+        if (
+          error.message?.includes('Refresh Token') || 
+          error.message?.includes('refresh_token') || 
+          error.message?.includes('invalid_grant') ||
+          error.status === 400 ||
+          error.status === 401
+        ) {
+          supabase.auth.signOut().catch(() => {});
+          setUser(null);
+        }
+      }
+
+      const session = data?.session;
       if (session?.user) {
         setUser(session.user);
         if (window.location.hash || window.location.search) {
@@ -257,6 +280,8 @@ export default function App() {
       setIsAuthLoading(false);
     }).catch((err) => {
       console.error("Retrieve active auth session error:", err);
+      supabase.auth.signOut().catch(() => {});
+      setUser(null);
       setIsAuthLoading(false);
     });
 
@@ -365,12 +390,32 @@ export default function App() {
           timestamp: c.timestamp
         })) : [];
 
+        // Fetch snapshots
+        const { data: snapshotData } = await supabase.from('snapshots').select('*').eq('user_id', user.id).order('month', { ascending: false });
+        const snapshotsLoaded = snapshotData ? snapshotData.map((s: any) => ({
+          id: s.id,
+          user_id: s.user_id,
+          month: s.month,
+          created_at: s.created_at,
+          total_income: parseFloat(s.total_income || '0'),
+          total_expense: parseFloat(s.total_expense || '0'),
+          net_savings: parseFloat(s.net_savings || '0'),
+          savings_rate: parseFloat(s.savings_rate || '0'),
+          income_categories: typeof s.income_categories === 'string' ? JSON.parse(s.income_categories) : (s.income_categories || []),
+          expense_categories: typeof s.expense_categories === 'string' ? JSON.parse(s.expense_categories) : (s.expense_categories || []),
+          transaction_count: parseInt(s.transaction_count || '0')
+        })) : [];
+
         setBudgets(budgetsLoaded);
         setTransactions(transactionsLoaded);
         setGoals(goalsLoaded);
         setCustomTemplates(templatesLoaded);
         setRecurringItems(recurringLoaded);
         setChatMessages(chatsLoaded);
+        setSnapshots(snapshotsLoaded);
+        try {
+          localStorage.setItem('fin_tracker_snapshots', JSON.stringify(snapshotsLoaded));
+        } catch (_) {}
       } catch (err) {
         console.error("Supabase user data fetch failure:", err);
       } finally {
@@ -608,6 +653,64 @@ export default function App() {
     }
 
     setIsInsightsStale(true);
+  };
+
+  // Snapshot control handlers
+  const handleAddSnapshot = async (newSnapshot: Omit<MonthlySnapshot, 'id' | 'user_id' | 'created_at'>) => {
+    const snapshotId = Math.random().toString(36).substring(2, 9);
+    const userId = user ? user.id : 'demo-user';
+    const createdAt = new Date().toISOString();
+
+    const fresh: MonthlySnapshot = {
+      ...newSnapshot,
+      id: snapshotId,
+      user_id: userId,
+      created_at: createdAt
+    };
+
+    setSnapshots(prev => {
+      const next = [fresh, ...prev];
+      localStorage.setItem('fin_tracker_snapshots', JSON.stringify(next));
+      return next;
+    });
+
+    if (user && !user.isDemo) {
+      try {
+        await supabase.from('snapshots').insert({
+          id: fresh.id,
+          user_id: fresh.user_id,
+          month: fresh.month,
+          created_at: fresh.created_at,
+          total_income: fresh.total_income,
+          total_expense: fresh.total_expense,
+          net_savings: fresh.net_savings,
+          savings_rate: fresh.savings_rate,
+          income_categories: JSON.stringify(fresh.income_categories),
+          expense_categories: JSON.stringify(fresh.expense_categories),
+          transaction_count: fresh.transaction_count
+        });
+      } catch (err) {
+        console.error("Failed to insert snapshot to Supabase:", err);
+      }
+    }
+  };
+
+  const handleDeleteSnapshot = async (id: string) => {
+    if (confirm("Are you sure you want to delete this historical monthly snapshot?")) {
+      setSnapshots(prev => {
+        const next = prev.filter(s => s.id !== id);
+        localStorage.setItem('fin_tracker_snapshots', JSON.stringify(next));
+        return next;
+      });
+
+      if (user && !user.isDemo) {
+        try {
+          await supabase.from('snapshots').delete().eq('id', id);
+        } catch (err) {
+          console.error("Failed to delete snapshot from Supabase:", err);
+        }
+      }
+    }
   };
 
   // Goal update handler
@@ -994,6 +1097,8 @@ export default function App() {
     setGoals([]);
     setChatMessages([]);
     setRecurringItems([]);
+    setSnapshots([]);
+    localStorage.removeItem('fin_tracker_snapshots');
 
     if (user && !user.isDemo) {
       await supabase.from('transactions').delete().eq('user_id', user.id);
@@ -1001,6 +1106,7 @@ export default function App() {
       await supabase.from('savings_goals').delete().eq('user_id', user.id);
       await supabase.from('chat_messages').delete().eq('user_id', user.id);
       await supabase.from('recurring_transactions').delete().eq('user_id', user.id);
+      await supabase.from('snapshots').delete().eq('user_id', user.id);
     }
     
     setShowResetModal(false);
@@ -1890,6 +1996,9 @@ export default function App() {
             <MonthlyReports
               transactions={transactions}
               currencySymbol={currencySymbol}
+              snapshots={snapshots}
+              onAddSnapshot={handleAddSnapshot}
+              onDeleteSnapshot={handleDeleteSnapshot}
             />
           )}
 

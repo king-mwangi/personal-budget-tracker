@@ -64,3 +64,17 @@ export interface RecurringTransaction {
   lastLoggedDate?: string; // YYYY-MM formatted to prevent dual adding
 }
 
+export interface MonthlySnapshot {
+  id: string;
+  user_id: string;
+  month: string; // YYYY-MM
+  created_at?: string;
+  total_income: number;
+  total_expense: number;
+  net_savings: number;
+  savings_rate: number;
+  income_categories: Array<{ category: string; amount: number; percentage: number }>;
+  expense_categories: Array<{ category: string; amount: number; percentage: number }>;
+  transaction_count: number;
+}
+
