@@ -72,6 +72,9 @@ export default function Login({ onDemoBypass }: LoginProps) {
           const { data, error } = await supabase.auth.signUp({
             email: targetEmail,
             password: authPassword,
+            options: {
+              emailRedirectTo: window.location.origin,
+            },
           });
           if (error) throw error;
           

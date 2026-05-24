@@ -31,7 +31,8 @@ import {
   Sun,
   Moon,
   CalendarClock,
-  LogOut
+  LogOut,
+  Lock
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -127,6 +128,9 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
+        if (window.location.hash || window.location.search) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       } else {
         setUser(null);
       }
@@ -139,6 +143,9 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setUser(session.user);
+        if (window.location.hash || window.location.search) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       } else {
         setUser(null);
       }
