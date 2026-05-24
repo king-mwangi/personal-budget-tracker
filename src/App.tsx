@@ -9,6 +9,7 @@ import AIAssistant from './components/AIAssistant';
 import BudgetTemplates from './components/BudgetTemplates';
 import RecurringManager from './components/RecurringManager';
 import Login from './components/Login';
+import MonthlyReports from './components/MonthlyReports';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
@@ -19,6 +20,7 @@ import {
   Sparkles,
   Info,
   Scale,
+  BarChart3,
   BrainCircuit,
   Settings,
   RefreshCw,
@@ -61,7 +63,7 @@ const SEED_SAVINGS: SavingsGoal[] = [
 
 export default function App() {
   // Current active frame tab
-  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
 
   const [showResetModal, setShowResetModal] = useState(false);
 
@@ -1039,6 +1041,20 @@ export default function App() {
               <Sparkles className="w-4.5 h-4.5" />
               Gemini Advisor Chat
             </button>
+
+            {/* Monthly Reports Link */}
+            <button
+              id="sidebar-nav-reports"
+              onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'reports'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <BarChart3 className="w-4.5 h-4.5" />
+              Monthly Reports
+            </button>
           </div>
 
           {/* Preferences & Utilities Card */}
@@ -1285,6 +1301,13 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'reports' && (
+            <MonthlyReports
+              transactions={transactions}
+              currencySymbol={currencySymbol}
+            />
+          )}
+
         </section>
 
       </main>
@@ -1311,6 +1334,13 @@ export default function App() {
         >
           <Scale className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Budgets</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'reports' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <BarChart3 className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Reports</span>
         </button>
         <button 
           onClick={() => { setActiveTab('recurring'); setEditingTx(null); }}
