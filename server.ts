@@ -40,13 +40,14 @@ app.get("/api/health", (req, res) => {
 // AI Insights Generator - Runs structured diagnostic on the user's budgets and logs
 app.post("/api/insights", async (req, res) => {
   try {
-    const { transactions = [], budgets = [], savingsGoals = [] } = req.body;
+    const { transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body;
 
     const ai = getAIClient();
     const prompt = `Analyze the following monthly personal finance snapshot:
     - Budgets: ${JSON.stringify(budgets)}
     - Transactions: ${JSON.stringify(transactions)}
     - Savings Goals: ${JSON.stringify(savingsGoals)}
+    - Active Currency: ${currency}
 
     Provide a professional financial analysis containing overall status, high-level summary, specific actionable insights (noticing specific overspends or saving patterns), and direct category savings goals with estimates.`;
 
@@ -54,7 +55,7 @@ app.post("/api/insights", async (req, res) => {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "You are a senior personal finance expert and budget optimization engine. Provide highly practical, personalized, and encouraging advice purely based on the real uploaded numbers.",
+        systemInstruction: `You are a senior personal finance expert and budget optimization engine. Provide highly practical, personalized, and encouraging advice purely based on the real uploaded numbers. Always frame all monetary advice and estimates around the current active currency: ${currency}.`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -70,7 +71,7 @@ app.post("/api/insights", async (req, res) => {
             actionableInsights: {
               type: Type.ARRAY,
               items: { type: Type.STRING },
-              description: "3 specific, data-contextual observations or milestones (e.g. food is of high velocity, or savings rate looks great)."
+              description: `3 specific, data-contextual observations or milestones (e.g. food is of high velocity, or savings rate looks great) mentioning amounts with currency prefix: ${currency}.`
             },
             savingsOpportunities: {
               type: Type.ARRAY,
@@ -78,8 +79,8 @@ app.post("/api/insights", async (req, res) => {
                 type: Type.OBJECT,
                 properties: {
                   category: { type: Type.STRING, description: "Relevant budget category (e.g. Food, Utilities)" },
-                  savingEstimate: { type: Type.NUMBER, description: "Monthly potential savings target in dollars" },
-                  actionableTip: { type: Type.STRING, description: "Specific tip or substitution behavior to achieve this saving." }
+                  savingEstimate: { type: Type.NUMBER, description: `Monthly potential savings target in the active currency: ${currency}` },
+                  actionableTip: { type: Type.STRING, description: `Specific tip or substitution behavior to achieve this saving. Mention the potential saving amount using the currency symbol ${currency}.` }
                 },
                 required: ["category", "savingEstimate", "actionableTip"]
               },
@@ -106,7 +107,7 @@ app.post("/api/insights", async (req, res) => {
 // AI Advisor Chat Bot - Supports conversation informed by current accounts status
 app.post("/api/advisor", async (req, res) => {
   try {
-    const { messages = [], transactions = [], budgets = [], savingsGoals = [] } = req.body;
+    const { messages = [], transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body;
 
     if (!messages || messages.length === 0) {
       return res.status(400).json({ error: "Messages array is required" });
@@ -114,15 +115,16 @@ app.post("/api/advisor", async (req, res) => {
 
     const ai = getAIClient();
 
-    // Map system context instruction incorporating financial records
+    // Map system context instruction incorporating financial records and current currency
     const systemInstruction = `You are "Gemini Wealth Advisor", a supportive, professional, and practical personal finance chatbot assistant.
     You have direct access to the user's monthly budgets, recent transactions logs, and savings goals:
     - Budgets: ${JSON.stringify(budgets)}
     - Transactions: ${JSON.stringify(transactions)}
     - Savings Goals: ${JSON.stringify(savingsGoals)}
+    - Active Currency: ${currency}
 
     Guidance rules:
-    1. Ground advice strictly in their realistic spending if applicable.
+    1. Ground advice strictly in their realistic spending if applicable. All mentions of money must match the active currency (${currency}).
     2. Suggest concrete savings tips, budgeting principles (e.g., 50/30/20 rule), or retirement views.
     3. Keep answers concise, highly structured (use double newlines and clean bold markers), and encouraging.
     4. Provide numbered lists for action points.

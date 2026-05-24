@@ -10,7 +10,8 @@ import {
   Filter, 
   ChevronLeft, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Download
 } from 'lucide-react';
 
 interface TransactionListProps {
@@ -37,6 +38,35 @@ export default function TransactionList({
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  // CSV Export action
+  const handleExportCSV = () => {
+    try {
+      const headers = ['ID', 'Type', 'Amount', 'Category', 'Date', 'Description'];
+      const rows = transactions.map(tx => [
+        tx.id,
+        tx.type,
+        tx.amount,
+        tx.category,
+        tx.date,
+        `"${tx.description.replace(/"/g, '""')}"`
+      ]);
+      
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+        
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `ledger_smart_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Export error", err);
+    }
+  };
+
 
   // Derived list of matching transactions
   const processedTransactions = useMemo(() => {
@@ -118,15 +148,28 @@ export default function TransactionList({
             Transaction Ledger
           </h3>
 
-          {onAskAIAboutTrends && transactions.length > 0 && (
-            <button
-              onClick={handleAIQuery}
-              className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-medium py-1 px-3 rounded-lg text-xs transition-colors cursor-pointer w-fit"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              Analyze Outflows
-            </button>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {transactions.length > 0 && (
+              <button
+                onClick={handleExportCSV}
+                title="Download spreadsheet backup of logged transactions."
+                className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-semibold py-1 px-3 rounded-lg text-xs transition-colors cursor-pointer w-fit"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-600" />
+                Export CSV
+              </button>
+            )}
+
+            {onAskAIAboutTrends && transactions.length > 0 && (
+              <button
+                onClick={handleAIQuery}
+                className="flex items-center gap-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-semibold py-1 px-3 rounded-lg text-xs transition-colors cursor-pointer w-fit"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                Analyze Outflows
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Dynamic Action bars */}

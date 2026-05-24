@@ -52,3 +52,15 @@ export interface FinancialSummary {
   budgets: Budget[];
   savingsGoals: SavingsGoal[];
 }
+
+export interface RecurringTransaction {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  category: string;
+  description: string;
+  dayOfMonth: number;
+  autoLog: boolean;
+  lastLoggedDate?: string; // YYYY-MM formatted to prevent dual adding
+}
+

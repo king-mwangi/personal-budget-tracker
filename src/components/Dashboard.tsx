@@ -5,18 +5,32 @@ import {
   ArrowUpRight, 
   ArrowDownRight, 
   Wallet, 
-  Percent,
-  Calendar,
-  AlertCircle
+  Percent, 
+  Calendar, 
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 
 interface DashboardProps {
   transactions: Transaction[];
   budgets: Budget[];
   currencySymbol?: string;
+  aiInsights?: {
+    overallStatus: string;
+    summaryMessage: string;
+    actionableInsights: string[];
+    savingsOpportunities: { category: string; savingEstimate: number; actionableTip: string }[];
+  } | null;
+  loadingInsights?: boolean;
 }
 
-export default function Dashboard({ transactions, budgets, currencySymbol = "$" }: DashboardProps) {
+export default function Dashboard({ 
+  transactions, 
+  budgets, 
+  currencySymbol = "$",
+  aiInsights = null,
+  loadingInsights = false
+}: DashboardProps) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
@@ -143,17 +157,118 @@ export default function Dashboard({ transactions, budgets, currencySymbol = "$" 
     return `${sparklinePath} L ${last.x} ${svgHeight - 20} L ${first.x} ${svgHeight - 20} Z`;
   }, [trendPoints, sparklinePath, svgHeight]);
 
+  // Find highest expense category
+  const { fastestCategory, fastestAmount } = useMemo(() => {
+    const expenseMap: Record<string, number> = {};
+    transactions.forEach(tx => {
+      if (tx.type === 'expense') {
+        expenseMap[tx.category] = (expenseMap[tx.category] || 0) + tx.amount;
+      }
+    });
+
+    let topCategory = '';
+    let topAmount = 0;
+    Object.entries(expenseMap).forEach(([cat, amt]) => {
+      if (amt > topAmount) {
+        topAmount = amt;
+        topCategory = cat;
+      }
+    });
+
+    return { fastestCategory: topCategory, fastestAmount: topAmount };
+  }, [transactions]);
+
+  // Standard local fallback advice tips
+  const activeSavingTip = useMemo(() => {
+    if (!fastestCategory) {
+      return "Start by logging a few expenses (e.g., Food, Utilities, Transport) to receive custom automated saving tips based on your local velocities.";
+    }
+    switch (fastestCategory) {
+      case 'Food':
+        return `Your food spend is at high velocity. Try planning 2 bulk home-cooked dinners this week to shave off restaurant premiums and potentially save up to ${currencySymbol}100!`;
+      case 'Housing':
+        return "Housing constitutes a major chunk. Consider negotiating fixed utility bundles or switching providers on water/broadband rates to claim monthly savings.";
+      case 'Transport':
+      case 'Transport:':
+        return "Commuter costs adding up? Look into weekly travel-passes or cycle sharing options to trim of excess per-mile taxi charges.";
+      case 'Utilities':
+        return "Unplug phantom appliances, audit your digital subscriptions list, and install smart temperature timers to notice rapid drops in electricity outflows.";
+      case 'Shopping':
+        return "Introduce a strict '48-hour cool-down check' before placing shopping orders to completely weed out impulse buys and secure your savings reserves.";
+      case 'Entertainment':
+        return "Look into free community events, library card options, or gather friends for local potluck games instead of high cost club bookings!";
+      default:
+        return `Consider placing a strict spending budget constraint of around 85% of your current spent on category "${fastestCategory}" to create instant savings of ${currencySymbol}${(fastestAmount * 0.15).toFixed(0)}!`;
+    }
+  }, [fastestCategory, fastestAmount, currencySymbol]);
+
   return (
     <div className="space-y-6">
       {/* Top Welcome Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white border border-gray-100 p-6 rounded-2xl shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Financial Overview</h2>
-          <p className="text-sm text-gray-500 mt-1">Real-time balances, tracking statistics, and cash flow velocities.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Financial Overview</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time balances, tracking statistics, and cash flow velocities.</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center gap-2 bg-gray-50 rounded-lg py-1.5 px-3 border border-gray-200 w-fit self-start sm:self-auto">
+        <div className="mt-4 sm:mt-0 flex items-center gap-2 bg-gray-50 dark:bg-slate-950 rounded-lg py-1.5 px-3 border border-gray-200 dark:border-slate-800 w-fit self-start sm:self-auto">
           <Calendar className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-mono text-gray-600 font-medium">May 2026 Tracking Period</span>
+          <span className="text-xs font-mono text-gray-600 dark:text-gray-400 font-medium font-semibold">May 2026 Tracking Period</span>
+        </div>
+      </div>
+
+      {/* AI-Powered Weekly Insights Box */}
+      <div className="bg-gradient-to-br from-violet-600/10 via-fuchsia-600/5 to-transparent border border-fuchsia-100/40 dark:border-fuchsia-905/30 p-5 rounded-2xl shadow-3xs space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-fuchsia-500/10 text-fuchsia-600 dark:text-fuchsia-400 rounded-lg animate-pulse">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xs text-slate-805 dark:text-slate-100 uppercase tracking-wider">AI Weekly Insights & Diagnostics</h3>
+              <p className="text-[9px] text-fuchsia-500 dark:text-fuchsia-400 font-bold font-mono tracking-wider">GEMINI STRATEGIC COPILOT REPORT</p>
+            </div>
+          </div>
+          {loadingInsights && (
+            <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-705 dark:text-slate-300 font-bold px-2.5 py-1 rounded-md animate-pulse">
+              Analyzing velocity...
+            </span>
+          )}
+        </div>
+
+        {/* Content detail layout */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Col 1: Spending Velocity analysis */}
+          <div className="p-4 bg-white/95 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl space-y-1 shadow-3xs">
+            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Velocity Core Spends</span>
+            <p className="text-sm font-black text-slate-800 dark:text-white">
+              {fastestCategory ? `${fastestCategory} (${currencySymbol}${fastestAmount.toLocaleString('en-US', {maximumFractionDigits:0})})` : "No Spends Recorded"}
+            </p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+              {fastestCategory 
+                ? `Expense patterns show "${fastestCategory}" has the absolute highest spending volume in this billing period.` 
+                : "Active journal contains no expense lines yet. Log expenses to pinpoint leakage."}
+            </p>
+          </div>
+
+          {/* Col 2 & 3: Recommendation summary */}
+          <div className="md:col-span-2 p-4 bg-white/95 dark:bg-slate-900 border border-slate-100 dark:border-slate-800/80 rounded-xl shadow-3xs flex flex-col justify-between gap-3">
+            <div className="space-y-1">
+              <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Tactical Action Recommendation</span>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-250 leading-relaxed">
+                {aiInsights?.summaryMessage || activeSavingTip}
+              </p>
+            </div>
+
+            {aiInsights?.actionableInsights && aiInsights.actionableInsights.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                {aiInsights.actionableInsights.slice(0, 2).map((insight, idx) => (
+                  <span key={idx} className="bg-indigo-50/70 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md border border-indigo-150/30">
+                    💡 {insight}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

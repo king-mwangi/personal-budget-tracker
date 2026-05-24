@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate } from './types';
+import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
@@ -7,6 +7,7 @@ import BudgetManager from './components/BudgetManager';
 import SavingsGoals from './components/SavingsGoals';
 import AIAssistant from './components/AIAssistant';
 import BudgetTemplates from './components/BudgetTemplates';
+import RecurringManager from './components/RecurringManager';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -20,7 +21,12 @@ import {
   Settings,
   RefreshCw,
   FolderHeart,
-  X
+  X,
+  Trash2,
+  AlertTriangle,
+  Sun,
+  Moon,
+  CalendarClock
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -52,7 +58,51 @@ const SEED_SAVINGS: SavingsGoal[] = [
 
 export default function App() {
   // Current active frame tab
-  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring'>('dash');
+
+  const [showResetModal, setShowResetModal] = useState(false);
+
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('fin_tracker_dark_mode');
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [recurringItems, setRecurringItems] = useState<RecurringTransaction[]>(() => {
+    try {
+      const stored = localStorage.getItem('fin_tracker_recurring');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [currency, setCurrency] = useState<string>(() => {
+    try {
+      const stored = localStorage.getItem('fin_tracker_currency');
+      return stored || 'Ksh';
+    } catch {
+      return 'Ksh';
+    }
+  });
+
+  const currencySymbol = currency === 'Ksh' ? 'Ksh ' : currency === 'EUR' ? '€' : '$';
+
+  useEffect(() => {
+    localStorage.setItem('fin_tracker_currency', currency);
+  }, [currency]);
+
+  useEffect(() => {
+    localStorage.setItem('fin_tracker_dark_mode', String(darkMode));
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const [customTemplates, setCustomTemplates] = useState<BudgetTemplate[]>(() => {
     try {
@@ -137,6 +187,43 @@ export default function App() {
     localStorage.setItem('fin_tracker_custom_templates', JSON.stringify(customTemplates));
   }, [customTemplates]);
 
+  useEffect(() => {
+    localStorage.setItem('fin_tracker_recurring', JSON.stringify(recurringItems));
+  }, [recurringItems]);
+
+  // Automated recurring expense trigger checking schedules once a month
+  useEffect(() => {
+    if (recurringItems.length === 0) return;
+    const today = new Date();
+    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const currentDay = today.getDate();
+
+    let hasChanges = false;
+    const updated = recurringItems.map(item => {
+      if (item.autoLog && item.lastLoggedDate !== currentYearMonth && currentDay >= item.dayOfMonth) {
+        hasChanges = true;
+        const newTx: Transaction = {
+          id: 'auto-' + Math.random().toString(36).substring(2, 9),
+          type: item.type,
+          amount: item.amount,
+          category: item.category,
+          date: today.toISOString().split('T')[0],
+          description: `[Auto-Logged] ${item.description}`
+        };
+        setTransactions(prev => [newTx, ...prev]);
+        return {
+          ...item,
+          lastLoggedDate: currentYearMonth
+        };
+      }
+      return item;
+    });
+
+    if (hasChanges) {
+      setRecurringItems(updated);
+    }
+  }, [recurringItems]);
+
   // Request real-time structured advisors tips using `/api/insights`
   const fetchAIInsights = async () => {
     setLoadingInsights(true);
@@ -145,7 +232,7 @@ export default function App() {
       const response = await fetch('/api/insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions, budgets, savingsGoals: goals })
+        body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency })
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -161,10 +248,10 @@ export default function App() {
     }
   };
 
-  // Run dynamic advisor insights on startup
+  // Run dynamic advisor insights on startup or currency change
   useEffect(() => {
     fetchAIInsights();
-  }, []);
+  }, [currency]);
 
   // Handler adding transactions
   const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
@@ -228,6 +315,45 @@ export default function App() {
     }
   };
 
+  // Recurring schedules control handlers
+  const handleAddRecurring = (item: Omit<RecurringTransaction, 'id'>) => {
+    const fresh: RecurringTransaction = {
+      ...item,
+      id: Math.random().toString(36).substring(2, 9)
+    };
+    setRecurringItems(prev => [...prev, fresh]);
+  };
+
+  const handleDeleteRecurring = (id: string) => {
+    if (confirm("Are you sure you want to remove this recurring schedule template?")) {
+      setRecurringItems(prev => prev.filter(r => r.id !== id));
+    }
+  };
+
+  const handleTriggerRecurringManually = (id: string) => {
+    const targetItem = recurringItems.find(r => r.id === id);
+    if (!targetItem) return;
+
+    const today = new Date();
+    const newTx: Transaction = {
+      id: 'man-rec-' + Math.random().toString(36).substring(2, 9),
+      type: targetItem.type,
+      amount: targetItem.amount,
+      category: targetItem.category,
+      date: today.toISOString().split('T')[0],
+      description: `[Manual-Post] ${targetItem.description}`
+    };
+
+    setTransactions(prev => [newTx, ...prev]);
+
+    const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    setRecurringItems(prev => prev.map(r => r.id === id ? { ...r, lastLoggedDate: currentYearMonth } : r));
+
+    setTimeout(() => {
+      fetchAIInsights();
+    }, 1500);
+  };
+
   // Send message chat proxy call handler to `/api/advisor`
   const handleSendMessage = async (text: string) => {
     const userMsg: ChatMessage = {
@@ -249,7 +375,8 @@ export default function App() {
           messages: history,
           transactions,
           budgets,
-          savingsGoals: goals
+          savingsGoals: goals,
+          currency
         })
       });
 
@@ -286,6 +413,25 @@ export default function App() {
     if (confirm("Confirm erasing chatbot conversational memory?")) {
       setChatMessages([]);
     }
+  };
+
+  const handleResetAllData = () => {
+    setTransactions([]);
+    setBudgets([]);
+    setGoals([]);
+    setChatMessages([]);
+    setRecurringItems([]);
+    localStorage.removeItem('fin_tracker_transactions');
+    localStorage.removeItem('fin_tracker_budgets');
+    localStorage.removeItem('fin_tracker_goals');
+    localStorage.removeItem('fin_tracker_chats');
+    localStorage.removeItem('fin_tracker_recurring');
+    
+    setShowResetModal(false);
+    
+    setTimeout(() => {
+      fetchAIInsights();
+    }, 500);
   };
 
   const handleSaveTemplate = (newTemplate: BudgetTemplate) => {
@@ -415,38 +561,64 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/70 text-gray-800 antialiased flex flex-col font-sans">
+    <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
       
       {/* Top Elegant bar */}
-      <header className="bg-white border-b border-gray-150 py-4 px-6 sticky top-0 z-40 shadow-2xs">
+      <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-4 px-6 sticky top-0 z-40 shadow-2xs transition-colors">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-base font-bold text-gray-905 tracking-tight">Ledger Smart</h1>
-              <p className="text-[10px] text-gray-400 font-mono tracking-wider font-semibold">PERSONAL FINANCE COMPANION</p>
+              <h1 className="text-base font-bold text-gray-905 dark:text-white tracking-tight">Ledger Smart</h1>
+              <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono tracking-wider font-semibold">PERSONAL FINANCE COMPANION</p>
             </div>
           </div>
 
-          {/* Quick Stats Header */}
-          <div className="hidden md:flex items-center gap-6 text-xs">
-            <div className="border-l border-gray-200 pl-4">
-              <span className="text-gray-400 font-medium font-mono text-[9px] uppercase">Cash Flow Velocity</span>
-              <p className="font-bold text-gray-800 font-mono mt-0.5">May 2026 Tracking Period</p>
+          <div className="flex items-center gap-3">
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              title={darkMode ? "Switch to Light App Theme" : "Switch to Dark App Theme"}
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400"
+            >
+              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+            </button>
+
+            {/* Currency Selector */}
+            <div className="flex items-center gap-1.5 border border-gray-150 dark:border-slate-800 rounded-xl px-2.5 py-1.5 bg-gray-50/50 dark:bg-slate-900/40 hover:bg-gray-50 dark:hover:bg-gray-900 duration-150 hover:border-gray-255 dark:hover:border-slate-755 transition-colors">
+              <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 font-mono tracking-wider hidden sm:inline">Currency</span>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="bg-transparent border-0 text-gray-700 dark:text-slate-250 text-xs font-bold cursor-pointer focus:outline-hidden"
+                id="currency-selector"
+              >
+                <option value="Ksh" className="dark:bg-slate-900">Ksh (KES)</option>
+                <option value="USD" className="dark:bg-slate-900">USD ($)</option>
+                <option value="EUR" className="dark:bg-slate-900">EUR (€)</option>
+              </select>
             </div>
-            {aiInsights && (
-              <div className="border-l border-gray-200 pl-4 flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${
-                  aiInsights.overallStatus === 'On Track' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
-                }`} />
-                <div>
-                  <span className="text-gray-400 font-medium font-mono text-[9px] uppercase">Smart Status</span>
-                  <p className="font-bold text-gray-800 font-mono mt-0.5">{aiInsights.overallStatus}</p>
-                </div>
+
+            {/* Quick Stats Header */}
+            <div className="hidden md:flex items-center gap-6 text-xs border-l border-gray-200 dark:border-slate-800 pl-4">
+              <div>
+                <span className="text-gray-400 dark:text-slate-550 font-medium font-mono text-[9px] uppercase">Cash Flow Velocity</span>
+                <p className="font-bold text-gray-800 dark:text-slate-200 font-mono mt-0.5 animate-pulse">Live Tracking</p>
               </div>
-            )}
+              {aiInsights && (
+                <div className="border-l border-gray-200 dark:border-slate-800 pl-4 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${
+                    aiInsights.overallStatus === 'On Track' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'
+                  }`} />
+                  <div>
+                    <span className="text-gray-400 dark:text-slate-550 font-medium font-mono text-[9px] uppercase">Smart Status</span>
+                    <p className="font-bold text-gray-800 dark:text-slate-200 font-mono mt-0.5">{aiInsights.overallStatus}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
@@ -455,17 +627,17 @@ export default function App() {
       <main className="max-w-7xl mx-auto w-full px-4 py-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Navigation Sidebar Drawer */}
-        <aside className="lg:col-span-1 space-y-6">
-          <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-3xs space-y-2">
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 block mb-2">Workspace Modules</span>
+        <aside className="hidden lg:block lg:col-span-1 space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-4 rounded-2xl shadow-3xs space-y-2 transition-colors">
+            <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-3 block mb-2">Workspace Modules</span>
 
             {/* Dashboard Link */}
             <button
               onClick={() => { setActiveTab('dash'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'dash'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <LayoutDashboard className="w-4.5 h-4.5" />
@@ -477,8 +649,8 @@ export default function App() {
               onClick={() => { setActiveTab('ledger'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'ledger'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <Receipt className="w-4.5 h-4.5" />
@@ -490,8 +662,8 @@ export default function App() {
               onClick={() => { setActiveTab('finance'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'finance'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <Scale className="w-4.5 h-4.5" />
@@ -503,8 +675,8 @@ export default function App() {
               onClick={() => { setActiveTab('savings'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'savings'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <PiggyBank className="w-4.5 h-4.5" />
@@ -516,12 +688,25 @@ export default function App() {
               onClick={() => { setActiveTab('templates'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'templates'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <FolderHeart className="w-4.5 h-4.5" />
               Budget Blueprints
+            </button>
+
+            {/* Fixed Expenses Link */}
+            <button
+              onClick={() => { setActiveTab('recurring'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'recurring'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <CalendarClock className="w-4.5 h-4.5" />
+              Fixed Monthly Spends
             </button>
 
             {/* AI advisor link */}
@@ -529,12 +714,25 @@ export default function App() {
               onClick={() => { setActiveTab('ai'); setEditingTx(null); }}
               className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
                 activeTab === 'ai'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
               }`}
             >
               <Sparkles className="w-4.5 h-4.5" />
               Gemini Advisor Chat
+            </button>
+          </div>
+
+          {/* Preferences & Utilities Card */}
+          <div className="bg-white border border-gray-100 p-4 rounded-2xl shadow-3xs space-y-2.5">
+            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 block">System Utilities</span>
+            
+            <button
+              onClick={() => setShowResetModal(true)}
+              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-600 hover:text-red-750 hover:bg-red-50/50 border border-transparent hover:border-red-100 transition-all cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              Reset App Data
             </button>
           </div>
 
@@ -635,7 +833,7 @@ export default function App() {
                           <div key={idx} className="p-2.5 bg-purple-50/50 border border-purple-100/30 rounded-xl leading-relaxed">
                             <div className="flex items-center justify-between text-[11px] font-bold">
                               <span className="text-purple-900">{op.category} Savings target</span>
-                              <span className="text-emerald-700 font-mono">+${op.savingEstimate}</span>
+                              <span className="text-emerald-700 font-mono">+{currencySymbol}{op.savingEstimate}</span>
                             </div>
                             <p className="text-[10px] text-purple-700 font-medium mt-1">
                               {op.actionableTip}
@@ -655,7 +853,9 @@ export default function App() {
             <Dashboard 
               transactions={transactions} 
               budgets={budgets} 
-              currencySymbol="$"
+              currencySymbol={currencySymbol}
+              aiInsights={aiInsights}
+              loadingInsights={loadingInsights}
             />
           )}
 
@@ -663,16 +863,16 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <TransactionList
-                  transactions={transactions}
-                  onDeleteTransaction={handleDeleteTransaction}
-                  onEditTransaction={(tx) => {
-                    setEditingTx(tx);
-                  }}
-                  currencySymbol="$"
-                  onAskAIAboutTrends={(q) => {
-                    setActiveTab('ai');
-                    handleSendMessage(q);
-                  }}
+                   transactions={transactions}
+                   onDeleteTransaction={handleDeleteTransaction}
+                   onEditTransaction={(tx) => {
+                     setEditingTx(tx);
+                   }}
+                   currencySymbol={currencySymbol}
+                   onAskAIAboutTrends={(q) => {
+                     setActiveTab('ai');
+                     handleSendMessage(q);
+                   }}
                 />
               </div>
               <div className="lg:col-span-1">
@@ -681,7 +881,7 @@ export default function App() {
                   onUpdateTransaction={handleUpdateTransaction}
                   editingTransaction={editingTx}
                   onCancelEdit={() => setEditingTx(null)}
-                  currencySymbol="$"
+                  currencySymbol={currencySymbol}
                 />
               </div>
             </div>
@@ -693,7 +893,7 @@ export default function App() {
               transactions={transactions}
               onUpdateBudget={handleUpdateBudget}
               onDeleteBudget={handleDeleteBudget}
-              currencySymbol="$"
+              currencySymbol={currencySymbol}
               onAskAIAboutBudget={triggerAIBudgetAssistant}
             />
           )}
@@ -704,7 +904,7 @@ export default function App() {
               onAddGoal={handleAddGoal}
               onUpdateGoalProgress={handleUpdateGoalProgress}
               onDeleteGoal={handleDeleteGoal}
-              currencySymbol="$"
+              currencySymbol={currencySymbol}
             />
           )}
 
@@ -726,7 +926,17 @@ export default function App() {
               onSaveTemplate={handleSaveTemplate}
               onDeleteTemplate={handleDeleteTemplate}
               onApplyTemplate={handleApplyTemplate}
-              currencySymbol="$"
+              currencySymbol={currencySymbol}
+            />
+          )}
+
+          {activeTab === 'recurring' && (
+            <RecurringManager
+              recurringItems={recurringItems}
+              onAddRecurring={handleAddRecurring}
+              onDeleteRecurring={handleDeleteRecurring}
+              onTriggerRecurringManually={handleTriggerRecurringManually}
+              currencySymbol={currencySymbol}
             />
           )}
 
@@ -734,10 +944,123 @@ export default function App() {
 
       </main>
 
+      {/* Mobile Bottom Navigation Bar styled cleanly with dynamic indicators */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-150 dark:border-slate-800 flex items-center justify-around py-2 px-1 lg:hidden shadow-lg transition-colors duration-150">
+        <button 
+          onClick={() => { setActiveTab('dash'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'dash' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Overview</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('ledger'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ledger' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <Receipt className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Ledger</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('finance'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'finance' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <Scale className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Budgets</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('recurring'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'recurring' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <CalendarClock className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Fixed</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('ai'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ai' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+        >
+          <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Gemini</span>
+        </button>
+      </nav>
+
       {/* Footer info line */}
-      <footer className="bg-white border-t border-gray-150 py-5 text-center mt-12 text-[10px] font-medium font-mono text-gray-400">
+      <footer className="bg-white dark:bg-slate-900 border-t border-gray-150 dark:border-slate-800 py-5 text-center mt-12 text-[10px] font-medium font-mono text-gray-400 dark:text-slate-500 transition-colors">
         Ledger Smart Tracker Portfolio Corporation © 2026. All statistics are encrypted securely client-side.
       </footer>
+
+      {/* Reset Confirmation Drawer / Modal */}
+      {showResetModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowResetModal(false)}
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-red-550/10 text-red-600 rounded-2xl mt-0.5">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-gray-900">Reset Application Data</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">
+                  You are about to wipe out all seed placeholder transactions, category budgets, and savings goals. This allows you to start tracking your real funds and statistics on a completely clean canvas.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50/50 rounded-xl p-4 border border-red-100 text-[11px] leading-relaxed text-red-800 space-y-2">
+              <p className="font-bold uppercase tracking-wider text-[9px] text-red-650">Warning: Irreversible Operation</p>
+              <ul className="list-disc pl-4 space-y-1 font-medium">
+                <li>Permanently deletes the {transactions.length} pre-filled placeholder transactions inside your Ledger ledger.</li>
+                <li>Clears your {budgets.length} budget limit constraints entirely.</li>
+                <li>Wipes out {goals.length} active savings Goals and their accrued progressions.</li>
+                <li>Purges historical conversational chatbot logs.</li>
+              </ul>
+              <p className="mt-2 text-red-700/80">
+                Your selected currency settings (<span className="font-bold underline">{currency}</span>) will be retained.
+              </p>
+            </div>
+
+            {/* Checkbox option to also erase custom templates */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="delete-templates-chk"
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded-md focus:ring-blue-500 cursor-pointer"
+                defaultChecked={false}
+              />
+              <label htmlFor="delete-templates-chk" className="text-xs text-gray-600 font-medium select-none cursor-pointer">
+                Also remove my {customTemplates.length} custom saved budget templates/blueprints
+              </label>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowResetModal(false)}
+                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-750 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const checkEl = document.getElementById('delete-templates-chk') as HTMLInputElement;
+                  if (checkEl && checkEl.checked) {
+                    setCustomTemplates([]);
+                    localStorage.removeItem('fin_tracker_custom_templates');
+                  }
+                  handleResetAllData();
+                }}
+                className="py-2.5 px-5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                Clean App Slate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
