@@ -92,8 +92,34 @@ app.post("/api/insights", async (req, res) => {
       }
     });
 
-    const parsedResult = JSON.parse(response.text || "{}");
-    res.json(parsedResult);
+    let textToShow = response.text || "";
+    // Clean up potential markdown wrapper codeblocks (```json ... ```)
+    if (textToShow.includes("```")) {
+      textToShow = textToShow.replace(/```json\s*/i, "").replace(/```\s*$/, "").trim();
+    }
+
+    try {
+      const parsedResult = JSON.parse(textToShow || "{}");
+      res.json(parsedResult);
+    } catch (parseErr) {
+      console.warn("Invalid JSON structure returned by Gemini model, sending structured fallback instead.", parseErr);
+      res.json({
+        overallStatus: "Caution",
+        summaryMessage: "Your digital advisor analysis is active, though the live AI formatting is currently misaligned. Standard advisory patterns remain fully active.",
+        actionableInsights: [
+          "Cross-examine your expense velocity in categories like Food, Bills, and Shopping.",
+          "Check that your active budget limits are configured correctly.",
+          "Ensure that newly posted transactions stay strictly within your designated monthly margins."
+        ],
+        savingsOpportunities: [
+          {
+            category: "Food",
+            savingEstimate: 15,
+            actionableTip: "Compare your daily average spending directly inside the digital budgets manager to trim unnecessary snack expenses."
+          }
+        ]
+      });
+    }
   } catch (error: any) {
     console.error("Gemini Insights Error:", error);
     const errMsg = error?.message || String(error || "");

@@ -33,7 +33,9 @@ import {
   CalendarClock,
   LogOut,
   Lock,
-  User
+  User,
+  Bell,
+  BellRing
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -66,6 +68,23 @@ export default function App() {
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileUpdating, setIsProfileUpdating] = useState(false);
+
+  // Browser Notification States
+  const [browserNotificationsEnabled, setBrowserNotificationsEnabled] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('fin_tracker_browser_notifications');
+      return stored ? stored === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [notificationPermissionState, setNotificationPermissionState] = useState<string>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
 
   // Authentication & Loading State
   const [user, setUser] = useState<any>(null);
@@ -129,6 +148,82 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Sync browser notifications preference
+  useEffect(() => {
+    localStorage.setItem('fin_tracker_browser_notifications', String(browserNotificationsEnabled));
+  }, [browserNotificationsEnabled]);
+
+  // Compute active budget alert status for current month categories exceeding 90%
+  const currentMonthBudgetAlerts = React.useMemo(() => {
+    const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+    
+    // Sum current month's expenses per category
+    const monthlyExpenses: Record<string, number> = {};
+    transactions.forEach(t => {
+      // Must fall into cumulative current calendar month and be an expense
+      if (t.type === 'expense' && t.date && t.date.substring(0, 7) === currentMonth) {
+        monthlyExpenses[t.category] = (monthlyExpenses[t.category] || 0) + t.amount;
+      }
+    });
+
+    return budgets.map(b => {
+      const spent = monthlyExpenses[b.category] || 0;
+      const ratio = b.limit > 0 ? spent / b.limit : 0;
+      return {
+        category: b.category,
+        spent,
+        limit: b.limit,
+        ratio,
+        percent: Math.round(ratio * 100)
+      };
+    }).filter(item => item.percent >= 90);
+  }, [transactions, budgets]);
+
+  // Request browser Notification permissions and dispatch triggers
+  useEffect(() => {
+    if (currentMonthBudgetAlerts.length === 0) return;
+
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    const storageKey = `fin_tracker_notified_categories_${currentMonth}`;
+    
+    let notifiedCategories: string[] = [];
+    try {
+      const stored = localStorage.getItem(storageKey);
+      notifiedCategories = stored ? JSON.parse(stored) : [];
+    } catch {
+      notifiedCategories = [];
+    }
+
+    let updated = false;
+
+    currentMonthBudgetAlerts.forEach(alert => {
+      if (!notifiedCategories.includes(alert.category)) {
+        notifiedCategories.push(alert.category);
+        updated = true;
+
+        // Try standard native notification
+        if ('Notification' in window && Notification.permission === 'granted' && browserNotificationsEnabled) {
+          try {
+            const formattedSymbol = currencySymbol.trim();
+            new Notification(`Ledger Smart: Budget Threshold Exceeded`, {
+              body: `Spending on ${alert.category} is now at ${alert.percent}% (${formattedSymbol}${alert.spent.toFixed(1)} of ${formattedSymbol}${alert.limit.toFixed(1)}) for ${new Date().toLocaleString('default', { month: 'long' })}.`,
+            });
+          } catch (err) {
+            console.warn("Native Notification trigger error:", err);
+          }
+        }
+      }
+    });
+
+    if (updated) {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(notifiedCategories));
+      } catch (err) {
+        console.error("Local storage sync error:", err);
+      }
+    }
+  }, [currentMonthBudgetAlerts, browserNotificationsEnabled, currencySymbol]);
 
   // Hook subscription monitoring Supabase authentication session lifecycle
   useEffect(() => {
@@ -338,14 +433,44 @@ export default function App() {
         body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency })
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        const isQuota = response.status === 429 || (errorData.error && (errorData.error.includes("RESOURCE_EXHAUSTED") || errorData.error.includes("quota") || errorData.error.includes("429")));
+        let errorMessage = "Server returned an error invoking Insights.";
+        let isQuota = response.status === 429;
+        
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+            if (response.status === 429 || (errorMessage && (errorMessage.includes("RESOURCE_EXHAUSTED") || errorMessage.includes("quota") || errorMessage.includes("429")))) {
+              isQuota = true;
+            }
+          } catch (_) {}
+        } else {
+          try {
+            const textHTML = await response.text();
+            if (textHTML && textHTML.length < 250) {
+              errorMessage = textHTML;
+            } else {
+              errorMessage = `Network or service error (Status ${response.status}). If the server temporary failed or was starting up, please try again. Make sure your GEMINI_API_KEY is correctly set.`;
+            }
+          } catch (_) {}
+        }
+
         if (isQuota) {
           throw new Error("QUOTA_EXHAUSTED: You exceeded your current Gemini daily API quota limit (20 free calls per day). Displaying high-quality static financial advisory checklists below to keep you fully on track!");
         }
-        throw new Error(errorData.error || 'Server returned an error invoking Insights.');
+        throw new Error(errorMessage);
       }
-      const data = await response.json();
+      
+      let data: any;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const rawText = await response.text();
+        throw new Error(`Invalid response format from server: expected JSON but received text. (Status ${response.status})`);
+      }
+
       setAIInsights(data);
       setIsInsightsStale(false);
       try {
@@ -623,11 +748,34 @@ export default function App() {
       });
 
       if (!response.ok) {
-        const errDetails = await response.json();
-        throw new Error(errDetails.error || "Advisor is temporarily locked.");
+        let errorMessage = "Advisor is temporarily locked.";
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          try {
+            const errDetails = await response.json();
+            errorMessage = errDetails.error || errorMessage;
+          } catch (_) {}
+        } else {
+          try {
+            const textHTML = await response.text();
+            if (textHTML && textHTML.length < 250) {
+              errorMessage = textHTML;
+            } else {
+              errorMessage = `Network or service error (Status ${response.status}). Make sure your GEMINI_API_KEY environment variable is correctly configured.`;
+            }
+          } catch (_) {}
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result: any;
+      const contentType = response.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const rawText = await response.text();
+        throw new Error(`Invalid response format from server: expected JSON but received text. (Status ${response.status})`);
+      }
       
       const aiMsg: ChatMessage = {
         id: Math.random().toString(36).substring(2, 9),
@@ -748,6 +896,52 @@ export default function App() {
     } finally {
       setIsProfileUpdating(false);
     }
+  };
+
+  const [notificationStatusMsg, setNotificationStatusMsg] = useState<string | null>(null);
+
+  const handleToggleBrowserNotifications = () => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotificationStatusMsg("System Notifications not supported on this device/sandboxing.");
+      setTimeout(() => setNotificationStatusMsg(null), 4000);
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      const targetState = !browserNotificationsEnabled;
+      setBrowserNotificationsEnabled(targetState);
+      setNotificationStatusMsg(targetState ? "Browser alerts activated!" : "Browser alerts muted.");
+      setTimeout(() => setNotificationStatusMsg(null), 3500);
+    } else if (Notification.permission === 'denied') {
+      setNotificationStatusMsg("Notification permissions denied previously. Restore standard settings in your browser.");
+      setTimeout(() => setNotificationStatusMsg(null), 4000);
+    } else {
+      Notification.requestPermission().then(status => {
+        setNotificationPermissionState(status);
+        if (status === 'granted') {
+          setBrowserNotificationsEnabled(true);
+          setNotificationStatusMsg("Browser alerts activated successfully!");
+          try {
+            new Notification("Ledger Smart Active alerts", {
+              body: "Real-time alerts are now synchronized.",
+            });
+          } catch (e) {
+            console.warn(e);
+          }
+        } else {
+          setBrowserNotificationsEnabled(false);
+          setNotificationStatusMsg("Permission was dismissed.");
+        }
+        setTimeout(() => setNotificationStatusMsg(null), 3500);
+      });
+    }
+  };
+
+  const resetNotificationTriggerHistory = () => {
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    localStorage.removeItem(`fin_tracker_notified_categories_${currentMonth}`);
+    setNotificationStatusMsg("Trigger counters reset! New expenses will trigger native alerts.");
+    setTimeout(() => setNotificationStatusMsg(null), 3500);
   };
 
   const handleClearHistory = async () => {
@@ -1041,6 +1235,132 @@ export default function App() {
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
+
+            {/* Notification Bell with Dropdown Popover */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                title="Current Month Budget Alerts & Notifications"
+                className={`p-2 border rounded-xl transition-all cursor-pointer flex items-center justify-center relative ${
+                  currentMonthBudgetAlerts.length > 0 
+                    ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-105 dark:hover:bg-slate-900' 
+                    : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {currentMonthBudgetAlerts.length > 0 ? (
+                  <BellRing className="w-4 h-4 text-amber-500 shrink-0" />
+                ) : (
+                  <Bell className="w-4 h-4 shrink-0" />
+                )}
+                {currentMonthBudgetAlerts.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 text-[9px] text-white flex items-center justify-center rounded-full font-extrabold border-2 border-white dark:border-slate-905">
+                    {currentMonthBudgetAlerts.length}
+                  </span>
+                )}
+              </button>
+
+              {showNotificationDropdown && (
+                <>
+                  {/* Overlay to dismiss */}
+                  <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowNotificationDropdown(false)} />
+                  <div className="absolute right-0 mt-2.5 w-80 md:w-96 bg-white dark:bg-slate-900 rounded-2xl border border-slate-155 dark:border-slate-800/90 shadow-xl p-4 space-y-3 z-50 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
+                      <span className="font-bold text-gray-901 dark:text-white flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-blue-500" />
+                        <span>Monthly Budget Alerts</span>
+                      </span>
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wide bg-slate-100 dark:bg-slate-800 rounded-full py-0.5 px-2 text-slate-500 dark:text-slate-400">
+                        {new Date().toLocaleString('default', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+
+                    {/* Status Feedback banner */}
+                    {notificationStatusMsg && (
+                      <div className="bg-blue-50 dark:bg-blue-955/20 border border-blue-100 dark:border-blue-900/40 p-2 rounded-xl text-[10px] text-blue-800 dark:text-blue-400 font-medium animate-fade-in text-center">
+                        {notificationStatusMsg}
+                      </div>
+                    )}
+
+                    {/* Channel Controls Configuration */}
+                    <div className="bg-slate-50/70 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-gray-800 dark:text-slate-200 text-[11px]">System Browser Popups</p>
+                          <p className="text-[9px] text-slate-400 leading-normal">Pushes HTML5 native browser alerts on thresholds</p>
+                        </div>
+                        <button
+                          onClick={handleToggleBrowserNotifications}
+                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border-0 ${
+                            browserNotificationsEnabled && notificationPermissionState === 'granted'
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : 'bg-gray-200 dark:bg-slate-800 text-slate-650 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-750'
+                          }`}
+                        >
+                          {browserNotificationsEnabled && notificationPermissionState === 'granted' ? 'Enabled' : 'Disabled'}
+                        </button>
+                      </div>
+
+                      {/* Display warning details on permission restrictions */}
+                      {notificationPermissionState === 'default' && (
+                        <p className="text-[9px] text-amber-600 dark:text-amber-400 font-medium leading-normal">
+                          ⚠️ Click button to trigger system authentication first.
+                        </p>
+                      )}
+                      {notificationPermissionState === 'denied' && (
+                        <p className="text-[9px] text-red-500 dark:text-red-400/80 leading-relaxed font-mono">
+                          ❌ System level permissions blocked. Please reset browser permission lock settings to proceed.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Main items triggers */}
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {currentMonthBudgetAlerts.length === 0 ? (
+                        <div className="text-center py-4 text-slate-400/80 space-y-1">
+                          <p className="font-bold">✓ All Under Limit</p>
+                          <p className="text-[10px] leading-relaxed">Every monitored expense category is healthy and under 90% of budget constraints for this month.</p>
+                        </div>
+                      ) : (
+                        currentMonthBudgetAlerts.map(alert => (
+                          <div key={alert.category} className="p-2.5 border border-amber-100/60 dark:border-amber-955/30 bg-amber-50/25 dark:bg-amber-955/5 rounded-xl flex items-center justify-between gap-3">
+                            <div className="space-y-0.5 text-left flex-1 min-w-0">
+                              <p className="font-bold text-gray-800 dark:text-slate-200 truncate">{alert.category}</p>
+                              <div className="w-full bg-slate-100 dark:bg-slate-850 h-1.5 rounded-full overflow-hidden my-1">
+                                <div 
+                                  className={`h-full transition-all duration-300 ${alert.percent >= 100 ? 'bg-red-500' : 'bg-amber-500'}`} 
+                                  style={{ width: `${Math.min(alert.percent, 100)}%` }} 
+                                />
+                              </div>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono tracking-tight block">
+                                {currencySymbol}{alert.spent.toFixed(0)} spent / {currencySymbol}{alert.limit.toFixed(0)} limit
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono select-none shrink-0 ${
+                              alert.percent >= 100 
+                                ? 'bg-red-100 text-red-850 dark:bg-red-955/20 dark:text-red-400 border border-red-200/50 dark:border-red-950/40' 
+                                : 'bg-amber-100 text-amber-850 dark:bg-amber-955/20 dark:text-amber-400 border border-amber-200/50 dark:border-amber-950/40'
+                            }`}>
+                              {alert.percent}%
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-gray-100 dark:border-slate-800 pt-2.5 text-[10px] gap-2">
+                      <span className="text-slate-400">Rules configured at &gt;= 90%</span>
+                      <button
+                        onClick={resetNotificationTriggerHistory}
+                        title="Clear triggered triggers log so you can test them again"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
+                      >
+                        Reset Trigger History
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Currency Selector */}
             <div className="flex items-center gap-1.5 border border-gray-150 dark:border-slate-800 rounded-xl px-2.5 py-1.5 bg-gray-50/50 dark:bg-slate-900/40 hover:bg-gray-50 dark:hover:bg-gray-900 duration-150 hover:border-gray-255 dark:hover:border-slate-755 transition-colors">
