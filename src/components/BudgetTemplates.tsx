@@ -208,10 +208,10 @@ export default function BudgetTemplates({
     <div className="space-y-6">
       
       {/* Dynamic Header */}
-      <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-colors">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Customized Budget Templates</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Customized Budget Templates</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Build specialized financial outlines (e.g., standard months, holiday periods, low-expense seasons) and spin up budget targets for new months instantly.
           </p>
         </div>
@@ -219,7 +219,7 @@ export default function BudgetTemplates({
         {!isCreatingNew && (
           <button
             onClick={startNewTemplate}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer w-fit"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-colors cursor-pointer w-fit shadow-2xs"
           >
             <FolderPlus className="w-4 h-4" />
             Build Template
@@ -229,15 +229,15 @@ export default function BudgetTemplates({
 
       {isCreatingNew ? (
         /* Template Constructor Panel */
-        <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs space-y-6 animate-fadeIn">
-          <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-6 animate-fadeIn transition-colors">
+          <div className="flex justify-between items-center border-b border-gray-100 dark:border-slate-800 pb-4">
             <div>
-              <h3 className="text-base font-bold text-gray-900">Configure Budget Blueprint</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Define expected recurring incomes and specific target boundaries.</p>
+              <h3 className="text-base font-bold text-gray-900 dark:text-white">Configure Budget Blueprint</h3>
+              <p className="text-xs text-gray-400 dark:text-slate-505 mt-0.5">Define expected recurring incomes and specific target boundaries.</p>
             </div>
             <button
               onClick={() => setIsCreatingNew(false)}
-              className="p-1 px-3 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 border border-gray-200 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+              className="p-1 px-3 text-xs text-gray-405 hover:text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
             >
               <X className="w-4 h-4" /> Cancel
             </button>
@@ -476,8 +476,8 @@ export default function BudgetTemplates({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Blueprints options column */}
-          <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs lg:col-span-1 space-y-3 h-fit">
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest block px-1">Available Blueprints</span>
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs lg:col-span-1 space-y-3 h-fit transition-colors">
+            <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest block px-1">Available Blueprints</span>
             
             <div className="space-y-2">
               {allTemplates.map(temp => {
@@ -490,8 +490,8 @@ export default function BudgetTemplates({
                     onClick={() => setSelectedTemplateId(temp.id)}
                     className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected 
-                        ? 'bg-blue-50/70 border-blue-200 text-blue-900 shadow-3xs font-semibold' 
-                        : 'border-gray-100/85 hover:border-gray-200 bg-white text-gray-700'
+                        ? 'bg-blue-50/70 dark:bg-slate-950 border-blue-200 dark:border-blue-900/60 text-blue-900 dark:text-blue-400 shadow-3xs font-semibold' 
+                        : 'border-gray-100/85 dark:border-slate-800/85 hover:border-gray-250 dark:hover:border-slate-700 bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-350'
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -504,17 +504,17 @@ export default function BudgetTemplates({
                             // fallback selection
                             setSelectedTemplateId(allTemplates[0]?.id || '');
                           }}
-                          className="p-1 rounded-md text-gray-400 hover:text-red-500 hover:bg-gray-55/60 transition-colors cursor-pointer"
+                          className="p-1 rounded-md text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-gray-55/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                           title="Erase Blueprint"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-2 leading-relaxed">
+                    <p className="text-[10px] text-gray-400 dark:text-slate-450 mt-1.5 line-clamp-2 leading-relaxed">
                       {temp.description}
                     </p>
-                    <div className="flex items-center gap-1.5 mt-3 text-[9px] font-mono font-bold text-gray-400">
+                    <div className="flex items-center gap-1.5 mt-3 text-[9px] font-mono font-bold text-gray-400 dark:text-slate-500">
                       <span>Inflows: {temp.incomes.length}</span>
                       <span>•</span>
                       <span>Expense targets: {temp.expenses.length}</span>
@@ -526,14 +526,14 @@ export default function BudgetTemplates({
           </div>
 
           {/* Current Blueprint Details & Sandbox operations */}
-          <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs lg:col-span-2 space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-100 pb-4">
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2 space-y-6 transition-colors">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-gray-100 dark:border-slate-800 pb-4">
               <div>
-                <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest border border-blue-100 bg-blue-50/50 rounded-full py-0.5 px-2.5">
+                <span className="text-[9px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-widest border border-blue-100 dark:border-blue-900 bg-blue-50/50 dark:bg-slate-950 rounded-full py-0.5 px-2.5">
                   Selected Blueprint Outline
                 </span>
-                <h3 className="text-base font-bold text-gray-900 mt-2">{activeTemplate?.name}</h3>
-                <p className="text-xs text-gray-400 mt-0.5">{activeTemplate?.description}</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white mt-2">{activeTemplate?.name}</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-400 mt-0.5">{activeTemplate?.description}</p>
               </div>
 
               {activeTemplate && (
@@ -627,23 +627,23 @@ export default function BudgetTemplates({
 
       {/* Apply Template Modal */}
       {showApplyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white border border-gray-150 rounded-2xl p-6 max-w-md w-full shadow-xl space-y-5 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-990/70 dark:bg-slate-950/80 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-xl space-y-5 relative">
             
             <button
-              onClick={() => setShowApplyModal(false)}
-              className="absolute right-4 top-4 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 cursor-pointer"
+               onClick={() => setShowApplyModal(false)}
+               className="absolute right-4 top-4 p-1.5 rounded-lg text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+              <div className="p-3 bg-blue-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-xl">
                 <Play className="w-6 h-6 fill-current" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">Apply Blueprint Layout</h3>
-                <p className="text-xs text-gray-400">Deploy allocations immediately into tracking modules.</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Apply Blueprint Layout</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500">Deploy allocations immediately into tracking modules.</p>
               </div>
             </div>
 

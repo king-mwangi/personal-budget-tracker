@@ -96,17 +96,17 @@ export default function TransactionForm({
   };
 
   return (
-    <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs">
+    <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
       {/* Dynamic Form Header */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-base font-semibold text-gray-900">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
           {editingTransaction ? 'Modify Transaction Log' : 'Record Transaction'}
         </h3>
         {editingTransaction && onCancelEdit && (
           <button 
             type="button" 
             onClick={onCancelEdit}
-            className="p-1 px-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+            className="p-1 px-2 text-xs text-gray-450 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
           >
             <X className="w-3.5 h-3.5" /> Cancel Edit
           </button>
@@ -115,14 +115,14 @@ export default function TransactionForm({
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Type Toggle Slider style */}
-        <div className="grid grid-cols-2 p-1 bg-gray-50 border border-gray-150 rounded-xl">
+        <div className="grid grid-cols-2 p-1 bg-gray-50 dark:bg-slate-950 border border-gray-150 dark:border-slate-800 rounded-xl">
           <button
             type="button"
             onClick={() => handleTypeChange('expense')}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${
               type === 'expense'
-                ? 'bg-white text-amber-600 shadow-xs border border-gray-150/50'
-                : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-450 shadow-xs border border-gray-150/50 dark:border-slate-800'
+                : 'text-gray-505 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
             } cursor-pointer`}
           >
             <ArrowDownRight className="w-4 h-4" />
@@ -133,8 +133,8 @@ export default function TransactionForm({
             onClick={() => handleTypeChange('income')}
             className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold tracking-wide transition-all ${
               type === 'income'
-                ? 'bg-white text-emerald-600 shadow-xs border border-gray-150/50'
-                : 'text-gray-500 hover:text-gray-800'
+                ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-450 shadow-xs border border-gray-150/50 dark:border-slate-800'
+                : 'text-gray-550 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
             } cursor-pointer`}
           >
             <ArrowUpRight className="w-4 h-4" />

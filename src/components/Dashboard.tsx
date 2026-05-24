@@ -277,66 +277,66 @@ export default function Dashboard({
       {/* Grid Status Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Net Balance */}
-        <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs hover:border-blue-200 transition-colors">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-blue-200 dark:hover:border-blue-900/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Net Balance</span>
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Net Balance</span>
+            <div className="p-2 bg-blue-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-lg">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-2xl font-bold font-mono text-gray-900">
+            <h3 className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
               {stats.totalBalance < 0 ? '-' : ''}{currencySymbol}{Math.abs(stats.totalBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 mt-1">Total revenue minus logged expenditure</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Total revenue minus logged expenditure</p>
           </div>
         </div>
 
         {/* Monthly Income */}
-        <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs hover:border-emerald-200 transition-colors">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Inflow Revenue</span>
-            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inflow Revenue</span>
+            <div className="p-2 bg-emerald-50 dark:bg-slate-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
               <ArrowUpRight className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-2xl font-bold font-mono text-emerald-600">
+            <h3 className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {currencySymbol}{stats.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 mt-1">{transactions.filter(t => t.type === 'income').length} active income stream logs</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'income').length} active income stream logs</p>
           </div>
         </div>
 
         {/* Monthly Outflow */}
-        <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs hover:border-amber-200 transition-colors">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-amber-200 dark:hover:border-amber-900/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Outflow Spent</span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Outflow Spent</span>
+            <div className="p-2 bg-amber-50 dark:bg-slate-950 text-amber-600 dark:text-amber-400 rounded-lg">
               <ArrowDownRight className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-2xl font-bold font-mono text-amber-600">
+            <h3 className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-450">
               {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 mt-1">{transactions.filter(t => t.type === 'expense').length} active expenditure lines</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'expense').length} active expenditure lines</p>
           </div>
         </div>
 
         {/* Savings Rate */}
-        <div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-xs hover:border-purple-200 transition-colors">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-purple-200 dark:hover:border-purple-900/40 transition-colors">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Savings Rate</span>
-            <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+            <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Savings Rate</span>
+            <div className="p-2 bg-purple-50 dark:bg-slate-950 text-purple-600 dark:text-purple-400 rounded-lg">
               <Percent className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-2xl font-bold font-mono text-purple-600">
+            <h3 className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
               {stats.savingsRate}%
             </h3>
-            <div className="w-full bg-gray-100 h-1.5 rounded-full mt-2">
+            <div className="w-full bg-gray-100 dark:bg-slate-800 h-1.5 rounded-full mt-2">
               <div 
                 className="bg-purple-500 h-1.5 rounded-full transition-all duration-500" 
                 style={{ width: `${Math.min(100, stats.savingsRate)}%` }}
@@ -349,17 +349,17 @@ export default function Dashboard({
       {/* Visualizer Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Cumulative Billing Run */}
-        <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs lg:col-span-3 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-3 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Spending Velocity Curve</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Cumulative monthly outflow logged day-by-day.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Velocity Curve</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Cumulative monthly outflow logged day-by-day.</p>
               </div>
               {hoveredTrendIndex !== null && (
                 <div className="text-right">
-                  <span className="text-xs text-gray-400 font-mono">Day {trendPoints[hoveredTrendIndex]?.day}: </span>
-                  <span className="text-sm font-bold font-mono text-gray-900">
+                  <span className="text-xs text-gray-400 dark:text-slate-550 font-mono font-medium">Day {trendPoints[hoveredTrendIndex]?.day}: </span>
+                  <span className="text-sm font-bold font-mono text-gray-900 dark:text-white">
                     {currencySymbol}{trendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
                   </span>
                 </div>
@@ -451,15 +451,15 @@ export default function Dashboard({
         </div>
 
         {/* Category breakdown Pie Donut */}
-        <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs lg:col-span-2 flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2 flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Allocation Split</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Budget category ratio allocation comparison.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Allocation Split</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Budget category ratio allocation comparison.</p>
           </div>
 
           <div className="flex flex-col items-center justify-center my-4 relative h-[160px]">
             {categorySplit.length === 0 ? (
-              <p className="text-xs text-gray-400">Log expenses to analyze categories.</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">Log expenses to analyze categories.</p>
             ) : (
               <div className="relative w-[150px] h-[150px]">
                 <svg width="100%" height="100%" viewBox="0 0 180 180" className="transform rotate-0">
@@ -493,17 +493,17 @@ export default function Dashboard({
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   {hoveredSlice ? (
                     <>
-                      <span className="text-xs font-semibold text-gray-700 max-w-[80px] truncate text-center">
+                      <span className="text-xs font-bold text-gray-705 dark:text-slate-200 max-w-[80px] truncate text-center">
                         {hoveredSlice}
                       </span>
-                      <span className="text-[10px] font-mono text-gray-500">
+                      <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400">
                         {categorySplit.find(c => c.category === hoveredSlice)?.percentage}%
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total</span>
-                      <span className="text-sm font-bold text-gray-800 font-mono">
+                      <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total</span>
+                      <span className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
                         {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                       </span>
                     </>
@@ -519,25 +519,25 @@ export default function Dashboard({
               <div 
                 key={item.category} 
                 className={`flex items-center justify-between p-1 rounded-md transition-all ${
-                  hoveredSlice === item.category ? 'bg-gray-50' : ''
+                  hoveredSlice === item.category ? 'bg-gray-50 dark:bg-slate-800/60' : ''
                 }`}
                 onMouseEnter={() => setHoveredSlice(item.category)}
                 onMouseLeave={() => setHoveredSlice(null)}
               >
                 <div className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-xs text-gray-600 font-medium">{item.category}</span>
+                  <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">{item.category}</span>
                 </div>
                 <div className="text-right flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-gray-800 font-mono">
+                  <span className="text-xs font-bold text-gray-800 dark:text-slate-100 font-mono">
                     {currencySymbol}{item.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </span>
-                  <span className="text-[10px] text-gray-400 font-mono">({item.percentage}%)</span>
+                  <span className="text-[10px] text-gray-400 dark:text-slate-500 font-mono">({item.percentage}%)</span>
                 </div>
               </div>
             ))}
             {categorySplit.length > 4 && (
-              <div className="text-center text-[10px] text-gray-500 font-medium pt-1">
+              <div className="text-center text-[10px] text-gray-500 dark:text-slate-500 font-medium pt-1">
                 + {categorySplit.length - 4} more spending categories
               </div>
             )}

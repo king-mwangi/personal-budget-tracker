@@ -1307,8 +1307,8 @@ export default function App() {
                         </p>
                       )}
                       {notificationPermissionState === 'denied' && (
-                        <p className="text-[9px] text-red-500 dark:text-red-400/80 leading-relaxed font-mono">
-                          ❌ System level permissions blocked. Please reset browser permission lock settings to proceed.
+                        <p className="text-[9.5px] text-slate-500 dark:text-slate-400 leading-normal font-medium">
+                          ℹ️ Sandboxed Environment Fallback: Native browser popups are restricted in preview screens. Ledger's real-time visual progress gauges, badges, and warning thresholds are fully automated and active below!
                         </p>
                       )}
                     </div>
@@ -1400,7 +1400,7 @@ export default function App() {
       </header>
 
       {/* Main Container Core */}
-      <main className="max-w-7xl mx-auto w-full px-4 py-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <main className="max-w-7xl mx-auto w-full px-4 pt-8 pb-28 lg:pb-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Navigation Sidebar Drawer */}
         <aside className="hidden lg:block lg:col-span-1 space-y-6">

@@ -95,10 +95,10 @@ export default function BudgetManager({
   return (
     <div className="space-y-6">
       {/* Page Description */}
-      <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center md:justify-between gap-4 transition-colors">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 tracking-tight">Active Budget Allocation</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Active Budget Allocation</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
             Configure monthly parameters for specific category targets and track real-time utilization caps.
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function BudgetManager({
         {onAskAIAboutBudget && (
           <button
             onClick={onAskAIAboutBudget}
-            className="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 font-medium py-2 px-4 rounded-xl text-sm transition-colors cursor-pointer w-fit"
+            className="flex items-center gap-2 bg-purple-50 dark:bg-purple-950/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-900 text-purple-700 dark:text-purple-300 font-medium py-2 px-4 rounded-xl text-sm transition-colors cursor-pointer w-fit"
           >
             <Sparkles className="w-4 h-4 text-purple-500" />
             Optimize with Gemini
@@ -163,8 +163,8 @@ export default function BudgetManager({
         </div>
 
         {/* Form setting budget parameters */}
-        <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs lg:col-span-2">
-          <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-gray-500" />
             Set Budget & Alert Threshold
           </h3>
@@ -173,11 +173,11 @@ export default function BudgetManager({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Category picker */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Category</label>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Category</label>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full border border-gray-200 hover:border-gray-300 rounded-xl px-3.5 py-2.5 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-shadow transition-colors"
+                  className="w-full border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 transition-shadow transition-colors"
                 >
                   {Object.keys(CATEGORIES).filter(cat => cat !== 'Income').map(cat => (
                     <option key={cat} value={cat}>
@@ -189,7 +189,7 @@ export default function BudgetManager({
 
               {/* Limit selector */}
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                   Monthly Cap Limit ({currencySymbol})
                 </label>
                 <div className="relative">
@@ -202,7 +202,7 @@ export default function BudgetManager({
                     value={inputLimit}
                     onChange={(e) => setInputLimit(e.target.value)}
                     placeholder="Type limit amount"
-                    className="w-full border border-gray-200 rounded-xl pl-8 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-mono font-medium"
+                    className="w-full border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl pl-8 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 transition-all font-mono font-medium"
                   />
                 </div>
               </div>
@@ -269,15 +269,15 @@ export default function BudgetManager({
       )}
 
       {/* Budget progression list */}
-      <div className="bg-white border border-gray-100 p-6 rounded-2xl shadow-xs">
-        <h3 className="text-base font-semibold text-gray-900 mb-6 flex items-center gap-2">
-          <TrendingDown className="w-4 h-4 text-gray-450" />
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+          <TrendingDown className="w-4 h-4 text-gray-400" />
           Track Spending caps
         </h3>
 
         {budgets.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-sm text-gray-400">No category limits have been configured yet. Set targets above to begin tracking.</p>
+            <p className="text-sm text-gray-400 dark:text-slate-500">No category limits have been configured yet. Set targets above to begin tracking.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -292,10 +292,10 @@ export default function BudgetManager({
               const isWarning = spent > b.limit * (warningThreshold / 100) && spent <= b.limit;
 
               return (
-                <div key={b.category} className="border border-gray-100 p-4 rounded-xl space-y-3 shadow-2xs hover:border-gray-200 transition-colors">
+                <div key={b.category} className="border border-gray-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/30 p-4 rounded-xl space-y-3 shadow-2xs hover:border-gray-250 dark:hover:border-slate-705 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className={`p-2 rounded-lg ${categoryDetails?.bgColor || 'bg-gray-50'} ${categoryDetails ? '' : 'text-gray-500'}`} style={categoryDetails ? { color: categoryDetails.color } : undefined}>
+                      <div className={`p-2 rounded-lg ${categoryDetails?.bgColor || 'bg-gray-50 dark:bg-slate-950'} ${categoryDetails ? '' : 'text-gray-500'}`} style={categoryDetails ? { color: categoryDetails.color } : undefined}>
                         {IconComp ? <IconComp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                       </div>
                       <div>

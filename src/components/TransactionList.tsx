@@ -138,13 +138,13 @@ export default function TransactionList({
   };
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-xs overflow-hidden flex flex-col justify-between h-full">
+    <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden flex flex-col justify-between h-full transition-colors">
       
       {/* Search and Filters Header */}
-      <div className="p-5 border-b border-gray-100 bg-gray-50/50 space-y-4">
+      <div className="p-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-950/20 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-gray-500" />
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-gray-450" />
             Transaction Ledger
           </h3>
 
