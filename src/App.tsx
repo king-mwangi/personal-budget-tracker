@@ -32,7 +32,8 @@ import {
   Moon,
   CalendarClock,
   LogOut,
-  Lock
+  Lock,
+  User
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -57,6 +58,14 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
 
   const [showResetModal, setShowResetModal] = useState(false);
+  
+  // Profile Update States
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [isProfileUpdating, setIsProfileUpdating] = useState(false);
 
   // Authentication & Loading State
   const [user, setUser] = useState<any>(null);
@@ -652,6 +661,95 @@ export default function App() {
     }
   };
 
+  const handleOpenProfileModal = () => {
+    const fn = user?.user_metadata?.first_name || user?.user_metadata?.firstName || '';
+    const ln = user?.user_metadata?.last_name || user?.user_metadata?.lastName || '';
+    setEditFirstName(fn);
+    setEditLastName(ln);
+    setProfileSuccess(null);
+    setProfileError(null);
+    setShowProfileModal(true);
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFirstName.trim()) {
+      setProfileError("First name is required.");
+      return;
+    }
+    if (!editLastName.trim()) {
+      setProfileError("Last name is required.");
+      return;
+    }
+
+    setIsProfileUpdating(true);
+    setProfileError(null);
+    setProfileSuccess(null);
+
+    try {
+      if (isSupabaseConfigured) {
+        const { data, error } = await supabase.auth.updateUser({
+          data: {
+            first_name: editFirstName.trim(),
+            last_name: editLastName.trim()
+          }
+        });
+
+        if (error) throw error;
+        
+        if (data?.user) {
+          setUser(data.user);
+        }
+        setProfileSuccess("Profile updated successfully!");
+        setTimeout(() => {
+          setShowProfileModal(false);
+          setProfileSuccess(null);
+        }, 1500);
+      } else {
+        // Local mock Sandbox Update
+        await new Promise(resolve => setTimeout(resolve, 600));
+        
+        const existingUsersStr = localStorage.getItem('fin_tracker_mock_users') || '[]';
+        const existingUsers = JSON.parse(existingUsersStr);
+        
+        // Find if this mock user exists
+        const userEmail = user?.email || 'demo_user@ledgersmart.com';
+        const userIndex = existingUsers.findIndex((u: any) => u.email.toLowerCase() === userEmail.toLowerCase());
+        
+        const updatedMetadata = {
+          first_name: editFirstName.trim(),
+          last_name: editLastName.trim()
+        };
+
+        if (userIndex !== -1) {
+          existingUsers[userIndex].user_metadata = updatedMetadata;
+          localStorage.setItem('fin_tracker_mock_users', JSON.stringify(existingUsers));
+          setUser(existingUsers[userIndex]);
+        } else {
+          // If not in standard records, create or update custom runtime mock user
+          const mockUser = {
+            ...user,
+            user_metadata: updatedMetadata
+          };
+          existingUsers.push(mockUser);
+          localStorage.setItem('fin_tracker_mock_users', JSON.stringify(existingUsers));
+          setUser(mockUser);
+        }
+
+        setProfileSuccess("Profile updated successfully!");
+        setTimeout(() => {
+          setShowProfileModal(false);
+          setProfileSuccess(null);
+        }, 1500);
+      }
+    } catch (err: any) {
+      console.error("Profile update error:", err);
+      setProfileError(err.message || "Failed to update profile.");
+    } finally {
+      setIsProfileUpdating(false);
+    }
+  };
+
   const handleClearHistory = async () => {
     if (confirm("Confirm erasing chatbot conversational memory?")) {
       setChatMessages([]);
@@ -896,9 +994,15 @@ export default function App() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-gray-905 dark:text-white tracking-tight">Ledger Smart</h1>
+                <h1 className="text-base font-bold text-gray-950 dark:text-white tracking-tight">Ledger Smart</h1>
                 <span className="hidden sm:inline-block h-3.5 w-px bg-gray-200 dark:bg-slate-800" />
-                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">Welcome, {userFirstName}!</span>
+                <button
+                  onClick={handleOpenProfileModal}
+                  title="Click to edit profile name"
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                >
+                  Welcome, {userFirstName}!
+                </button>
               </div>
               <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono tracking-wider font-semibold">PERSONAL FINANCE COMPANION</p>
             </div>
@@ -911,6 +1015,13 @@ export default function App() {
                 <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400 max-w-[150px] truncate hidden sm:inline" title={user.email}>
                   {user.isDemo ? (user.email === 'demo_user@ledgersmart.com' ? 'Local Workspace' : user.email) : user.email}
                 </span>
+                <button
+                  onClick={handleOpenProfileModal}
+                  title="Edit Profile Name (First & Last Name)"
+                  className="p-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                >
+                  <User className="w-3.5 h-3.5" />
+                </button>
                 <button
                   onClick={async () => {
                     await supabase.auth.signOut();
@@ -1517,6 +1628,111 @@ export default function App() {
                 Clean App Slate
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Modification Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowProfileModal(false)}
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-650 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-blue-105 bg-blue-50 dark:bg-blue-955 text-blue-600 dark:text-blue-400 rounded-2xl mt-0.5">
+                <User className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-gray-905 dark:text-slate-100">Edit Profile Name</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Update your identity details below. Your new first name will display on your workspace and reports.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleUpdateProfile} className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                  Registered Email Address
+                </label>
+                <div className="py-2 px-3.5 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/60 dark:bg-slate-950 text-xs font-mono font-medium text-slate-500 dark:text-slate-400 select-all truncate">
+                  {user?.email}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label htmlFor="editFirstName" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                    First Name
+                  </label>
+                  <input
+                    id="editFirstName"
+                    type="text"
+                    required
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    placeholder="e.g. John"
+                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-955 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="editLastName" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                    Last Name
+                  </label>
+                  <input
+                    id="editLastName"
+                    type="text"
+                    required
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    placeholder="e.g. Doe"
+                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-955 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {profileError && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2">
+                  <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
+                    ⚠️ {profileError}
+                  </p>
+                </div>
+              )}
+
+              {profileSuccess && (
+                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-950 p-2.5 flex gap-2">
+                  <p className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium leading-relaxed">
+                    ✓ {profileSuccess}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-150 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowProfileModal(false)}
+                  className="py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-305 text-xs font-bold rounded-xl transition-colors cursor-pointer border-0"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isProfileUpdating}
+                  className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 border-0"
+                >
+                  {isProfileUpdating ? (
+                    <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
+                  ) : null}
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
