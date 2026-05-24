@@ -35,7 +35,8 @@ import {
   Lock,
   User,
   Bell,
-  BellRing
+  BellRing,
+  Printer
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -1234,6 +1235,16 @@ export default function App() {
               className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+            </button>
+
+            {/* Print Overview Report */}
+            <button
+              onClick={() => window.print()}
+              title="Print Clean PDF Overview Report"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-200 dark:hover:border-blue-900"
+            >
+              <Printer className="w-4 h-4 text-blue-500" />
+              <span className="hidden md:inline text-xs font-semibold tracking-wide">Print Overview</span>
             </button>
 
             {/* Notification Bell with Dropdown Popover */}

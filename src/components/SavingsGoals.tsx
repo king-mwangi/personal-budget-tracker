@@ -12,6 +12,41 @@ import {
   HelpCircle,
   X
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+
+const triggerSavingsConfetti = () => {
+  // Main energetic burst
+  confetti({
+    particleCount: 150,
+    spread: 80,
+    origin: { y: 0.6 },
+    colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+  });
+
+  // continuous side shooters waterfall stream for 2 seconds
+  const end = Date.now() + 2000;
+  const frame = () => {
+    confetti({
+      particleCount: 5,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.85 },
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+    });
+    confetti({
+      particleCount: 5,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.85 },
+      colors: ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6']
+    });
+
+    if (Date.now() < end) {
+      requestAnimationFrame(frame);
+    }
+  };
+  frame();
+};
 
 interface SavingsGoalsProps {
   goals: SavingsGoal[];
@@ -75,6 +110,12 @@ export default function SavingsGoals({
       }
       
       const nextBalance = parseFloat((currentGoal.current + depNum).toFixed(2));
+      
+      // Trigger elegant confetti cascade if user hits 100% of their savings target
+      if (nextBalance >= currentGoal.target && currentGoal.current < currentGoal.target) {
+        triggerSavingsConfetti();
+      }
+
       historyMap[todayStr] = nextBalance;
       try {
         localStorage.setItem(storageKey, JSON.stringify(historyMap));

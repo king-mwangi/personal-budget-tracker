@@ -1,1 +1,130 @@
 @import "tailwindcss";
+
+@media print {
+  /* Override dark mode background/text to ensure high contrast, printer-friendly white & black text */
+  *, :after, :before {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  html, body {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0d1e2d !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide interactive, floating, and non-printable layout items completely */
+  header button,
+  header .mr-1,
+  header .relative,
+  nav,
+  aside,
+  form,
+  button,
+  input,
+  select,
+  textarea,
+  iframe,
+  .print-hidden,
+  [title*="Delete"],
+  [title*="Erase"],
+  [title*="Add"],
+  [title*="Record"],
+  .fixed.bottom-0,
+  /* Hide the active floating AI Chat Assistant or prompt boxes */
+  .fixed.right-6.bottom-20,
+  div[class*="AIAssistant"],
+  div[class*="floating-chat"],
+  .bg-purple-50,
+  button[class*="bg-purple-50"],
+  button[class*="Optimize with Gemini"],
+  div[class*="Initial Portfolio Setup Active"],
+  /* Hide standard headers visual icons if desired, but we can manage them neatly */
+  .bg-amber-50\/70 {
+    display: none !important;
+  }
+
+  /* Make the main grid expand across the full page width, removing the columns layout */
+  main {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  section {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+  }
+
+  /* Expand hidden column layouts to span full width */
+  .grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+
+  /* Support responsive grids inside cards to break into nice double-columns where appropriate */
+  .grid-cols-2, .sm\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .grid-cols-4, .sm\:grid-cols-2.lg\:grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .lg\:grid-cols-5, .lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Adjust spacing & styling for boxes */
+  .bg-white, .dark\:bg-slate-900, .bg-slate-50\/40 {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    page-break-inside: avoid !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #000000 !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Preserve basic colors for specific states or progress percentages where helpful, using pure borders or outlines */
+  .text-emerald-600, .text-emerald-400 {
+    color: #047857 !important;
+    font-weight: bold !important;
+  }
+
+  .text-amber-600, .text-amber-450 {
+    color: #b45309 !important;
+    font-weight: bold !important;
+  }
+
+  .text-purple-600, .text-purple-400 {
+    color: #6d28d9 !important;
+    font-weight: bold !important;
+  }
+
+  .text-blue-600, .text-blue-400 {
+    color: #1d4ed8 !important;
+    font-weight: bold !important;
+  }
+
+  /* Set nice printing pages headers */
+  @page {
+    margin: 1.2cm !important;
+  }
+}
+
