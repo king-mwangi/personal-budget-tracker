@@ -49,7 +49,7 @@ export const getURL = (): string => {
     return url.endsWith('/') ? url : `${url}/`;
   }
 
-  return 'http://localhost:3000/';
+  return '/';
 };
 
 export default function Login({ onDemoBypass }: LoginProps) {
@@ -140,7 +140,6 @@ export default function Login({ onDemoBypass }: LoginProps) {
             email: targetEmail,
             password: authPassword,
             options: {
-              emailRedirectTo: `${getURL()}auth/callback`,
               data: {
                 first_name: firstName.trim(),
                 last_name: lastName.trim()
