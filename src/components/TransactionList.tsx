@@ -39,6 +39,22 @@ export default function TransactionList({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
+
+  // Descriptions helper for expanding row details
+  const categoryDescriptions: Record<string, string> = {
+    Housing: "Rent, property mortgage, or general home maintenance expenses.",
+    Food: "Groceries, restaurant meals, takeaways, and food delivery.",
+    Entertainment: "Streaming subscriptions, events, cinema, and social outings.",
+    Transport: "Fuel, vehicle amortization, public transport, or taxi fees.",
+    Utilities: "Electricity, heating, gas, water supply, broadband, and cell plans.",
+    Shopping: "Apparel, standard electronics, home appliances, or accessories.",
+    Healthcare: "Medical insurance, pharmacy copays, and general wellness needs.",
+    Savings: "Liquid cash transfers, portfolio investments, or retirement lockups.",
+    Income: "Monthly wage payments, investment dividends, cash-ins, and bonuses.",
+    Other: "Miscellaneous items or auxiliary tracking lines of custom nature."
+  };
+
   // CSV Export action
   const handleExportCSV = () => {
     try {
@@ -273,58 +289,100 @@ export default function TransactionList({
               {paginatedTransactions.map((tx) => {
                 const categoryDetails = CATEGORIES[tx.category];
                 const IconComp = categoryDetails?.icon;
+                const isExpanded = expandedTxId === tx.id;
                 
                 return (
-                  <tr key={tx.id} className="hover:bg-gray-50/50 group transition-colors">
-                    {/* Primary notes label */}
-                    <td className="py-3 px-5">
-                      <div className="max-w-[180px] sm:max-w-[240px]">
-                        <p className="text-xs font-semibold text-gray-800 truncate" title={tx.description}>
-                          {tx.description}
-                        </p>
-                      </div>
-                    </td>
+                  <React.Fragment key={tx.id}>
+                    <tr 
+                      onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
+                      className="transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-850/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40"
+                    >
+                      {/* Primary notes label */}
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-gray-400 font-mono select-none transition-transform duration-150 text-center w-3">
+                            {isExpanded ? '▼' : '▶'}
+                          </span>
+                          <div className="max-w-[170px] sm:max-w-[230px]">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate" title={tx.description}>
+                              {tx.description}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
 
-                    {/* Category pill label */}
-                    <td className="py-3 px-5">
-                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${yToBg(tx.category)}`}>
-                        {IconComp && <IconComp className="w-3 h-3" />}
-                        {tx.category}
-                      </span>
-                    </td>
+                      {/* Category pill label */}
+                      <td className="py-3.5 px-5">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border ${yToBg(tx.category)}`}>
+                          {IconComp && <IconComp className="w-3 h-3" />}
+                          {tx.category}
+                        </span>
+                      </td>
 
-                    {/* Calendar date string */}
-                    <td className="py-3 px-5 font-mono text-[11px] text-gray-500">
-                      {tx.date}
-                    </td>
+                      {/* Calendar date string */}
+                      <td className="py-3.5 px-5 font-mono text-[11px] text-gray-500 dark:text-gray-400">
+                        {tx.date}
+                      </td>
 
-                    {/* Amount value tags */}
-                    <td className="py-3 px-5 text-right font-mono font-bold text-xs">
-                      <span className={tx.type === 'income' ? 'text-emerald-600' : 'text-gray-800'}>
-                        {tx.type === 'income' ? '+' : '-'}{currencySymbol}{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </td>
+                      {/* Amount value tags */}
+                      <td className="py-3.5 px-5 text-right font-mono font-bold text-xs">
+                        <span className={tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-800 dark:text-gray-100'}>
+                          {tx.type === 'income' ? '+' : '-'}{currencySymbol}{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </td>
 
-                    {/* Quick controls */}
-                    <td className="py-3 px-5">
-                      <div className="flex justify-center items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => onEditTransaction(tx)}
-                          className="p-1 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
-                          title="Edit transaction log"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => onDeleteTransaction(tx.id)}
-                          className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                          title="Delete transaction log"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      {/* Quick controls */}
+                      <td className="py-3.5 px-5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-center items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => onEditTransaction(tx)}
+                            className="p-1 text-gray-400 hover:text-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Edit transaction log"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => onDeleteTransaction(tx.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Delete transaction log"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    {/* Expanded details template */}
+                    {isExpanded && (
+                      <tr className="bg-slate-50/50 dark:bg-slate-950/30">
+                        <td colSpan={5} className="px-5 py-4 border-b border-gray-150 dark:border-slate-800/80">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                            <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">ID Reference</span>
+                              <code className="text-[10.5px] font-mono text-slate-650 dark:text-slate-300 break-all select-all block bg-slate-50/50 dark:bg-slate-950/50 px-1.5 py-1 rounded border border-gray-150 dark:border-slate-800">
+                                {tx.id}
+                              </code>
+                            </div>
+                            
+                            <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">Created Timestamp</span>
+                              <div className="text-slate-650 dark:text-slate-300 font-medium">
+                                📅 Record date: <span className="font-mono font-bold text-slate-800 dark:text-white">{tx.date}</span>
+                              </div>
+                              <span className="text-[10px] text-gray-450 dark:text-gray-500 font-mono block">Status: Confirmed & Persisted</span>
+                            </div>
+                            
+                            <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
+                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">Budget Category Insight</span>
+                              <p className="text-slate-650 dark:text-slate-350 leading-relaxed text-[11px]">
+                                {categoryDescriptions[tx.category] || "No description loaded."}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

@@ -270,38 +270,70 @@ export default function Dashboard({
 
         {/* Content detail layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Col 1: Spending Velocity analysis */}
-          <div className="p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Top Expenditure Category</span>
-            <p className="text-sm font-black text-slate-800 dark:text-white">
-              {fastestCategory ? `${fastestCategory} (${currencySymbol}${fastestAmount.toLocaleString('en-US', {maximumFractionDigits:0})})` : "No Spends Recorded"}
-            </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal mt-1">
-              {fastestCategory 
-                ? `Expense patterns show "${fastestCategory}" has the absolute highest spending volume in this tracking period.` 
-                : "Active journal contains no expense lines yet. Log expenses to pinpoint leakage."}
-            </p>
-          </div>
-
-          {/* Col 2 & 3: Recommendation summary */}
-          <div className="md:col-span-2 p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl flex flex-col justify-between gap-3">
-            <div className="space-y-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Recommended Strategy</span>
-              <p className="text-xs text-slate-700 dark:text-slate-250 leading-relaxed mt-1">
-                {aiInsights?.summaryMessage || activeSavingTip}
-              </p>
-            </div>
-
-            {aiInsights?.actionableInsights && aiInsights.actionableInsights.length > 0 && (
-              <div className="pt-2 border-t border-slate-150 dark:border-slate-800 flex flex-wrap gap-2 text-[10px] font-mono font-bold text-blue-650 dark:text-blue-400">
-                {aiInsights.actionableInsights.slice(0, 2).map((insight, idx) => (
-                  <span key={idx} className="bg-blue-50/50 dark:bg-slate-950/40 px-2 py-0.5 rounded-md border border-blue-100/30">
-                    💡 {insight}
-                  </span>
-                ))}
+          {loadingInsights ? (
+            <>
+              {/* Shimmering Loader Col 1 */}
+              <div className="p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl space-y-3 animate-pulse">
+                <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-sm w-1/2" />
+                <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded-md w-3/4" />
+                <div className="space-y-1.5">
+                  <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-sm w-full" />
+                  <div className="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-sm w-5/6" />
+                </div>
               </div>
-            )}
-          </div>
+
+              {/* Shimmering Loader Col 2 & 3 */}
+              <div className="md:col-span-2 p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl flex flex-col justify-between gap-4 animate-pulse">
+                <div className="space-y-3">
+                  <div className="h-2 bg-slate-200 dark:bg-slate-800 rounded-sm w-1/4" />
+                  <div className="space-y-2">
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-full" />
+                    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded-md w-11/12" />
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-150 dark:border-slate-800 flex gap-2">
+                  <div className="h-5 bg-blue-100/50 dark:bg-slate-800/60 rounded-md w-24" />
+                  <div className="h-5 bg-blue-100/50 dark:bg-slate-800/60 rounded-md w-32" />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Col 1: Spending Velocity analysis */}
+              <div className="p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Top Expenditure Category</span>
+                <p className="text-sm font-black text-slate-800 dark:text-white">
+                  {fastestCategory ? `${fastestCategory} (${currencySymbol}${fastestAmount.toLocaleString('en-US', {maximumFractionDigits:0})})` : "No Spends Recorded"}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal mt-1">
+                  {fastestCategory 
+                    ? `Expense patterns show "${fastestCategory}" has the absolute highest spending volume in this tracking period.` 
+                    : "Active journal contains no expense lines yet. Log expenses to pinpoint leakage."}
+                </p>
+              </div>
+
+              {/* Col 2 & 3: Recommendation summary */}
+              <div className="md:col-span-2 p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl flex flex-col justify-between gap-3">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Recommended Strategy</span>
+                  <p className="text-xs text-slate-705 dark:text-slate-250 leading-relaxed mt-1">
+                    {aiInsights?.summaryMessage || activeSavingTip}
+                  </p>
+                </div>
+
+                {aiInsights?.actionableInsights && aiInsights.actionableInsights.length > 0 && (
+                  <div className="pt-2 border-t border-slate-150 dark:border-slate-800 flex flex-wrap gap-2 text-[10px] font-mono font-bold text-blue-650 dark:text-blue-400">
+                    {aiInsights.actionableInsights.slice(0, 2).map((insight, idx) => (
+                      <span key={idx} className="bg-blue-50/50 dark:bg-slate-950/40 px-2 py-0.5 rounded-md border border-blue-100/30">
+                        💡 {insight}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

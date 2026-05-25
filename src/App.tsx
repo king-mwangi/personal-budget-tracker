@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
-import Dashboard from './components/Dashboard';
-import TransactionForm from './components/TransactionForm';
-import TransactionList from './components/TransactionList';
-import BudgetManager from './components/BudgetManager';
-import SavingsGoals from './components/SavingsGoals';
-import AIAssistant from './components/AIAssistant';
-import BudgetTemplates from './components/BudgetTemplates';
-import RecurringManager from './components/RecurringManager';
 import Login from './components/Login';
-import MonthlyReports from './components/MonthlyReports';
+
+// Optimally lazy loaded major performance modules to secure instantaneous loading
+const Dashboard = React.lazy(() => import('./components/Dashboard'));
+const TransactionForm = React.lazy(() => import('./components/TransactionForm'));
+const TransactionList = React.lazy(() => import('./components/TransactionList'));
+const BudgetManager = React.lazy(() => import('./components/BudgetManager'));
+const SavingsGoals = React.lazy(() => import('./components/SavingsGoals'));
+const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
+const BudgetTemplates = React.lazy(() => import('./components/BudgetTemplates'));
+const RecurringManager = React.lazy(() => import('./components/RecurringManager'));
+const MonthlyReports = React.lazy(() => import('./components/MonthlyReports'));
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
@@ -2155,107 +2157,118 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           )}
 
           {/* Active rendering tabs content */}
-          {activeTab === 'dash' && (
-            <Dashboard 
-              transactions={transactions} 
-              budgets={budgets} 
-              currencySymbol={currencySymbol}
-              aiInsights={aiInsights}
-              loadingInsights={loadingInsights}
-              userFirstName={userFirstName}
-            />
-          )}
-
-          {activeTab === 'ledger' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <TransactionList
-                   transactions={transactions}
-                   onDeleteTransaction={handleDeleteTransaction}
-                   onEditTransaction={(tx) => {
-                     setEditingTx(tx);
-                   }}
-                   currencySymbol={currencySymbol}
-                   onAskAIAboutTrends={(q) => {
-                     setActiveTab('ai');
-                     handleSendMessage(q);
-                   }}
-                />
+          <React.Suspense fallback={
+            <div className="flex flex-col items-center justify-center p-12 min-h-[400px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs transition-colors pr-4 animate-pulsate">
+              <div className="relative w-12 h-12 flex items-center justify-center mb-4">
+                <div className="absolute inset-0 w-full h-full rounded-full border-4 border-slate-200 dark:border-slate-800" />
+                <div className="absolute inset-0 w-full h-full rounded-full border-4 border-t-blue-600 dark:border-t-blue-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
               </div>
-              <div className="lg:col-span-1">
-                <TransactionForm
-                  onAddTransaction={handleAddTransaction}
-                  onUpdateTransaction={handleUpdateTransaction}
-                  editingTransaction={editingTx}
-                  onCancelEdit={() => setEditingTx(null)}
-                  currencySymbol={currencySymbol}
-                />
-              </div>
+              <p className="text-sm font-semibold text-slate-705 dark:text-slate-250">Loading application segment...</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[280px] text-center leading-relaxed">Splitting asset bundle into instant dynamic micro-chunks for performance.</p>
             </div>
-          )}
+          }>
+            {activeTab === 'dash' && (
+              <Dashboard 
+                transactions={transactions} 
+                budgets={budgets} 
+                currencySymbol={currencySymbol}
+                aiInsights={aiInsights}
+                loadingInsights={loadingInsights}
+                userFirstName={userFirstName}
+              />
+            )}
 
-          {activeTab === 'finance' && (
-            <BudgetManager
-              budgets={budgets}
-              transactions={transactions}
-              onUpdateBudget={handleUpdateBudget}
-              onDeleteBudget={handleDeleteBudget}
-              currencySymbol={currencySymbol}
-              onAskAIAboutBudget={triggerAIBudgetAssistant}
-            />
-          )}
+            {activeTab === 'ledger' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <TransactionList
+                     transactions={transactions}
+                     onDeleteTransaction={handleDeleteTransaction}
+                     onEditTransaction={(tx) => {
+                       setEditingTx(tx);
+                     }}
+                     currencySymbol={currencySymbol}
+                     onAskAIAboutTrends={(q) => {
+                       setActiveTab('ai');
+                       handleSendMessage(q);
+                     }}
+                  />
+                </div>
+                <div className="lg:col-span-1">
+                  <TransactionForm
+                    onAddTransaction={handleAddTransaction}
+                    onUpdateTransaction={handleUpdateTransaction}
+                    editingTransaction={editingTx}
+                    onCancelEdit={() => setEditingTx(null)}
+                    currencySymbol={currencySymbol}
+                  />
+                </div>
+              </div>
+            )}
 
-          {activeTab === 'savings' && (
-            <SavingsGoals
-              goals={goals}
-              onAddGoal={handleAddGoal}
-              onUpdateGoalProgress={handleUpdateGoalProgress}
-              onDeleteGoal={handleDeleteGoal}
-              currencySymbol={currencySymbol}
-            />
-          )}
+            {activeTab === 'finance' && (
+              <BudgetManager
+                budgets={budgets}
+                transactions={transactions}
+                onUpdateBudget={handleUpdateBudget}
+                onDeleteBudget={handleDeleteBudget}
+                currencySymbol={currencySymbol}
+                onAskAIAboutBudget={triggerAIBudgetAssistant}
+              />
+            )}
 
-          {activeTab === 'ai' && (
-            <AIAssistant
-              transactions={transactions}
-              budgets={budgets}
-              savingsGoals={goals}
-              messages={chatMessages}
-              onSendMessage={handleSendMessage}
-              isGenerating={isGeneratingMessage}
-              onClearHistory={handleClearHistory}
-            />
-          )}
+            {activeTab === 'savings' && (
+              <SavingsGoals
+                goals={goals}
+                onAddGoal={handleAddGoal}
+                onUpdateGoalProgress={handleUpdateGoalProgress}
+                onDeleteGoal={handleDeleteGoal}
+                currencySymbol={currencySymbol}
+              />
+            )}
 
-          {activeTab === 'templates' && (
-            <BudgetTemplates
-              templates={customTemplates}
-              onSaveTemplate={handleSaveTemplate}
-              onDeleteTemplate={handleDeleteTemplate}
-              onApplyTemplate={handleApplyTemplate}
-              currencySymbol={currencySymbol}
-            />
-          )}
+            {activeTab === 'ai' && (
+              <AIAssistant
+                transactions={transactions}
+                budgets={budgets}
+                savingsGoals={goals}
+                messages={chatMessages}
+                onSendMessage={handleSendMessage}
+                isGenerating={isGeneratingMessage}
+                onClearHistory={handleClearHistory}
+              />
+            )}
 
-          {activeTab === 'recurring' && (
-            <RecurringManager
-              recurringItems={recurringItems}
-              onAddRecurring={handleAddRecurring}
-              onDeleteRecurring={handleDeleteRecurring}
-              onTriggerRecurringManually={handleTriggerRecurringManually}
-              currencySymbol={currencySymbol}
-            />
-          )}
+            {activeTab === 'templates' && (
+              <BudgetTemplates
+                templates={customTemplates}
+                onSaveTemplate={handleSaveTemplate}
+                onDeleteTemplate={handleDeleteTemplate}
+                onApplyTemplate={handleApplyTemplate}
+                currencySymbol={currencySymbol}
+              />
+            )}
 
-          {activeTab === 'reports' && (
-            <MonthlyReports
-              transactions={transactions}
-              currencySymbol={currencySymbol}
-              snapshots={snapshots}
-              onAddSnapshot={handleAddSnapshot}
-              onDeleteSnapshot={handleDeleteSnapshot}
-            />
-          )}
+            {activeTab === 'recurring' && (
+              <RecurringManager
+                recurringItems={recurringItems}
+                onAddRecurring={handleAddRecurring}
+                onDeleteRecurring={handleDeleteRecurring}
+                onTriggerRecurringManually={handleTriggerRecurringManually}
+                currencySymbol={currencySymbol}
+              />
+            )}
+
+            {activeTab === 'reports' && (
+              <MonthlyReports
+                transactions={transactions}
+                currencySymbol={currencySymbol}
+                snapshots={snapshots}
+                onAddSnapshot={handleAddSnapshot}
+                onDeleteSnapshot={handleDeleteSnapshot}
+              />
+            )}
+          </React.Suspense>
 
         </section>
 
