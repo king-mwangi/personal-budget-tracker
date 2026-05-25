@@ -1551,7 +1551,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
   const hasSeededData = transactions.some(t => t.id === '1' || t.id === '2');
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
       
       {/* Toast Alert Banner for Login Success */}
       {loginNotification && (
@@ -1577,20 +1577,20 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       )}
       
       {/* Top Elegant bar */}
-      <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-4 px-6 sticky top-0 z-40 shadow-2xs transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs">
+      <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-2xs transition-colors">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
+          <div className="flex items-center gap-2.5 self-start md:self-auto w-full md:w-auto">
+            <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs shrink-0">
               <Building2 className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-gray-950 dark:text-white tracking-tight">Ledger Smart</h1>
+            <div className="min-w-0">
+              <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+                <h1 className="text-base font-bold text-gray-950 dark:text-white tracking-tight shrink-0">Ledger Smart</h1>
                 <span className="hidden sm:inline-block h-3.5 w-px bg-gray-200 dark:bg-slate-800" />
                 <button
                   onClick={handleOpenProfileModal}
                   title="Click to edit profile name"
-                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0"
+                  className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0 text-left truncate max-w-[150px] sm:max-w-none"
                 >
                   Welcome, {userFirstName}!
                 </button>
@@ -1599,17 +1599,17 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
             {/* Supabase Authentication Status & Sign Out */}
             {user && (
-              <div className="flex items-center gap-2 mr-1">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mr-0 sm:mr-1">
                 <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400 max-w-[150px] truncate hidden sm:inline" title={user.email}>
                   {user.isDemo ? (user.email === 'demo_user@ledgersmart.com' ? 'Local Workspace' : user.email) : user.email}
                 </span>
                 <button
                   onClick={handleOpenProfileModal}
                   title="Edit Profile Name (First & Last Name)"
-                  className="p-2.5 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all cursor-pointer flex items-center justify-center"
+                  className="p-2 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-all cursor-pointer flex items-center justify-center h-8.5 w-8.5"
                 >
                   <User className="w-3.5 h-3.5" />
                 </button>
@@ -1618,7 +1618,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Customer WhatsApp Support"
-                  className="p-2.5 border border-emerald-200 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                  className="p-2 border border-emerald-200 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-955/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0 h-8.5 w-8.5"
                 >
                   <HelpCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 </a>
@@ -1628,7 +1628,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     setAIInsights(null);
                   }}
                   title="Sign Out of Ledger Smart"
-                  className="p-2.5 border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer"
+                  className="p-2 border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-955/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer flex items-center justify-center h-8.5 w-8.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -1638,7 +1638,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             <button
               onClick={() => setDarkMode(!darkMode)}
               title={darkMode ? "Switch to Light App Theme" : "Switch to Dark App Theme"}
-              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400 h-8.5 w-8.5 flex items-center justify-center"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </button>
