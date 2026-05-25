@@ -530,7 +530,7 @@ export default function App() {
     pdf.save('financial-overview.pdf');
   };
 
-  // Request real-time structured advisors tips using `/api/insights`
+  // Request real-time structured advisors tips using `/api/analyze`
   const fetchAIInsights = async () => {
     if (transactions.length === 0 && budgets.length === 0) return;
     setLoadingInsights(true);
@@ -540,7 +540,7 @@ export default function App() {
     let fallbackErrorMessage = "";
 
     try {
-      const response = await fetch('/api/insights', {
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency })
@@ -550,7 +550,7 @@ export default function App() {
         // Standard non-ok check. If 404 (NOT_FOUND) from Vercel/similar, mark fallback.
         if (response.status === 404) {
           isFallbackNeeded = true;
-          fallbackErrorMessage = "Endpoint /api/insights returned 404 NOT FOUND.";
+          fallbackErrorMessage = "Endpoint /api/analyze returned 404 NOT FOUND.";
         } else {
           let errorMessage = "Server returned an error invoking Insights.";
           let isQuota = response.status === 429;
@@ -598,7 +598,7 @@ export default function App() {
         }
       }
     } catch (err: any) {
-      console.warn("Standard /api/insights failed, preparing fallback mode:", err);
+      console.warn("Standard /api/analyze failed, preparing fallback mode:", err);
       isFallbackNeeded = true;
       fallbackErrorMessage = err.message || "Unknown error calling server-side insights.";
     }

@@ -37,8 +37,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// AI Insights Generator - Runs structured diagnostic on the user's budgets and logs
-app.post("/api/insights", async (req, res) => {
+async function handleInsightsRequest(req: any, res: any) {
   try {
     const { transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body;
 
@@ -135,7 +134,11 @@ app.post("/api/insights", async (req, res) => {
       isKeyMissing
     });
   }
-});
+}
+
+// AI Insights Generator - Runs structured diagnostic on the user's budgets and logs
+app.post("/api/insights", handleInsightsRequest);
+app.post("/api/analyze", handleInsightsRequest);
 
 // AI Advisor Chat Bot - Supports conversation informed by current accounts status
 app.post("/api/advisor", async (req, res) => {

@@ -52,14 +52,35 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
     availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth
   );
 
+  // Mode selection state: standard monthly or custom date range
+  const [reportMode, setReportMode] = useState<'month' | 'range'>('month');
+  
+  // Custom date range inputs
+  const [startDateStr, setStartDateStr] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().substring(0, 10);
+  });
+  
+  const [endDateStr, setEndDateStr] = useState<string>(() => {
+    return new Date().toISOString().substring(0, 10);
+  });
+
   const [copied, setCopied] = useState(false);
   const [compareSnapshotId, setCompareSnapshotId] = useState<string | null>(null);
   const [snapshotSuccessMsg, setSnapshotSuccessMsg] = useState<string | null>(null);
 
   const selectedCompareSnapshot = snapshots?.find(s => s.id === compareSnapshotId);
 
-  // Filter transactions for the selected month
-  const monthlyTransactions = transactions.filter(t => t.date?.startsWith(selectedMonth));
+  // Filter transactions dynamically depending on selectedMonth or custom range
+  const monthlyTransactions = transactions.filter(t => {
+    if (!t.date) return false;
+    if (reportMode === 'month') {
+      return t.date.startsWith(selectedMonth);
+    } else {
+      return t.date >= startDateStr && t.date <= endDateStr;
+    }
+  });
 
   // Math totals
   const incomeTransactions = monthlyTransactions.filter(t => t.type === 'income');
@@ -104,7 +125,17 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
     return date.toLocaleString('default', { month: 'long', year: 'numeric' });
   };
 
-  const monthLabel = formatMonthName(selectedMonth);
+  const formatDateFriendly = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return date.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  const monthLabel = reportMode === 'month'
+    ? formatMonthName(selectedMonth)
+    : `${formatDateFriendly(startDateStr)} – ${formatDateFriendly(endDateStr)}`;
 
   const handleSaveSnapshot = async () => {
     if (monthlyTransactions.length === 0) {
@@ -167,10 +198,9 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
         orientation: orientation,
         unit: 'px',
         format: [imgWidth + 40, imgHeight + 40], // Custom bounding padding
-      });
-
-      pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
-      pdf.save(`Ledger_Financial_Report_${selectedMonth}.pdf`);
+      });      pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+      const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
+      pdf.save(`Ledger_Financial_Report_${fileDateLabel}.pdf`);
       setSnapshotSuccessMsg(`PDF Report for ${monthLabel} compiled and downloaded successfully!`);
     } catch (err) {
       console.error("PDF compiling error:", err);
@@ -204,7 +234,8 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Ledger_Transactions_Report_${selectedMonth}.csv`);
+    const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
+    link.setAttribute('download', `Ledger_Transactions_Report_${fileDateLabel}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -212,10 +243,11 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
 
   // Export to formatted txt summary
   const handleExportTXT = () => {
+    const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
     const txtReport = `==================================================
-              LEDGER MONTHLY FINANCIAL SUMMARY
+              LEDGER FINANCIAL SUMMARY REPORT
 ==================================================
-Report Period:  ${monthLabel} (${selectedMonth})
+Report Period:  ${monthLabel} (${fileDateLabel})
 Generated On:   ${new Date().toLocaleDateString()}
 --------------------------------------------------
 
@@ -281,74 +313,130 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
     <div id="monthly-reports-capture-area" className="space-y-6">
       
       {/* Header section with Select and actions */}
-      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-center justify-between gap-4 transition-colors">
-        <div className="space-y-1 self-start md:self-auto">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center flex-wrap gap-2">
-              <span>Monthly Performance Digests</span>
-              <span className="text-xs bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono font-bold px-2 py-0.5 rounded-lg border border-blue-100 dark:border-blue-900/40">
-                {monthLabel}
-              </span>
-            </h2>
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4 transition-colors">
+        
+        {/* Title and Segmented Switcher */}
+        <div className="flex flex-col md:flex-row md:items-center gap-4 flex-1">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center flex-wrap gap-2">
+                <span>Performance Digests</span>
+                <span className="text-xs bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-mono font-bold px-2.5 py-0.5 rounded-lg border border-blue-100 dark:border-blue-900/40">
+                  {monthLabel}
+                </span>
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
+              Generate and export aggregated audits of your ledger distributions over any interval.
+            </p>
           </div>
-          <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">
-            Generate and export aggregated audits of your monthly ledger distributions.
-          </p>
+
+          {/* Segmented control for reporting mode */}
+          <div data-html2canvas-ignore="true" className="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200/50 dark:border-slate-800 text-xs shrink-0 self-start">
+            <button
+              id="toggle-mode-month"
+              onClick={() => setReportMode('month')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                reportMode === 'month'
+                  ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs'
+                  : 'text-slate-500 dark:text-slate-450 hover:text-slate-750 dark:hover:text-slate-305'
+              }`}
+            >
+              Single Month
+            </button>
+            <button
+              id="toggle-mode-range"
+              onClick={() => setReportMode('range')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                reportMode === 'range'
+                  ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs'
+                  : 'text-slate-500 dark:text-slate-450 hover:text-slate-750 dark:hover:text-slate-305'
+              }`}
+            >
+              Custom Range
+            </button>
+          </div>
         </div>
 
-        {/* Dropdown controls inside elegant input frame */}
-        <div data-html2canvas-ignore="true" className="flex items-center gap-3 w-full md:w-auto self-stretch md:self-auto shrink-0 font-sans">
-          <div className="relative flex-1 md:flex-initial">
-            <Calendar className="w-4 h-4 p-0 text-slate-400 dark:text-slate-500 absolute left-3 top-3" />
-            <select
-              id="report-month-select"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full md:w-56 appearance-none border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-950 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-blue-500 focus:outline-hidden cursor-pointer"
+        {/* Dynamic selector controls inside elegant input frame */}
+        <div data-html2canvas-ignore="true" className="flex flex-wrap items-center gap-3 w-full xl:w-auto font-sans">
+          
+          {reportMode === 'month' ? (
+            <div className="relative flex-1 sm:flex-initial">
+              <Calendar className="w-4 h-4 p-0 text-slate-400 dark:text-slate-500 absolute left-3 top-3" />
+              <select
+                id="report-month-select"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full sm:w-52 appearance-none border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-950 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-blue-500 focus:outline-hidden cursor-pointer"
+              >
+                {availableMonths.length === 0 ? (
+                  <option value={currentSystemMonth}>{formatMonthName(currentSystemMonth)} (This Month)</option>
+                ) : (
+                  availableMonths.map(m => (
+                    <option key={m} value={m}>{formatMonthName(m)}</option>
+                  ))
+                )}
+              </select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-1 sm:flex-initial bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+              <input
+                type="date"
+                id="custom-start-date"
+                value={startDateStr}
+                onChange={(e) => setStartDateStr(e.target.value)}
+                title="Start Date"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-355 focus:outline-hidden px-2 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-400 dark:text-slate-600 font-extrabold uppercase">to</span>
+              <input
+                type="date"
+                id="custom-end-date"
+                value={endDateStr}
+                onChange={(e) => setEndDateStr(e.target.value)}
+                title="End Date"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-355 focus:outline-hidden px-2 cursor-pointer"
+              />
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+            <button
+              id="print-sys-report"
+              onClick={() => window.print()}
+              title="Surgical Paper Print out"
+              className="p-2 border border-slate-200 dark:border-slate-750 bg-slate-50/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-850 dark:hover:text-slate-105 rounded-xl transition-all cursor-pointer"
             >
-              {availableMonths.length === 0 ? (
-                <option value={currentSystemMonth}>{formatMonthName(currentSystemMonth)} (This Month)</option>
+              <Printer className="w-4.5 h-4.5" />
+            </button>
+
+            <button
+              id="download-pdf-report-btn"
+              disabled={isGeneratingPDF}
+              onClick={handleExportPDF}
+              title="Download Custom High-Quality PDF Report"
+              className="p-2 border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-8.5 min-h-8.5"
+            >
+              {isGeneratingPDF ? (
+                <span className="w-3.5 h-3.5 border-2 border-rose-550 border-t-transparent animate-spin rounded-full block" />
               ) : (
-                availableMonths.map(m => (
-                  <option key={m} value={m}>{formatMonthName(m)}</option>
-                ))
+                <FileDown className="w-4.5 h-4.5 text-rose-500" />
               )}
-            </select>
+            </button>
+
+            <button
+              id="save-monthly-snapshot-btn"
+              disabled={reportMode === 'range'}
+              onClick={handleSaveSnapshot}
+              title={reportMode === 'range' ? "Save snapshots is only available for single month digests" : `Save standard snapshot of ${monthLabel} reports to Supabase`}
+              className="px-3.5 py-2 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-950/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Camera className="w-4.5 h-4.5 text-emerald-500 shrink-0 animate-pulse" />
+              <span>Save Snapshot</span>
+            </button>
           </div>
-
-          <button
-            id="print-sys-report"
-            onClick={() => window.print()}
-            title="Surgical Paper Print out"
-            className="p-2 border border-slate-200 dark:border-slate-750 bg-slate-50/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-850 dark:hover:text-slate-105 rounded-xl transition-all cursor-pointer"
-          >
-            <Printer className="w-4.5 h-4.5" />
-          </button>
-
-          <button
-            id="download-pdf-report-btn"
-            disabled={isGeneratingPDF}
-            onClick={handleExportPDF}
-            title="Download Custom High-Quality PDF Report"
-            className="p-2 border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-8.5 min-h-8.5"
-          >
-            {isGeneratingPDF ? (
-              <span className="w-3.5 h-3.5 border-2 border-rose-550 border-t-transparent animate-spin rounded-full block" />
-            ) : (
-              <FileDown className="w-4.5 h-4.5 text-rose-500" />
-            )}
-          </button>
-
-          <button
-            id="save-monthly-snapshot-btn"
-            onClick={handleSaveSnapshot}
-            title={`Save standard snapshot of ${monthLabel} reports to Supabase`}
-            className="px-3.5 py-2 border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/30 dark:bg-emerald-950/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-          >
-            <Camera className="w-4.5 h-4.5 text-emerald-500 shrink-0 animate-pulse" />
-            <span>Save Snapshot</span>
-          </button>
         </div>
       </div>
 
