@@ -147,11 +147,11 @@ export default function TransactionForm({
           
           {/* Outflow Amount */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
               Transaction Volume
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-2.5 text-sm font-bold text-gray-400">
+              <span className="absolute left-3.5 top-2.5 text-sm font-bold text-gray-500 dark:text-gray-400">
                 {currencySymbol}
               </span>
               <input
@@ -162,7 +162,7 @@ export default function TransactionForm({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full border border-gray-200 rounded-xl pl-8 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono font-medium"
+                className="w-full bg-white dark:bg-slate-950 border border-gray-300 dark:border-slate-700 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono font-medium"
               />
             </div>
           </div>
@@ -171,15 +171,15 @@ export default function TransactionForm({
             
             {/* Category selection */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Category</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Category</label>
               <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">
+                <span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500">
                   <Tag className="w-4 h-4" />
                 </span>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full border border-gray-200 hover:border-gray-300 rounded-xl pl-9 pr-3.5 py-2.5 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all cursor-pointer"
+                  className="w-full border border-gray-300 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl pl-9 pr-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer"
                 >
                   {type === 'income' ? (
                     <>
@@ -199,9 +199,9 @@ export default function TransactionForm({
 
             {/* Date selector */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Date</label>
               <div className="relative">
-                <span className="absolute left-3 top-3 text-gray-400">
+                <span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500">
                   <Calendar className="w-4 h-4" />
                 </span>
                 <input
@@ -209,7 +209,7 @@ export default function TransactionForm({
                   required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono"
+                  className="w-full border border-gray-300 dark:border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
                 />
               </div>
             </div>
@@ -218,11 +218,11 @@ export default function TransactionForm({
 
           {/* Optional notes or tags */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
               Note (Optional)
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-3 text-gray-400">
+              <span className="absolute left-3 top-3 text-gray-400 dark:text-gray-500">
                 <FileText className="w-4 h-4" />
               </span>
               <input
@@ -230,7 +230,7 @@ export default function TransactionForm({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Weekly grocery haul, salary payday..."
-                className="w-full border border-gray-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 block"
+                className="w-full border border-gray-300 dark:border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-sm bg-white dark:bg-slate-950 text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block"
               />
             </div>
           </div>

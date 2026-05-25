@@ -691,43 +691,44 @@ export default function App() {
       // Compute local data-driven smart insights when no API key exists on client
       const totalExpenses = transactions
         .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
       
       const categorySpend: Record<string, number> = {};
       transactions.filter(t => t.type === 'expense').forEach(t => {
-        categorySpend[t.category] = (categorySpend[t.category] || 0) + t.amount;
+        categorySpend[t.category] = (categorySpend[t.category] || 0) + (t.amount || 0);
       });
 
       const overspentCategories = budgets.filter(b => {
         const spend = categorySpend[b.category] || 0;
-        return spend > b.limit;
+        return spend > (b.limit || 0);
       });
 
       let overallStatus = "On Track";
       if (overspentCategories.length > 0) {
         overallStatus = "Budget Exceeded";
-      } else if (totalExpenses > budgets.reduce((sum, b) => sum + b.limit, 0) * 0.8) {
+      } else if (totalExpenses > budgets.reduce((sum, b) => sum + (b.limit || 0), 0) * 0.8) {
         overallStatus = "Caution";
       }
 
-      const totalBudgetLimit = budgets.reduce((sum, b) => sum + b.limit, 0);
+      const totalBudgetLimit = budgets.reduce((sum, b) => sum + (b.limit || 0), 0);
 
       const computedLocalInsights = {
         overallStatus: overallStatus,
-        summaryMessage: `Budget analysis computed locally via digital companion diagnostics. You have logged cumulative expenses of ${currency} ${totalExpenses.toLocaleString()} out of an allocated ${currency} ${totalBudgetLimit.toLocaleString()} limit. To unlock full real-time Gemini AI, configure the VITE_GEMINI_API_KEY environment variable.`,
+        summaryMessage: `Budget analysis computed locally. Expenses: ${currency} ${(totalExpenses || 0).toLocaleString()}. Budget Limit: ${currency} ${(totalBudgetLimit || 0).toLocaleString()}.`,
         actionableInsights: [
           overspentCategories.length > 0
-            ? `⚠️ Overspent Alerts: You have exceeded limits in the following areas: ${overspentCategories.map(c => c.category).join(', ')}.`
-            : `✅ Spending control is outstanding! No active category allocations have exceeded their monthly boundaries.`,
+            ? `⚠️ Overspent Alerts: Check: ${overspentCategories.map(c => c.category).join(', ')}.`
+            : `✅ Spending control is outstanding!`,
           `Your recent outflows constitute exactly ${totalBudgetLimit > 0 ? Math.round((totalExpenses / totalBudgetLimit) * 100) : 0}% of your cumulative budget allocations.`,
-          `Savings progress: Currently tracking ${goals.length} target plans. Setup auto transfers on payday to maximize focus.`
+          `Savings progress: Currently tracking ${goals.length} target plans.`
         ],
         savingsOpportunities: budgets.map(b => {
-          const savingEstimate = Math.round(b.limit * 0.08);
+          const limit = b.limit || 0;
+          const savingEstimate = Math.round(limit * 0.08);
           return {
             category: b.category,
             savingEstimate: savingEstimate,
-            actionableTip: `Compare prices on variable ${b.category} outlays to prune at least 8% (${currency} ${savingEstimate.toLocaleString()}) this cycle.`
+            actionableTip: `Compare prices on ${b.category} to prune at least 8% (${currency} ${(savingEstimate || 0).toLocaleString()}) this cycle.`
           };
         }).slice(0, 3)
       };
@@ -1263,16 +1264,6 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 - Feel free to ask me to analyze your specific category budget constraints, inspect recent large bills, or offer customized savings tips!`;
       }
 
-      // Prepend warning regarding the static host node missing
-      replyText = `📢 **Deployment Sandbox Mode:** *(Statically Deployed Frontend)* 
-It looks like this application is running on Vercel or another static web host with no active backend Node.js server. 
-
-To activate real-time Gemini AI capabilities on this static deployment, simply register a **Settings > API Key** or set ` + "`VITE_GEMINI_API_KEY`" + ` as an environment variable in your Vercel project configuration. 
-
-In the meantime, our secure client-side budget diagnostics remain fully active! Here is your localized data analysis:
-
-${replyText}`;
-
       const aiMsg: ChatMessage = {
         id: Math.random().toString(36).substring(2, 9),
         role: 'model',
@@ -1772,7 +1763,7 @@ ${replyText}`;
             <button
               onClick={exportToPDF}
               title="Download Financial Report PDF"
-              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-900"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-900"
             >
               <Printer className="w-4 h-4 text-emerald-500" />
               <span className="hidden md:inline text-xs font-semibold tracking-wide">Export PDF</span>
