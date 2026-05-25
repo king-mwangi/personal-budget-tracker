@@ -279,9 +279,16 @@ export default function App() {
           error.message?.includes('Refresh Token') || 
           error.message?.includes('refresh_token') || 
           error.message?.includes('invalid_grant') ||
+          error.message?.includes('Not Found') ||
           error.status === 400 ||
           error.status === 401
         ) {
+          // Clear Supabase local storage if possible
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-')) {
+              localStorage.removeItem(key);
+            }
+          });
           supabase.auth.signOut().catch(() => {});
           setUser(null);
         }
@@ -523,55 +530,6 @@ export default function App() {
     pdf.save('financial-overview.pdf');
   };
 
-  const directClientGeminiCall = async (prompt: string, systemInstruction?: string, jsonMode?: boolean) => {
-    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("VITE_GEMINI_API_KEY environment variable is not defined on this preview client.");
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
-    const body: any = {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
-        }
-      ]
-    };
-
-    if (systemInstruction) {
-      body.systemInstruction = {
-        parts: [{ text: systemInstruction }]
-      };
-    }
-
-    if (jsonMode) {
-      body.generationConfig = {
-        responseMimeType: "application/json"
-      };
-    }
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Gemini direct API failed: ${errText || res.statusText} (Status ${res.status})`);
-    }
-
-    const result = await res.json();
-    const resultText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!resultText) {
-      throw new Error("Empty candidate response from direct Gemini API call.");
-    }
-    return resultText;
-  };
-
   // Request real-time structured advisors tips using `/api/insights`
   const fetchAIInsights = async () => {
     if (transactions.length === 0 && budgets.length === 0) return;
@@ -645,49 +603,8 @@ export default function App() {
       fallbackErrorMessage = err.message || "Unknown error calling server-side insights.";
     }
 
-    // Execute fallback routines (Direct browser fetch or local mathematically generated budget insights)
+    // Execute fallback routines (Local mathematically generated budget insights)
     if (isFallbackNeeded) {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-      if (apiKey && apiKey !== 'YOUR_SUPABASE_ANON_KEY' && apiKey.trim() !== '') {
-        try {
-          const systemInstruction = `You are a senior personal finance expert and budget optimization engine. Provide highly practical, personalized, and encouraging advice purely based on the real uploaded numbers. Always frame all monetary advice and estimates around the current active currency: ${currency}.`;
-          
-          const prompt = `Analyze the following monthly personal finance snapshot:
-          - Budgets: ${JSON.stringify(budgets)}
-          - Transactions: ${JSON.stringify(transactions)}
-          - Savings Goals: ${JSON.stringify(goals)}
-          - Active Currency: ${currency}
-
-          Provide a professional financial analysis and only return JSON matching the correct schema:
-          {
-            "overallStatus": "On Track" | "Caution" | "Budget Exceeded",
-            "summaryMessage": "friendly 1-2 sentence overall summary",
-            "actionableInsights": ["Observation 1 with amount in ${currency}", "Observation 2", "Observation 3"],
-            "savingsOpportunities": [
-              { "category": "Food", "savingEstimate": 15, "actionableTip": "concrete tip mentioning savings amount in ${currency}" }
-            ]
-          }`;
-
-          const rawText = await directClientGeminiCall(prompt, systemInstruction, true);
-          let textToShow = rawText || "";
-          if (textToShow.includes("```")) {
-            textToShow = textToShow.replace(/```json\s*/i, "").replace(/```\s*$/, "").trim();
-          }
-          const parsedResult = JSON.parse(textToShow || "{}");
-          if (parsedResult.overallStatus && parsedResult.summaryMessage) {
-            setAIInsights(parsedResult);
-            setIsInsightsStale(false);
-            try {
-              localStorage.setItem('fin_tracker_ai_insights', JSON.stringify(parsedResult));
-            } catch (_) {}
-            setLoadingInsights(false);
-            return;
-          }
-        } catch (directErr) {
-          console.warn("Direct client-side insights calling fallback failed, triggering local simulator:", directErr);
-        }
-      }
-
       // Compute local data-driven smart insights when no API key exists on client
       const totalExpenses = transactions
         .filter(t => t.type === 'expense')
@@ -1122,52 +1039,8 @@ export default function App() {
       fallbackErrorMsg = e.message || "Endpoint connection failed.";
     }
 
-    // Execute fallback routines (Direct browser fetch or local mathematically generated responses)
+    // Execute fallback routines (Local mathematically generated responses)
     if (isFallbackNeeded) {
-      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-      if (apiKey && apiKey !== 'YOUR_SUPABASE_ANON_KEY' && apiKey.trim() !== '') {
-        try {
-          const systemInstruction = `You are "Gemini Wealth Advisor", a supportive, professional, and practical personal finance chatbot assistant.
-          You have direct access to the user's monthly budgets, recent transactions logs, and savings goals:
-          - Budgets: ${JSON.stringify(budgets)}
-          - Transactions: ${JSON.stringify(transactions)}
-          - Savings Goals: ${JSON.stringify(goals)}
-          - Active Currency: ${currency}
-
-          Guidance rules:
-          1. Ground advice strictly in their realistic spending if applicable. All mentions of money must match the active currency (${currency}).
-          2. Suggest concrete savings tips, budgeting principles (e.g., 50/30/20 rule), or retirement views.
-          3. Keep answers concise, highly structured (use double newlines and clean bold markers), and encouraging.
-          4. Provide numbered lists for action points.
-          5. Be fully honest. If their current spending rate will blow their goal, point it out productively.
-          6. Maintain a professional, empathetic, and objective style. Do not invent fake account numbers or fake transactions outside of their real logs.`;
-
-          const aiText = await directClientGeminiCall(text, systemInstruction, false);
-          const aiMsg: ChatMessage = {
-            id: Math.random().toString(36).substring(2, 9),
-            role: 'model',
-            text: aiText,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          };
-
-          setChatMessages(prev => [...prev, aiMsg]);
-
-          if (user && !user.isDemo) {
-            await supabase.from('chat_messages').insert({
-              id: aiMsg.id,
-              user_id: user.id,
-              role: aiMsg.role,
-              text: aiMsg.text,
-              timestamp: aiMsg.timestamp
-            });
-          }
-          setIsGeneratingMessage(false);
-          return;
-        } catch (directErr) {
-          console.warn("Direct client Gemini call failed, continuing to simulated mode:", directErr);
-        }
-      }
-
       // Generate a highly contextual smart fallback locally in the browser if no API Key is set in client
       let replyText = "";
       const lowerText = text.toLowerCase();
