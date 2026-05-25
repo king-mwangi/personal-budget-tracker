@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
@@ -500,6 +502,27 @@ export default function App() {
   }, [isDataLoaded]);
 
   // Helper to directly call Gemini API in side-by-side environments such as client-only/Vercel static hosting
+  const exportToPDF = async () => {
+    const input = document.getElementById('main-content');
+    if (!input) return;
+
+    const canvas = await html2canvas(input, { scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+
+    const imgX = (pdfWidth - imgWidth * ratio) / 2;
+    const imgY = 10;
+
+    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+    pdf.save('financial-overview.pdf');
+  };
+
   const directClientGeminiCall = async (prompt: string, systemInstruction?: string, jsonMode?: boolean) => {
     const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
     if (!apiKey) {
@@ -1745,6 +1768,16 @@ ${replyText}`;
               <span className="hidden md:inline text-xs font-semibold tracking-wide">Print Overview</span>
             </button>
 
+            {/* Export to PDF */}
+            <button
+              onClick={exportToPDF}
+              title="Download Financial Report PDF"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-500 dark:text-slate-400 flex items-center justify-center gap-1.5 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-200 dark:hover:border-emerald-900"
+            >
+              <Printer className="w-4 h-4 text-emerald-500" />
+              <span className="hidden md:inline text-xs font-semibold tracking-wide">Export PDF</span>
+            </button>
+
             {/* Notification Bell with Dropdown Popover */}
             <div className="relative">
               <button
@@ -1934,7 +1967,7 @@ ${replyText}`;
       </header>
 
       {/* Main Container Core */}
-      <main className="max-w-7xl mx-auto w-full px-4 pt-8 pb-28 lg:pb-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <main id="main-content" className="max-w-7xl mx-auto w-full px-4 pt-8 pb-28 lg:pb-8 flex-1 grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* Navigation Sidebar Drawer */}
         <aside className="hidden lg:block lg:col-span-1 space-y-6">
