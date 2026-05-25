@@ -41,7 +41,8 @@ import {
   Bell,
   BellRing,
   Printer,
-  CheckCircle
+  CheckCircle,
+  HelpCircle
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -1604,6 +1605,15 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 >
                   <User className="w-3.5 h-3.5" />
                 </button>
+                <a
+                  href="https://wa.me/254703887696?text=Hi!%20I%20need%20support%20with%20my%20Budget%20Tracker."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Customer WhatsApp Support"
+                  className="p-2.5 border border-emerald-200 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                </a>
                 <button
                   onClick={async () => {
                     await supabase.auth.signOut();
@@ -1944,6 +1954,17 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               <BarChart3 className="w-4.5 h-4.5" />
               Monthly Reports
             </button>
+
+            {/* WhatsApp Support Link */}
+            <a
+              href="https://wa.me/254703887696?text=Hi!%20I%20need%20support%20with%20my%20Budget%20Tracker."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer text-emerald-650 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent hover:border-emerald-100/30 dark:hover:border-emerald-900/30"
+            >
+              <HelpCircle className="w-4.5 h-4.5 shrink-0 text-emerald-500" />
+              WhatsApp Support
+            </a>
           </div>
 
           {/* Preferences & Utilities Card */}

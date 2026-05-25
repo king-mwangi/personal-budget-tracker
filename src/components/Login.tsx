@@ -20,6 +20,12 @@ interface LoginProps {
 
 // Helper to determine the dynamic URL for redirects
 export const getURL = (): string => {
+  // Prioritize window.location.origin in browser environments for accurate redirects
+  if (typeof window !== 'undefined' && window && window.location && window.location.origin) {
+    const origin = window.location.origin;
+    return origin.endsWith('/') ? origin : `${origin}/`;
+  }
+
   let url = '';
   
   // Safe environment check for process.env
@@ -52,6 +58,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
+  const [isSignedUp, setIsSignedUp] = useState(false);
   
   // Custom First/Last Name states
   const [firstName, setFirstName] = useState('');
@@ -158,18 +165,8 @@ export default function Login({ onDemoBypass }: LoginProps) {
           }
           
           if (data?.user) {
-            // Log in right away if possible
-            sessionStorage.setItem('just_logged_in', 'true');
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email: targetEmail,
-              password: authPassword,
-            });
-            if (signInError) {
-              sessionStorage.removeItem('just_logged_in');
-              setSuccessMsg("Registration successful! Check your inbox to confirm your account.");
-            } else {
-              setSuccessMsg("Account registered and authenticated successfully!");
-            }
+            setIsSignedUp(true);
+            setSuccessMsg("Account created successfully! Please check your inbox and confirm your email address to log in.");
           }
         } else {
           // Normal logging in
@@ -582,6 +579,47 @@ export default function Login({ onDemoBypass }: LoginProps) {
                 </form>
               )}
             </div>
+          ) : isSignedUp ? (
+            /* Verification check success view */
+            <div className="text-center py-4 space-y-4 animate-in fade-in duration-300">
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-950/25 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-xs">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                Verification Required
+              </h3>
+              <p className="text-xs text-slate-650 dark:text-slate-350 leading-relaxed font-semibold">
+                Account created successfully! Please check your inbox and confirm your email address to log in.
+              </p>
+              
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignedUp(false);
+                    setIsSignUp(false);
+                    setErrorMsg(null);
+                    setSuccessMsg(null);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all cursor-pointer shadow-xs active:scale-[0.99]"
+                >
+                  <span>Go to Sign In</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800/60 flex justify-center">
+                <a
+                  href="https://wa.me/254703887696?text=Hi!%20I%20need%20support%20with%20my%20Budget%20Tracker."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>Need Support? Chat on WhatsApp</span>
+                </a>
+              </div>
+            </div>
           ) : (
             /* Standard auth sign in / sign up templates */
             <div>
@@ -655,7 +693,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                 {/* Password field / Account Lock key */}
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
-                    <label htmlFor="password" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+                     <label htmlFor="password" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
                       Account Key / Password
                     </label>
                     {!isSignUp && (
@@ -713,8 +751,8 @@ export default function Login({ onDemoBypass }: LoginProps) {
 
                 {/* Status Messages */}
                 {errorMsg && (
-                  <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2">
-                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-red-50 dark:bg-red-955/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2 text-left">
+                    <ShieldAlert className="w-4 h-4 text-red-650 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
                       {errorMsg}
                     </p>
@@ -722,8 +760,8 @@ export default function Login({ onDemoBypass }: LoginProps) {
                 )}
 
                 {successMsg && (
-                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-950 p-2.5 flex gap-2">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-955/20 border border-emerald-100/50 dark:border-emerald-950 p-2.5 flex gap-2 text-left">
+                    <CheckCircle className="w-4 h-4 text-emerald-650 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium leading-relaxed">
                       {successMsg}
                     </p>
@@ -762,6 +800,18 @@ export default function Login({ onDemoBypass }: LoginProps) {
                 >
                   {isSignUp ? "Already have a portfolio vault? Sign In" : "Need cross-device sync? Open Free Account"}
                 </button>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-150 dark:border-slate-800/65 flex justify-center">
+                <a
+                  href="https://wa.me/254703887696?text=Hi!%20I%20need%20support%20with%20my%20Budget%20Tracker."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                  <span>Need Support? Chat on WhatsApp</span>
+                </a>
               </div>
             </div>
           )}
