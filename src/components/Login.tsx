@@ -18,6 +18,34 @@ interface LoginProps {
   onDemoBypass: (mockUser: any) => void;
 }
 
+// Helper to determine the dynamic URL for redirects
+export const getURL = (): string => {
+  let url = '';
+  
+  // Safe environment check for process.env
+  if (typeof process !== 'undefined' && process.env) {
+    url = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_VERCEL_URL || '';
+  }
+  
+  // Safe environment check for import.meta.env
+  if (!url && typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    url = (import.meta as any).env.NEXT_PUBLIC_SITE_URL || 
+          (import.meta as any).env.NEXT_PUBLIC_VERCEL_URL || 
+          (import.meta as any).env.VITE_SITE_URL || '';
+  }
+
+  if (url) {
+    // Make sure to include protocol if not present
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = `https://${url}`;
+    }
+    // Ensure trailing slash is present
+    return url.endsWith('/') ? url : `${url}/`;
+  }
+
+  return 'http://localhost:3000/';
+};
+
 export default function Login({ onDemoBypass }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -105,7 +133,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
             email: targetEmail,
             password: authPassword,
             options: {
-              emailRedirectTo: window.location.origin,
+              emailRedirectTo: `${getURL()}auth/callback`,
               data: {
                 first_name: firstName.trim(),
                 last_name: lastName.trim()

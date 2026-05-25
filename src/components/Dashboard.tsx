@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -203,6 +204,36 @@ export default function Dashboard({
         return `Consider placing a strict spending budget constraint of around 85% of your current spent on category "${fastestCategory}" to create instant savings of ${currencySymbol}${(fastestAmount * 0.15).toFixed(0)}!`;
     }
   }, [fastestCategory, fastestAmount, currencySymbol]);
+
+  // Compiled data for Recharts Budget vs Spent distribution
+  const budgetUtilizationData = useMemo(() => {
+    const expenseMap: Record<string, number> = {};
+    transactions.forEach(tx => {
+      if (tx.type === 'expense') {
+        expenseMap[tx.category] = (expenseMap[tx.category] || 0) + tx.amount;
+      }
+    });
+
+    const categoriesWithActivity = Array.from(new Set([
+      ...budgets.map(b => b.category),
+      ...Object.keys(expenseMap)
+    ])).filter(cat => cat !== 'Income');
+
+    return categoriesWithActivity.map(cat => {
+      const budgetItem = budgets.find(b => b.category === cat);
+      const limit = budgetItem ? budgetItem.limit : 0;
+      const spent = expenseMap[cat] || 0;
+      const ratio = limit > 0 ? (spent / limit) * 100 : 0;
+
+      return {
+        category: cat,
+        Spent: parseFloat(spent.toFixed(2)),
+        Budget: parseFloat(limit.toFixed(2)),
+        utilization: Math.round(ratio),
+        color: CATEGORIES[cat]?.color || '#9ca3af'
+      };
+    }).sort((a, b) => b.Spent - a.Spent); // Sort by highest spending first
+  }, [transactions, budgets]);
 
   return (
     <div className="space-y-6">
@@ -543,6 +574,116 @@ export default function Dashboard({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Monthly spending distribution & Budget Utilization Chart using Recharts */}
+      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Budget Utilization & Spending Distribution</h3>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+              Compare actual category outlays against set monthly budget allocations.
+            </p>
+          </div>
+          {/* Legend indicator badges */}
+          <div className="flex flex-wrap gap-3">
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-950 px-3 py-1.5 border border-gray-100 dark:border-slate-800 rounded-lg text-xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-gray-600 dark:text-slate-400 font-medium">Actual Spent</span>
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-950 px-3 py-1.5 border border-gray-100 dark:border-slate-800 rounded-lg text-xs">
+              <span className="w-2.5 h-2.5 rounded-full bg-gray-200 dark:bg-slate-700" />
+              <span className="text-gray-600 dark:text-slate-400 font-medium">Budget Limit</span>
+            </div>
+          </div>
+        </div>
+
+        {budgetUtilizationData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 text-center h-[280px]">
+            <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-800 flex items-center justify-center mb-3">
+              <AlertCircle className="w-5 h-5 text-gray-400" />
+            </div>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">No category transactions or budgets found</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 max-w-[280px] mt-1">
+              Add budgets under the Budgets tab or log transactions in the Ledger to generate utilization curves.
+            </p>
+          </div>
+        ) : (
+          <div className="w-full h-[320px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={budgetUtilizationData}
+                margin={{ top: 10, right: 10, left: -20, bottom: 5 }}
+                barSize={32}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:stroke-slate-800" strokeOpacity={0.4} />
+                <XAxis 
+                  dataKey="category" 
+                  tick={{ fill: '#888888', fontSize: 11, fontWeight: 500 }}
+                  axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
+                  className="dark:stroke-slate-800"
+                />
+                <YAxis
+                  tickFormatter={(val) => `${currencySymbol}${val}`}
+                  tick={{ fill: '#888888', fontSize: 11 }}
+                  axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
+                  className="dark:stroke-slate-800"
+                />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      const spent = payload[0]?.value as number || 0;
+                      const budget = payload[1]?.value as number || 0;
+                      const util = payload[0]?.payload?.utilization || 0;
+                      return (
+                        <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-lg text-xs space-y-1">
+                          <p className="font-bold text-gray-900 dark:text-white mb-1.5">{label}</p>
+                          <div className="flex items-center gap-2 justify-between">
+                            <span className="text-gray-500 dark:text-slate-400">Spent:</span>
+                            <span className="font-mono font-bold text-gray-900 dark:text-white">
+                              {currencySymbol}{spent.toLocaleString()}
+                            </span>
+                          </div>
+                          {budget > 0 && (
+                            <>
+                              <div className="flex items-center gap-2 justify-between">
+                                <span className="text-gray-500 dark:text-slate-400">Budget:</span>
+                                <span className="font-mono font-semibold text-gray-500 dark:text-slate-400">
+                                  {currencySymbol}{budget.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 justify-between pt-1 border-t border-slate-100 dark:border-slate-800">
+                                <span className="text-gray-500 dark:text-slate-400">Utilization:</span>
+                                <span className={`font-bold font-mono ${util > 100 ? 'text-red-500' : util > 85 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                                  {util}%
+                                </span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                  cursor={{ fill: 'rgba(59, 130, 246, 0.04)' }}
+                />
+                <Bar dataKey="Spent" radius={[4, 4, 0, 0]}>
+                  {budgetUtilizationData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+                <Bar dataKey="Budget" fill="#e2e8f0" radius={[4, 4, 0, 0]}>
+                  {budgetUtilizationData.map((entry, index) => (
+                    <Cell 
+                      key={`cell-budget-${index}`} 
+                      fill={entry.Budget > 0 ? (entry.Spent > entry.Budget ? '#ef4444' : '#e2e8f0') : 'transparent'} 
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
     </div>
   );
