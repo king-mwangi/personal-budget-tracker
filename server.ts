@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -39,7 +40,50 @@ app.get("/api/health", (req, res) => {
 
 async function handleInsightsRequest(req: any, res: any) {
   try {
-    const { transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body;
+    let transactions = req.body?.transactions || [];
+    let budgets = req.body?.budgets || [];
+    let savingsGoals = req.body?.savingsGoals || [];
+    const currency = req.body?.currency || "Ksh";
+
+    // Securely retrieve the authenticated user's records strictly from Supabase using their JWT token
+    const authHeader = req.headers?.authorization || req.headers?.Authorization;
+    const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
+
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (token && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY') {
+      try {
+        const supabaseServer = createClient(supabaseUrl, supabaseAnonKey, {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        });
+        
+        const { data: dbTransactions } = await supabaseServer.from("transactions").select("*").order("date", { ascending: false });
+        const { data: dbBudgets } = await supabaseServer.from("budgets").select("*");
+        const { data: dbSavingsGoals } = await supabaseServer.from("savings_goals").select("*");
+
+        if (dbTransactions) transactions = dbTransactions;
+        if (dbBudgets) budgets = dbBudgets;
+        if (dbSavingsGoals) savingsGoals = dbSavingsGoals;
+      } catch (err) {
+        console.warn("Could not securely fetch records from Supabase server inside Express API handler:", err);
+      }
+    }
+
+    // Direct, user-friendly empty state when the user has transition histories of zero records.
+    // This blocks LLM hallucinations (like claiming they spent 300 out of 10,000) and saves rate-limits.
+    if (transactions.length === 0) {
+      return res.status(200).json({
+        overallStatus: "On Track",
+        summaryMessage: "Welcome to Ledger Smart! Add your monthly income and your first transaction below to unlock your real-time Gemini AI financial diagnostics.",
+        actionableInsights: [],
+        savingsOpportunities: []
+      });
+    }
 
     const ai = getAIClient();
     const prompt = `Analyze the following monthly personal finance snapshot:

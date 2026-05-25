@@ -298,6 +298,15 @@ export default function Dashboard({
                 </div>
               </div>
             </>
+          ) : transactions.length === 0 ? (
+            <div className="md:col-span-3 p-6 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-850 rounded-xl text-center space-y-2 animate-in fade-in duration-300">
+              <div className="p-3 bg-purple-50/55 dark:bg-slate-950 inline-flex rounded-full text-purple-600 dark:text-purple-400">
+                <Sparkles className="w-5 h-5 animate-pulse" />
+              </div>
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-lg mx-auto leading-relaxed">
+                Welcome to Ledger Smart! Add your monthly income and your first transaction below to unlock your real-time Gemini AI financial diagnostics.
+              </p>
+            </div>
           ) : (
             <>
               {/* Col 1: Spending Velocity analysis */}

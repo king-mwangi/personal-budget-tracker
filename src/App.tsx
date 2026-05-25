@@ -541,11 +541,18 @@ export default function App() {
 
     let isFallbackNeeded = false;
     let fallbackErrorMessage = "";
+    const cacheKey = user ? `fin_tracker_ai_insights_${user.id}` : 'fin_tracker_ai_insights_demo';
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+
       const response = await fetch('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency })
       });
 
@@ -594,7 +601,7 @@ export default function App() {
           setAIInsights(data);
           setIsInsightsStale(false);
           try {
-            localStorage.setItem('fin_tracker_ai_insights', JSON.stringify(data));
+            localStorage.setItem(cacheKey, JSON.stringify(data));
           } catch (e) {
             console.warn("Could not cache insights locally:", e);
           }
@@ -656,7 +663,7 @@ export default function App() {
       setAIInsights(computedLocalInsights);
       setIsInsightsStale(false);
       try {
-        localStorage.setItem('fin_tracker_ai_insights', JSON.stringify(computedLocalInsights));
+        localStorage.setItem(cacheKey, JSON.stringify(computedLocalInsights));
       } catch (_) {}
     }
 
@@ -666,7 +673,8 @@ export default function App() {
   // Run dynamic advisor insights on startup or currency change with localStorage resilience
   useEffect(() => {
     if (isDataLoaded) {
-      const cached = localStorage.getItem('fin_tracker_ai_insights');
+      const cacheKey = user ? `fin_tracker_ai_insights_${user.id}` : 'fin_tracker_ai_insights_demo';
+      const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
@@ -681,7 +689,7 @@ export default function App() {
         fetchAIInsights();
       }
     }
-  }, [currency, isDataLoaded]);
+  }, [currency, isDataLoaded, user]);
 
   // Handler adding transactions
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
@@ -1617,6 +1625,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 <button
                   onClick={async () => {
                     await supabase.auth.signOut();
+                    setAIInsights(null);
                   }}
                   title="Sign Out of Ledger Smart"
                   className="p-2.5 border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer"
@@ -2039,8 +2048,8 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 </div>
                 <button
                   onClick={fetchAIInsights}
-                  disabled={loadingInsights}
-                  className="text-[10px] font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 py-1 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer relative"
+                  disabled={loadingInsights || transactions.length === 0}
+                  className="text-[10px] font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 py-1 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer relative disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {isInsightsStale && (
                     <span className="absolute -top-1 -right-1 flex h-2 w-2">
@@ -2057,6 +2066,15 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 <div className="flex items-center gap-3 py-6 justify-center">
                   <div className="w-4 h-4 rounded-full border-2 border-slate-300 border-t-purple-600 animate-spin" />
                   <span className="text-xs text-gray-400 font-bold uppercase tracking-widest font-mono">Synthesizing spend logs...</span>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 rounded-xl text-center space-y-2.5 animate-in fade-in duration-300">
+                  <div className="p-3 bg-purple-50/50 dark:bg-slate-950 inline-flex rounded-full text-purple-600 dark:text-purple-400">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 max-w-lg mx-auto leading-relaxed">
+                    Welcome to Ledger Smart! Add your monthly income and your first transaction below to unlock your real-time Gemini AI financial diagnostics.
+                  </p>
                 </div>
               ) : insightsError ? (
                 /* Sleek static general wealth tips fallback with specific error handling alerts */
@@ -2172,7 +2190,16 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     </div>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="p-6 bg-slate-50/50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800/60 rounded-xl text-center space-y-2.5">
+                  <div className="p-3 bg-slate-100 dark:bg-slate-800 inline-flex rounded-full text-slate-400 dark:text-slate-500">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-505 dark:text-slate-405 max-w-sm mx-auto leading-relaxed">
+                    Personalized AI financial diagnostics are ready. Click "Refresh" to trigger your live analysis.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           )}
