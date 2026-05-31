@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import LedgerSmartLogo from './Logo';
 import { 
   Building2, 
   Mail, 
@@ -433,17 +434,9 @@ export default function Login({ onDemoBypass }: LoginProps) {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="sm:mx-auto sm:w-full sm:max-w-lg mb-2">
         <div className="flex flex-col items-center">
-          <div className="p-3 bg-blue-600 text-white rounded-2xl shadow-xs flex items-center justify-center">
-            <Building2 className="w-7 h-7" />
-          </div>
-          <h2 className="mt-5 text-center text-2xl font-extrabold text-slate-905 dark:text-white tracking-tight">
-            Ledger Smart
-          </h2>
-          <p className="mt-1 text-center text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-            Personal Wealth Companion
-          </p>
+          <LedgerSmartLogo layout="vertical" iconSize="w-18 h-18" />
         </div>
       </div>
 

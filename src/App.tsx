@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
 import Login from './components/Login';
+import LedgerSmartLogo from './components/Logo';
 
 // Optimally lazy loaded major performance modules to secure instantaneous loading
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -1621,9 +1622,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-2xs transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
           <div className="flex items-center gap-2.5 self-start md:self-auto w-full md:w-auto">
-            <div className="p-2 bg-blue-600 text-white rounded-xl shadow-xs shrink-0">
-              <Building2 className="w-5 h-5" />
-            </div>
+            <LedgerSmartLogo showText={false} iconSize="w-9 h-9" className="hover:scale-105 transition-transform duration-200" />
             <div className="min-w-0">
               <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
                 <h1 className="text-base font-bold text-gray-950 dark:text-white tracking-tight shrink-0">Ledger Smart</h1>
