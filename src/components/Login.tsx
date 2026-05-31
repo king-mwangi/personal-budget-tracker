@@ -92,6 +92,95 @@ export default function Login({ onDemoBypass }: LoginProps) {
     }
   }, []);
 
+  // Securely listen for OAuth success/error events emitted by the popup callback page
+  useEffect(() => {
+    const handleOAuthMessage = async (event: MessageEvent) => {
+      const origin = event.origin;
+      // Allow preview container URLs, local running systems, or main workspace subdomains
+      if (!origin.endsWith('.run.app') && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+        return;
+      }
+
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        const { session } = event.data;
+        if (session) {
+          setLoading(true);
+          try {
+            const { error } = await supabase.auth.setSession({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token
+            });
+            if (error) throw error;
+            
+            // Allow session synchronization
+            setSuccessMsg("Google account synchronized successfully!");
+            setErrorMsg(null);
+          } catch (err: any) {
+            console.error("Failed to apply Google session coordinates:", err);
+            setErrorMsg(err?.message || "Could not apply Google portfolio session coordinates.");
+          } finally {
+            setLoading(false);
+          }
+        }
+      } else if (event.data?.type === 'OAUTH_AUTH_ERROR') {
+        setErrorMsg(event.data.error || "Authentication with Google has failed.");
+        setLoading(false);
+      }
+    };
+
+    window.addEventListener('message', handleOAuthMessage);
+    return () => window.removeEventListener('message', handleOAuthMessage);
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    if (!isSupabaseConfigured) {
+      setErrorMsg("Google Sign-In is only active when Supabase cloud serves are configured. Please define VITE_SUPABASE_URL.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) throw error;
+
+      if (!data?.url) {
+        throw new Error("Could not construct authorization URL from Supabase routing coordinates.");
+      }
+
+      // Open OAuth in pop-up targeting the provider directly bypassing iframe cross-origin limits
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+
+      const popup = window.open(
+        data.url,
+        'google_oauth_popup',
+        `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes`
+      );
+
+      if (!popup) {
+        throw new Error("Popup blocked. Please allow popup privileges in your browser dashboard.");
+      }
+    } catch (err: any) {
+      console.error("Google login failed to boot:", err);
+      setErrorMsg(err?.message || "Google single sign-on could not be initiated.");
+      setLoading(false);
+    }
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -785,6 +874,31 @@ export default function Login({ onDemoBypass }: LoginProps) {
                     </>
                   )}
                 </button>
+
+                {isSupabaseConfigured && (
+                  <>
+                    <div className="relative my-4 flex items-center justify-between">
+                      <span className="w-1/5 border-b border-slate-200 dark:border-slate-800 lg:w-1/4"></span>
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">or authenticate via</span>
+                      <span className="w-1/5 border-b border-slate-200 dark:border-slate-800 lg:w-1/4"></span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={loading}
+                      className="w-full flex items-center justify-center gap-2.5 py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-3xs active:scale-[0.99] disabled:opacity-50"
+                    >
+                      <svg className="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.22-.67-.35-1.37-.35-2.09v.46z" fill="#FBBC05" />
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                      </svg>
+                      <span>Sign in with Google</span>
+                    </button>
+                  </>
+                )}
               </form>
 
               {/* Toggle form context */}

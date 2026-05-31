@@ -246,6 +246,103 @@ app.post("/api/advisor", async (req, res) => {
   }
 });
 
+// Supabase OAuth Callback Endpoint - exchanges code for token and messages opener
+app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
+  const code = req.query.code as string;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+  if (code && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY') {
+    try {
+      const serverSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        }
+      });
+      const { data, error } = await serverSupabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        throw error;
+      }
+      const session = data?.session;
+
+      // Beautiful responsive layout with auto-closing popup messaging the opener window
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Ledger Smart Secure Authentication State</title>
+          </head>
+          <body style="background:#0f172a;color:#ffffff;font-family:ui-sans-serif,system-ui,sans-serif;margin:0;padding:20px;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;max-width:360px;width:100%;box-shadow:0 10px 15px -3px rgba(0,0,0,0.3);">
+              <div style="width:40px;height:40px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;"></div>
+              <p style="font-size:15px;font-weight:700;margin:0 0 6px;">Synchronizing vault access...</p>
+              <p style="font-size:12px;color:#94a3b8;margin:0;line-height:1.5;">Your secure portfolio session is being established. This window will close automatically.</p>
+            </div>
+            <style>
+              @keyframes spin { to { transform: rotate(360deg); } }
+            </style>
+            <script>
+              const originStr = window.location.origin;
+              if (window.opener) {
+                window.opener.postMessage({ 
+                  type: 'OAUTH_AUTH_SUCCESS', 
+                  session: ${JSON.stringify(session)}
+                }, '*');
+                setTimeout(() => window.close(), 100);
+              } else {
+                window.location.href = '/';
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (err: any) {
+      console.error("Auth callback exchange error:", err);
+      const errMsg = err?.message || String(err || "");
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Authentication Failed</title>
+          </head>
+          <body style="background:#0f172a;color:#ffffff;font-family:ui-sans-serif,system-ui,sans-serif;margin:0;padding:20px;display:flex;align-items:center;justify-content:center;min-height:100vh;text-align:center;">
+            <div style="background:#1e293b;border:1px solid #ef444430;border-radius:16px;padding:32px;max-width:360px;width:100%;box-shadow:0 10px 15px -3px rgba(0,0,0,0.3);">
+              <div style="width:44px;height:44px;line-height:44px;background:#ef444420;color:#ef4444;border-radius:50%;font-size:20px;font-weight:bold;margin:0 auto 20px;">!</div>
+              <p style="font-size:15px;font-weight:700;margin:0 0 6px;color:#f87171;">Authentication Failed</p>
+              <p style="font-size:12px;color:#94a3b8;margin:0 0 20px;line-height:1.5;">${errMsg}</p>
+              <button onclick="window.close()" style="background:#ef4444;color:#ffffff;border:none;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;">Close Window</button>
+            </div>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ 
+                  type: 'OAUTH_AUTH_ERROR', 
+                  error: ${JSON.stringify(errMsg)}
+                }, '*');
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    }
+  } else {
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <body style="background:#0f172a;color:#ffffff;font-family:sans-serif;padding:40px;text-align:center;">
+          <p style="color:#ef4444;font-weight:bold;">Security Warning</p>
+          <p style="font-size:13px;color:#94a3b8;">Auth exchange coordinates not fulfilled or Supabase keys undefined.</p>
+          <button onclick="window.close()" style="background:#ef4444;color:#ffffff;border:none;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:background 0.2s;">Close Window</button>
+        </body>
+      </html>
+    `);
+  }
+});
+
 // Setup Vite Dev Server / Static Hosting
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
