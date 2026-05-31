@@ -279,7 +279,7 @@ export default function SavingsGoals({
                               cy="32"
                             />
                           </svg>
-                          <span className="text-[10px] font-mono font-extrabold text-gray-850 dark:text-slate-200">
+                          <span className="text-[10px] font-mono font-extrabold text-gray-800 dark:text-slate-200">
                             {roundedPercent}%
                           </span>
                         </div>
@@ -354,7 +354,7 @@ export default function SavingsGoals({
                         ) : (
                           <button
                             onClick={() => setActiveDepositId(goal.id)}
-                            className="w-full text-center border border-dashed border-gray-250 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/10 dark:hover:bg-blue-955/10 text-blue-600 dark:text-blue-400 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all cursor-pointer"
+                            className="w-full text-center border border-dashed border-gray-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/10 dark:hover:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all cursor-pointer"
                           >
                             Add Outflow
                           </button>
@@ -368,7 +368,7 @@ export default function SavingsGoals({
                           } catch (_) {}
                           onDeleteGoal(goal.id);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-955/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-900/30 rounded-lg transition-colors cursor-pointer shrink-0"
                         title="Delete Goal parameters"
                       >
                         <Trash2 className="w-4 h-4" />

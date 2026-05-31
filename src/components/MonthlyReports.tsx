@@ -339,8 +339,8 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
               onClick={() => setReportMode('month')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 reportMode === 'month'
-                  ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs'
-                  : 'text-slate-500 dark:text-slate-450 hover:text-slate-750 dark:hover:text-slate-305'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Single Month
@@ -350,8 +350,8 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
               onClick={() => setReportMode('range')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                 reportMode === 'range'
-                  ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white shadow-3xs'
-                  : 'text-slate-500 dark:text-slate-450 hover:text-slate-750 dark:hover:text-slate-305'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               Custom Range
@@ -369,7 +369,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 id="report-month-select"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="w-full sm:w-52 appearance-none border border-slate-200 dark:border-slate-750 bg-white dark:bg-slate-950 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-blue-500 focus:outline-hidden cursor-pointer"
+                className="w-full sm:w-52 appearance-none border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl pl-9 pr-8 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-blue-500 focus:outline-hidden cursor-pointer"
               >
                 {availableMonths.length === 0 ? (
                   <option value={currentSystemMonth}>{formatMonthName(currentSystemMonth)} (This Month)</option>
@@ -388,7 +388,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 value={startDateStr}
                 onChange={(e) => setStartDateStr(e.target.value)}
                 title="Start Date"
-                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-355 focus:outline-hidden px-2 cursor-pointer"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-hidden px-2 cursor-pointer"
               />
               <span className="text-[10px] text-slate-400 dark:text-slate-600 font-extrabold uppercase">to</span>
               <input
@@ -397,7 +397,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 value={endDateStr}
                 onChange={(e) => setEndDateStr(e.target.value)}
                 title="End Date"
-                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-355 focus:outline-hidden px-2 cursor-pointer"
+                className="border-0 bg-transparent text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-hidden px-2 cursor-pointer"
               />
             </div>
           )}
@@ -407,7 +407,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
               id="print-sys-report"
               onClick={() => window.print()}
               title="Surgical Paper Print out"
-              className="p-2 border border-slate-200 dark:border-slate-750 bg-slate-50/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-850 dark:hover:text-slate-105 rounded-xl transition-all cursor-pointer"
+              className="p-2 border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl transition-all cursor-pointer"
             >
               <Printer className="w-4.5 h-4.5" />
             </button>
@@ -417,10 +417,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
               disabled={isGeneratingPDF}
               onClick={handleExportPDF}
               title="Download Custom High-Quality PDF Report"
-              className="p-2 border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-8.5 min-h-8.5"
+              className="p-2 border border-rose-200 dark:border-rose-900/40 bg-rose-50/50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center min-w-8.5 min-h-8.5"
             >
               {isGeneratingPDF ? (
-                <span className="w-3.5 h-3.5 border-2 border-rose-550 border-t-transparent animate-spin rounded-full block" />
+                <span className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent animate-spin rounded-full block" />
               ) : (
                 <FileDown className="w-4.5 h-4.5 text-rose-500" />
               )}
@@ -494,10 +494,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-left">
                   
                   {/* Income Comparison */}
-                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-850 rounded-xl shadow-3xs">
+                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-800 rounded-xl shadow-xs">
                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Core Income</span>
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-slate-750 dark:text-slate-200">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                         {monthLabel}: <span className="font-mono font-bold text-slate-900 dark:text-white">{currencySymbol}{totalIncome.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                       </p>
                       <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium">
@@ -520,10 +520,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
 
                   {/* Expense Comparison */}
-                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-850 rounded-xl shadow-3xs">
+                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-800 rounded-xl shadow-xs">
                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Core Expenses</span>
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-slate-750 dark:text-slate-200">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                         {monthLabel}: <span className="font-mono font-bold text-slate-900 dark:text-white">{currencySymbol}{totalExpense.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                       </p>
                       <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium">
@@ -546,10 +546,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
 
                   {/* Net Savings rate comparison */}
-                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-850 rounded-xl shadow-3xs">
+                  <div className="space-y-1.5 bg-white dark:bg-slate-950 p-3.5 border border-slate-150/50 dark:border-slate-800 rounded-xl shadow-xs">
                     <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block">Savings Margin</span>
                     <div className="space-y-0.5">
-                      <p className="text-xs font-bold text-slate-750 dark:text-slate-205">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
                         {monthLabel}: <span className="font-mono font-bold text-slate-900 dark:text-white">{savingsRate.toFixed(1)}%</span>
                       </p>
                       <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium">
@@ -573,7 +573,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 </div>
 
                 {/* Sub-text summary description dynamically generated of differences */}
-                <div className="p-3 bg-white/40 dark:bg-slate-950/40 border border-slate-100/60 dark:border-slate-850 rounded-xl text-[10.5px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed text-left">
+                <div className="p-3 bg-white/40 dark:bg-slate-950/45 border border-slate-100/60 dark:border-slate-800 rounded-xl text-[10.5px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed text-left">
                   <span>
                     Summary analysis: In the month of <strong>{monthLabel}</strong>, your total deposits represent a <strong>{totalIncome >= selectedCompareSnapshot.total_income ? 'surplus' : 'reduction'}</strong> of <strong>{currencySymbol}{Math.abs(totalIncome - selectedCompareSnapshot.total_income).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong> relative to <strong>{formatMonthName(selectedCompareSnapshot.month)}</strong>. 
                     {totalExpense <= selectedCompareSnapshot.total_expense ? (
@@ -633,8 +633,8 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   <span className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest block">Net Savings Rate</span>
                   <div className={`p-1 px-1.5 rounded-lg text-[10px] font-bold flex items-center gap-0.5 ${
                     netSavings >= 0 
-                      ? 'bg-blue-50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-400' 
-                      : 'bg-red-50 dark:bg-red-955/20 text-red-600 dark:text-red-400'
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
                   }`}>
                     <BadgePercent className="w-3.5 h-3.5" /> {savingsRate.toFixed(1)}%
                   </div>
@@ -773,10 +773,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 <button
                   id="btn-export-csv"
                   onClick={handleExportCSV}
-                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-750 bg-slate-50/20 dark:bg-slate-950 hover:bg-blue-50/15 dark:hover:bg-blue-955/10 rounded-xl transition-all cursor-pointer group"
+                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-900 bg-slate-50/20 dark:bg-slate-950 hover:bg-blue-50/15 dark:hover:bg-blue-900/10 rounded-xl transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-955/20 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg group-hover:scale-110 transition-transform">
                       <FileSpreadsheet className="w-4.5 h-4.5" />
                     </div>
                     <div className="text-left">
@@ -791,10 +791,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 <button
                   id="btn-export-txt"
                   onClick={handleExportTXT}
-                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-750 bg-slate-50/20 dark:bg-slate-950 hover:bg-emerald-50/15 dark:hover:bg-emerald-955/10 rounded-xl transition-all cursor-pointer group"
+                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-900 bg-slate-50/20 dark:bg-slate-950 hover:bg-emerald-50/15 dark:hover:bg-emerald-900/10 rounded-xl transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:scale-110 transition-transform">
                       <FileText className="w-4.5 h-4.5" />
                     </div>
                     <div className="text-left">
@@ -810,10 +810,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   id="btn-export-pdf"
                   disabled={isGeneratingPDF}
                   onClick={handleExportPDF}
-                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-705 bg-slate-50/20 dark:bg-slate-950 hover:bg-rose-50/15 dark:hover:bg-rose-955/10 rounded-xl transition-all cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-900 bg-slate-50/20 dark:bg-slate-950 hover:bg-rose-50/15 dark:hover:bg-rose-900/10 rounded-xl transition-all cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-rose-50 dark:bg-rose-955/20 text-rose-600 dark:text-rose-450 rounded-lg group-hover:scale-110 transition-transform animate-pulse">
+                    <div className="p-2 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg group-hover:scale-110 transition-transform animate-pulse">
                       <FileDown className="w-4.5 h-4.5" />
                     </div>
                     <div className="text-left">
@@ -832,10 +832,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 <button
                   id="btn-copy-md"
                   onClick={handleCopyMarkdown}
-                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-750 bg-slate-50/20 dark:bg-slate-950 hover:bg-purple-50/15 dark:hover:bg-purple-955/10 rounded-xl transition-all cursor-pointer group"
+                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-purple-300 dark:hover:border-purple-900 bg-slate-50/20 dark:bg-slate-950 hover:bg-purple-50/15 dark:hover:bg-purple-900/10 rounded-xl transition-all cursor-pointer group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-50 dark:bg-purple-955/20 text-purple-600 dark:text-purple-400 rounded-lg group-hover:scale-110 transition-transform">
+                    <div className="p-2 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-lg group-hover:scale-110 transition-transform">
                       {copied ? <Check className="w-4.5 h-4.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="w-4.5 h-4.5" />}
                     </div>
                     <div className="text-left">
@@ -861,7 +861,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
                   <p className="text-[10px] text-gray-450 dark:text-slate-500 font-medium">Saved Supabase snapshots comparison</p>
                 </div>
-                <span className="py-0.5 px-2 bg-slate-105 dark:bg-slate-800 text-[9px] font-mono font-bold rounded-lg text-slate-500 dark:text-slate-450">
+                <span className="py-0.5 px-2 bg-slate-100 dark:bg-slate-800 text-[9px] font-mono font-bold rounded-lg text-slate-500 dark:text-slate-400">
                   {snapshots?.length || 0} saved
                 </span>
               </div>
@@ -880,8 +880,8 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                         key={s.id} 
                         className={`p-2.5 border rounded-xl flex items-center justify-between gap-3 transition-all ${
                           isComparing 
-                            ? 'bg-blue-50/40 dark:bg-blue-955/10 border-blue-200 dark:border-blue-900 shadow-3xs' 
-                            : 'bg-slate-50/20 dark:bg-slate-950/20 border-slate-100 dark:border-slate-850 hover:border-slate-200 dark:hover:border-slate-800'
+                            ? 'bg-blue-50/40 dark:bg-blue-900/10 border-blue-200 dark:border-blue-900 shadow-xs' 
+                            : 'bg-slate-50/20 dark:bg-slate-950/20 border-slate-100 dark:border-slate-800 hover:border-slate-200 dark:hover:border-slate-800'
                         }`}
                       >
                         <div 
@@ -890,7 +890,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                           title="Click to toggle historical comparison metrics dashboard"
                         >
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-slate-750 dark:text-slate-250 hover:text-blue-500 transition-colors">
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-blue-500 transition-colors">
                               {formatMonthName(s.month)}
                             </span>
                             {isComparing && (
@@ -914,7 +914,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                             if (isComparing) setCompareSnapshotId(null);
                             onDeleteSnapshot(s.id);
                           }}
-                          className="p-1 px-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-955/30 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer self-center border border-transparent hover:border-red-200/40 shadow-4xs"
+                          className="p-1 px-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg transition-colors cursor-pointer self-center border border-transparent hover:border-red-200/40 shadow-xs"
                           title="Delete archived snapshot"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

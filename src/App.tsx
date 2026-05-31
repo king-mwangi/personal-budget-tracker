@@ -1619,7 +1619,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       )}
       
       {/* Top Elegant bar */}
-      <header className="bg-white dark:bg-slate-905 border-b border-gray-150 dark:border-slate-805/80 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-2xs transition-colors">
+      <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
           <div className="flex items-center gap-2.5 self-start md:self-auto w-full md:w-auto">
             <LedgerSmartLogo showText={false} iconSize="w-9 h-9" className="hover:scale-105 transition-transform duration-200" />
@@ -1658,7 +1658,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Customer WhatsApp Support"
-                  className="p-2 border border-emerald-200 dark:border-emerald-950 bg-emerald-50/50 dark:bg-emerald-955/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0 h-8.5 w-8.5"
+                  className="p-2 border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0 h-8.5 w-8.5"
                 >
                   <HelpCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                 </a>
@@ -1668,7 +1668,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     setAIInsights(null);
                   }}
                   title="Sign Out of Ledger Smart"
-                  className="p-2 border border-red-200 dark:border-red-950 bg-red-50/50 dark:bg-red-955/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer flex items-center justify-center h-8.5 w-8.5"
+                  className="p-2 border border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl transition-all cursor-pointer flex items-center justify-center h-8.5 w-8.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -1710,7 +1710,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 title="Current Month Budget Alerts & Notifications"
                 className={`p-2 border rounded-xl transition-all cursor-pointer flex items-center justify-center relative ${
                   unreadBudgetAlerts.length > 0 
-                    ? 'bg-amber-50/50 dark:bg-amber-955/15 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-105 dark:hover:bg-slate-900' 
+                    ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 font-bold hover:bg-amber-100 dark:hover:bg-slate-900' 
                     : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-150 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
@@ -1720,7 +1720,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   <Bell className="w-4 h-4 shrink-0" />
                 )}
                 {unreadBudgetAlerts.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 text-[9px] text-white flex items-center justify-center rounded-full font-extrabold border-2 border-white dark:border-slate-905">
+                  <span className="absolute -top-1 -right-1 w-4.5 h-4.5 bg-red-500 text-[9px] text-white flex items-center justify-center rounded-full font-extrabold border-2 border-white dark:border-slate-900">
                     {unreadBudgetAlerts.length}
                   </span>
                 )}
@@ -1732,7 +1732,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   <div className="fixed inset-0 z-40 cursor-default" onClick={() => setShowNotificationDropdown(false)} />
                   <div className="absolute right-0 mt-2.5 w-80 md:w-96 bg-white dark:bg-slate-900 rounded-2xl border border-slate-155 dark:border-slate-800/90 shadow-xl p-4 space-y-3 z-50 text-xs animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-2">
-                      <span className="font-bold text-gray-901 dark:text-white flex items-center gap-1.5">
+                       <span className="font-bold text-gray-901 dark:text-white flex items-center gap-1.5">
                         <Bell className="w-3.5 h-3.5 text-blue-500" />
                         <span>Monthly Budget Alerts</span>
                       </span>
@@ -1743,7 +1743,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
                     {/* Status Feedback banner */}
                     {notificationStatusMsg && (
-                      <div className="bg-blue-50 dark:bg-blue-955/20 border border-blue-100 dark:border-blue-900/40 p-2 rounded-xl text-[10px] text-blue-800 dark:text-blue-400 font-medium animate-fade-in text-center">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 p-2 rounded-xl text-[10px] text-blue-800 dark:text-blue-400 font-medium animate-fade-in text-center">
                         {notificationStatusMsg}
                       </div>
                     )}
@@ -1760,7 +1760,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                           className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer border-0 ${
                             browserNotificationsEnabled && notificationPermissionState === 'granted'
                               ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                              : 'bg-gray-200 dark:bg-slate-800 text-slate-650 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-750'
+                              : 'bg-gray-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-gray-300 dark:hover:bg-slate-750'
                           }`}
                         >
                           {browserNotificationsEnabled && notificationPermissionState === 'granted' ? 'Enabled' : 'Disabled'}
@@ -1794,10 +1794,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                         </div>
                       ) : (
                         unreadBudgetAlerts.map(alert => (
-                          <div key={alert.category} className="p-2.5 border border-amber-100/60 dark:border-amber-955/30 bg-amber-50/25 dark:bg-amber-955/5 rounded-xl flex items-center justify-between gap-3">
+                          <div key={alert.category} className="p-2.5 border border-amber-200/50 dark:border-amber-900/40 bg-amber-50/25 dark:bg-amber-950/10 rounded-xl flex items-center justify-between gap-3">
                             <div className="space-y-0.5 text-left flex-1 min-w-0">
                               <p className="font-bold text-gray-800 dark:text-slate-200 truncate">{alert.category}</p>
-                              <div className="w-full bg-slate-100 dark:bg-slate-850 h-1.5 rounded-full overflow-hidden my-1">
+                              <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden my-1">
                                 <div 
                                   className={`h-full transition-all duration-300 ${alert.percent >= 100 ? 'bg-red-500' : 'bg-amber-500'}`} 
                                   style={{ width: `${Math.min(alert.percent, 100)}%` }} 
@@ -1807,10 +1807,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                 {currencySymbol}{alert.spent.toFixed(0)} spent / {currencySymbol}{alert.limit.toFixed(0)} limit
                               </span>
                             </div>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono select-none shrink-0 ${
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-mono select-none shrink-0 border ${
                               alert.percent >= 100 
-                                ? 'bg-red-100 text-red-850 dark:bg-red-955/20 dark:text-red-400 border border-red-200/50 dark:border-red-950/40' 
-                                : 'bg-amber-100 text-amber-850 dark:bg-amber-955/20 dark:text-amber-400 border border-amber-200/50 dark:border-amber-950/40'
+                                ? 'bg-red-50 dark:bg-red-950/40 text-red-750 dark:text-red-350 border-red-200 dark:border-red-900/40' 
+                                : 'bg-amber-50 dark:bg-amber-950/40 text-amber-750 dark:text-amber-300 border-amber-200/50 dark:border-amber-900/40'
                             }`}>
                               {alert.percent}%
                             </span>
@@ -1824,7 +1824,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                         {unreadBudgetAlerts.length > 0 && (
                           <button
                             onClick={handleMarkAllAsRead}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-750 dark:hover:text-blue-355 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-bold hover:underline cursor-pointer bg-transparent border-0 p-0"
                           >
                             ✓ Mark all as read
                           </button>
@@ -2009,7 +2009,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               href="https://wa.me/254703887696?text=Hi!%20I%20need%20support%20with%20my%20Budget%20Tracker."
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer text-emerald-650 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent hover:border-emerald-100/30 dark:hover:border-emerald-900/30"
+              className="w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 border border-transparent hover:border-emerald-100/30 dark:hover:border-emerald-900/30"
             >
               <HelpCircle className="w-4.5 h-4.5 shrink-0 text-emerald-500" />
               WhatsApp Support
@@ -2022,7 +2022,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             
             <button
               onClick={() => setShowResetModal(true)}
-              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-650 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
+              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
             >
               <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
               Reset App Data
@@ -2057,7 +2057,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             <div className="space-y-6">
               {/* Proactive Seeding Wiping Alert Card */}
                {hasSeededData && user && (
-                 <div className="p-4 bg-amber-50/70 dark:bg-amber-955/10 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
+                 <div className="p-4 bg-amber-50/70 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-colors">
                    <div className="space-y-1">
                      <h4 className="text-xs font-semibold text-amber-900 dark:text-amber-400 flex items-center gap-1.5">
                        <Info className="w-4.5 h-4.5 text-amber-600 dark:text-amber-500 animate-pulse" />
@@ -2120,17 +2120,17 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 /* Sleek static general wealth tips fallback with specific error handling alerts */
                 <div className="space-y-4">
                   {insightsError.includes("QUOTA_EXHAUSTED") ? (
-                    <div className="p-3.5 bg-amber-50/70 border border-amber-200/60 dark:bg-amber-955/15 dark:border-amber-900/40 rounded-xl space-y-1.5 shadow-2xs">
-                      <div className="flex items-center gap-2 text-amber-805 dark:text-amber-400">
+                    <div className="p-3.5 bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/40 rounded-xl space-y-1.5 shadow-2xs">
+                      <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
                         <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                         <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Gemini Rate Limit Throttled (429)</span>
                       </div>
-                      <p className="text-[11px] font-medium text-amber-850/80 dark:text-amber-400/80 leading-relaxed">
+                      <p className="text-[11px] font-medium text-amber-900/80 dark:text-amber-300/80 leading-relaxed">
                         You have fully consumed the 20 queries daily standard Gemini free quota limit on your API key. To safeguard your experience, Ledger Smart has automatically engaged the offline analytical framework below!
                       </p>
                     </div>
                   ) : (
-                    <div className="p-3.5 bg-slate-50/70 border border-slate-200/60 dark:bg-slate-905 dark:border-slate-805 rounded-xl space-y-1 my-1">
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:border-slate-800 rounded-xl space-y-1 my-1">
                       <div className="flex items-center gap-2 text-slate-700 dark:text-slate-400">
                         <AlertTriangle className="w-4 h-4 text-slate-400 shrink-0" />
                         <span className="text-[11px] font-bold uppercase tracking-wider font-mono">Diagnostics Fallback Engaged</span>
@@ -2189,7 +2189,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     <span className={`text-[9px] font-bold uppercase py-0.5 px-2.5 rounded-full ${
                       aiInsights.overallStatus === 'On Track' 
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
-                        : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-955/20 dark:text-amber-300 dark:border-amber-800'
+                        : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-800'
                     }`}>
                       {aiInsights.overallStatus}
                     </span>
@@ -2425,7 +2425,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             </button>
 
             <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-red-550/10 text-red-650 dark:text-red-400 rounded-2xl mt-0.5">
+              <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl mt-0.5">
                 <Trash2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
@@ -2436,8 +2436,8 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               </div>
             </div>
 
-            <div className="bg-red-50/50 dark:bg-red-955/10 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-800 dark:text-red-305 space-y-2">
-              <p className="font-bold uppercase tracking-wider text-[9px] text-red-650 dark:text-red-400">Warning: Irreversible Operation</p>
+            <div className="bg-red-50/55 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-700 dark:text-red-300 space-y-2">
+              <p className="font-bold uppercase tracking-wider text-[9px] text-red-600 dark:text-red-400">Warning: Irreversible Operation</p>
               <ul className="list-disc pl-4 space-y-1 font-medium">
                 <li>Permanently deletes the {transactions.length} pre-filled placeholder transactions inside your Ledger ledger.</li>
                 <li>Clears your {budgets.length} budget limit constraints entirely.</li>
@@ -2454,10 +2454,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               <input
                 type="checkbox"
                 id="delete-templates-chk"
-                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-slate-750 bg-white dark:bg-slate-950 rounded-md focus:ring-blue-500 cursor-pointer"
+                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-md focus:ring-blue-500 cursor-pointer"
                 defaultChecked={false}
               />
-              <label htmlFor="delete-templates-chk" className="text-xs text-gray-650 dark:text-slate-350 font-medium select-none cursor-pointer">
+              <label htmlFor="delete-templates-chk" className="text-xs text-gray-600 dark:text-slate-300 font-medium select-none cursor-pointer">
                 Also remove my {customTemplates.length} custom saved budget templates/blueprints
               </label>
             </div>
@@ -2493,17 +2493,17 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <button
               onClick={() => setShowProfileModal(false)}
-              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-650 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
             >
               <X className="w-4 h-4" />
             </button>
 
             <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-blue-105 bg-blue-50 dark:bg-blue-955 text-blue-600 dark:text-blue-400 rounded-2xl mt-0.5">
+              <div className="p-3 bg-blue-50 dark:bg-blue-950/45 text-blue-600 dark:text-blue-400 rounded-2xl mt-0.5">
                 <User className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-bold text-gray-905 dark:text-slate-100">Edit Profile Name</h3>
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Edit Profile Name</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
                   Update your identity details below. Your new first name will display on your workspace and reports.
                 </p>
@@ -2532,7 +2532,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     value={editFirstName}
                     onChange={(e) => setEditFirstName(e.target.value)}
                     placeholder="e.g. John"
-                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-955 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
+                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
                   />
                 </div>
 
@@ -2547,7 +2547,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
                     placeholder="e.g. Doe"
-                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-955 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
+                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
                   />
                 </div>
               </div>

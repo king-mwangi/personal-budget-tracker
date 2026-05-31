@@ -441,13 +441,13 @@ export default function Login({ onDemoBypass }: LoginProps) {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-slate-905 py-8 px-6 shadow-xs border border-slate-100 dark:border-slate-805/85 rounded-3xl sm:px-10 transition-colors">
+        <div className="bg-white dark:bg-slate-900 py-8 px-6 shadow-xs border border-slate-100 dark:border-slate-800 rounded-3xl sm:px-10 transition-colors">
           
           {isResetMode ? (
             /* Reset password flow template */
             <div>
               <div className="mb-6 text-center">
-                <div className="w-10 h-10 bg-indigo-55 bg-indigo-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div className="w-10 h-10 bg-indigo-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3">
                   <KeyRound className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
@@ -478,7 +478,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         placeholder="e.g. workspace@company.com"
-                        className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                     </div>
                   </div>
@@ -524,7 +524,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         setErrorMsg(null);
                         setSuccessMsg(null);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-850 dark:hover:text-white cursor-pointer"
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white cursor-pointer"
                     >
                       <ArrowLeft className="w-3.5 h-3.5" />
                       <span>Back to Access Sign In</span>
@@ -549,7 +549,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={resetCode}
                         onChange={(e) => setResetCode(e.target.value)}
                         placeholder="Check your mail for 6-digit OTP code"
-                        className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                     </div>
                   </div>
@@ -570,7 +570,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="At least 6 characters"
-                        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                       <button
                         type="button"
@@ -598,7 +598,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
                         placeholder="Repeat new password"
-                        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                     </div>
                   </div>
@@ -640,7 +640,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                     <button
                       type="button"
                       onClick={() => setResetStep(1)}
-                      className="text-slate-400 hover:text-slate-650 dark:hover:text-slate-250 cursor-pointer"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     >
                       Resend Code / Change Email
                     </button>
@@ -669,7 +669,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
                 Verification Required
               </h3>
-              <p className="text-xs text-slate-650 dark:text-slate-350 leading-relaxed font-semibold">
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-semibold">
                 Account created successfully! Please check your inbox and confirm your email address to log in.
               </p>
               
@@ -729,7 +729,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="John"
-                        className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                     </div>
                     <div>
@@ -744,7 +744,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Doe"
-                        className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                        className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                       />
                     </div>
                   </div>
@@ -766,7 +766,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="e.g. workspace@company.com"
-                      className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                      className="block w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
                 </div>
@@ -804,7 +804,7 @@ export default function Login({ onDemoBypass }: LoginProps) {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={isSupabaseConfigured ? "••••••••" : "Optional in local offline mode"}
-                      className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-650 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
+                      className="block w-full pl-10 pr-10 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all"
                     />
                     <button
                       type="button"
@@ -832,8 +832,8 @@ export default function Login({ onDemoBypass }: LoginProps) {
 
                 {/* Status Messages */}
                 {errorMsg && (
-                  <div className="rounded-xl bg-red-50 dark:bg-red-955/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2 text-left">
-                    <ShieldAlert className="w-4 h-4 text-red-650 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-red-50 dark:bg-red-950/25 border border-red-200/55 dark:border-red-900/40 p-2.5 flex gap-2 text-left">
+                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
                       {errorMsg}
                     </p>
@@ -841,8 +841,8 @@ export default function Login({ onDemoBypass }: LoginProps) {
                 )}
 
                 {successMsg && (
-                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-955/20 border border-emerald-100/50 dark:border-emerald-950 p-2.5 flex gap-2 text-left">
-                    <CheckCircle className="w-4 h-4 text-emerald-650 shrink-0 mt-0.5" />
+                  <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/25 border border-emerald-200/55 dark:border-emerald-900/40 p-2.5 flex gap-2 text-left">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <p className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium leading-relaxed">
                       {successMsg}
                     </p>

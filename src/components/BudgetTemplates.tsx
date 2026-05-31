@@ -299,7 +299,7 @@ export default function BudgetTemplates({
                     </span>
                   </div>
                   {totalExpense(expenses) > totalIncome(incomes) && (
-                    <div className="text-[10px] text-red-650 bg-red-50 p-2.5 rounded-lg font-medium flex gap-1.5 items-center border border-red-100">
+                    <div className="text-[10px] text-red-600 bg-red-50 p-2.5 rounded-lg font-medium flex gap-1.5 items-center border border-red-100">
                       <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
                       Target expenses exceed target inflows. This plan triggers monthly deficits.
                     </div>

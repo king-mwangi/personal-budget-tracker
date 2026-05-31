@@ -115,7 +115,7 @@ export default function AIAssistant({
                     className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-center shadow-3xs cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group active:scale-95"
                   >
                     <Icon className="w-4 h-4 text-blue-500 dark:text-blue-400 group-hover:scale-115 transition-transform" />
-                    <span className="text-[10px] font-semibold text-gray-650 dark:text-slate-300 leading-tight">
+                    <span className="text-[10px] font-semibold text-gray-600 dark:text-slate-300 leading-tight">
                       {chip.text}
                     </span>
                   </button>

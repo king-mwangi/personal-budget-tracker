@@ -248,7 +248,7 @@ export default function RecurringManager({
               <Calendar className="w-4 h-4 text-emerald-500" />
               Active Fixed Subscriptions & Expenses ({recurringItems.length})
             </h3>
-            <span className="bg-slate-100 dark:bg-slate-850 text-slate-500 dark:text-slate-400 text-[10px] font-bold px-2 py-1 rounded-md font-mono">
+            <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold px-2 py-1 rounded-md font-mono">
               Monthly Cycle
             </span>
           </div>

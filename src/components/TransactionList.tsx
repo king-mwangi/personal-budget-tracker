@@ -299,7 +299,7 @@ export default function TransactionList({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.45), ease: "easeOut" }}
                       onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
-                      className="transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-850/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40"
+                      className="transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-800/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40"
                     >
                       {/* Primary notes label */}
                       <td className="py-3.5 px-5">
@@ -368,14 +368,14 @@ export default function TransactionList({
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">ID Reference</span>
-                              <code className="text-[10.5px] font-mono text-slate-650 dark:text-slate-300 break-all select-all block bg-slate-50/50 dark:bg-slate-950/50 px-1.5 py-1 rounded border border-gray-150 dark:border-slate-800">
+                              <code className="text-[10.5px] font-mono text-slate-600 dark:text-slate-300 break-all select-all block bg-slate-50/50 dark:bg-slate-950/50 px-1.5 py-1 rounded border border-gray-150 dark:border-slate-800">
                                 {tx.id}
                               </code>
                             </div>
                             
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">Created Timestamp</span>
-                              <div className="text-slate-650 dark:text-slate-300 font-medium">
+                              <div className="text-slate-600 dark:text-slate-300 font-medium">
                                 📅 Record date: <span className="font-mono font-bold text-slate-800 dark:text-white">{tx.date}</span>
                               </div>
                               <span className="text-[10px] text-gray-450 dark:text-gray-500 font-mono block">Status: Confirmed & Persisted</span>
@@ -383,7 +383,7 @@ export default function TransactionList({
                             
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
                               <span className="text-[10px] font-bold text-slate-405 dark:text-slate-500 uppercase font-mono tracking-wider block">Budget Category Insight</span>
-                              <p className="text-slate-650 dark:text-slate-350 leading-relaxed text-[11px]">
+                              <p className="text-slate-600 dark:text-slate-350 leading-relaxed text-[11px]">
                                 {categoryDescriptions[tx.category] || "No description loaded."}
                               </p>
                             </div>
