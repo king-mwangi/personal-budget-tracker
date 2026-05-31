@@ -24,7 +24,8 @@ import {
   History,
   ArrowLeftRight,
   Plus,
-  FileDown
+  FileDown,
+  Sliders
 } from 'lucide-react';
 
 interface MonthlyReportsProps {
@@ -95,6 +96,18 @@ export default function MonthlyReports({
   // States for custom Excel export sorting configurations
   const [excelSortField, setExcelSortField] = useState<'date' | 'amount'>('date');
   const [excelSortDirection, setExcelSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // States for custom Excel header names
+  const [excelHeaders, setExcelHeaders] = useState({
+    id: 'Transaction ID',
+    date: 'Date',
+    type: 'Type',
+    category: 'Category',
+    amount: 'Amount',
+    description: 'Description',
+    notes: 'Transaction Notes'
+  });
+  const [showCustomHeaders, setShowCustomHeaders] = useState(false);
 
   const selectedCompareSnapshot = snapshots?.find(s => s.id === compareSnapshotId);
 
@@ -438,13 +451,22 @@ export default function MonthlyReports({
         ];
 
         // 3. Prepare Transactions dataset
-        const rawHeaders = ['Transaction ID', 'Date', 'Type', 'Category', 'Amount', 'Description'];
+        const rawHeaders = [
+          excelHeaders.id || 'Transaction ID',
+          excelHeaders.date || 'Date',
+          excelHeaders.type || 'Type',
+          excelHeaders.category || 'Category',
+          excelHeaders.amount || 'Amount',
+          excelHeaders.description || 'Description',
+          excelHeaders.notes || 'Transaction Notes'
+        ];
         const rawRows = exportTransactions.map(t => [
           t.id,
           t.date,
           t.type.toUpperCase(),
           t.category,
           t.amount,
+          t.description,
           t.description
         ]);
 
@@ -466,11 +488,12 @@ export default function MonthlyReports({
           { wch: 10 }, // Type
           { wch: 18 }, // Category
           { wch: 16 }, // Amount
-          { wch: 45 }  // Description
+          { wch: 45 }, // Description
+          { wch: 45 }  // Transaction Notes
         ];
 
         // 4. Auto-calculating column filters and frozen view pane for seamless table scanning
-        wsTransactions['!autofilter'] = { ref: `A1:F${rawRows.length + 1}` };
+        wsTransactions['!autofilter'] = { ref: `A1:G${rawRows.length + 1}` };
         wsTransactions['!views'] = [
           { state: 'frozen', ySplit: 1, activePane: 'bottomLeft', paneType: 'frozen' }
         ];
@@ -1288,6 +1311,122 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                         <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'desc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Desc</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Excel Custom Table Headers Interface */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <button
+                      type="button"
+                      id="excel-custom-headers-toggle"
+                      onClick={() => setShowCustomHeaders(!showCustomHeaders)}
+                      className="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Column Headers</span>
+                      </div>
+                      <span className="text-emerald-500 font-extrabold text-xs">{showCustomHeaders ? '−' : '+'}</span>
+                    </button>
+
+                    {showCustomHeaders && (
+                      <div className="pt-2 grid grid-cols-1 gap-2.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
+                        <p className="text-[9.5px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed">
+                          Customize the header names of each table column in the exported worksheet.
+                        </p>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">ID Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.id}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, id: e.target.value })}
+                              placeholder="Transaction ID"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Date Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.date}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, date: e.target.value })}
+                              placeholder="Date"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Type Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.type}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, type: e.target.value })}
+                              placeholder="Type"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Category Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.category}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, category: e.target.value })}
+                              placeholder="Category"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Amount Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.amount}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, amount: e.target.value })}
+                              placeholder="Amount"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Description Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.description}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, description: e.target.value })}
+                              placeholder="Description"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Transaction Notes Column</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.notes}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, notes: e.target.value })}
+                            placeholder="Transaction Notes"
+                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+
+                        <div className="flex justify-end pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setExcelHeaders({
+                              id: 'Transaction ID',
+                              date: 'Date',
+                              type: 'Type',
+                              category: 'Category',
+                              amount: 'Amount',
+                              description: 'Description',
+                              notes: 'Transaction Notes'
+                            })}
+                            className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors uppercase tracking-wider cursor-pointer"
+                          >
+                            Reset to Defaults
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <button

@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
 import Login from './components/Login';
 import LedgerSmartLogo from './components/Logo';
@@ -554,27 +552,7 @@ export default function App() {
     processAutologs();
   }, [isDataLoaded]);
 
-  // Helper to directly call Gemini API in side-by-side environments such as client-only/Vercel static hosting
-  const exportToPDF = async () => {
-    const input = document.getElementById('main-content');
-    if (!input) return;
 
-    const canvas = await html2canvas(input, { scale: 2 });
-    const imgData = canvas.toDataURL('image/png');
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 10;
-
-    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-    pdf.save('financial-overview.pdf');
-  };
 
   // Request real-time structured advisors tips using `/api/analyze`
   const fetchAIInsights = async () => {
@@ -1694,15 +1672,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               <span className="hidden md:inline text-xs font-semibold tracking-wide">Print Overview</span>
             </button>
 
-            {/* Export to PDF */}
-            <button
-              onClick={exportToPDF}
-              title="Download Financial Report PDF"
-              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-slate-700 dark:text-slate-300 flex items-center justify-center gap-1.5 hover:text-emerald-700 dark:hover:text-emerald-300 hover:border-emerald-200 dark:hover:border-emerald-900"
-            >
-              <Printer className="w-4 h-4 text-emerald-500" />
-              <span className="hidden md:inline text-xs font-semibold tracking-wide">Export PDF</span>
-            </button>
+
 
             {/* Notification Bell with Dropdown Popover */}
             <div className="relative">
