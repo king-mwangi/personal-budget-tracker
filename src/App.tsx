@@ -66,6 +66,7 @@ const SEED_SAVINGS: SavingsGoal[] = [];
 export default function App() {
   // Current active frame tab
   const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
+  const [isExcelExporting, setIsExcelExporting] = useState(false);
 
   const [showResetModal, setShowResetModal] = useState(false);
   
@@ -1993,15 +1994,27 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             {/* Monthly Reports Link */}
             <button
               id="sidebar-nav-reports"
+              disabled={isExcelExporting}
               onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
-              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
-                activeTab === 'reports'
-                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                isExcelExporting
+                  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 opacity-80 cursor-not-allowed'
+                  : activeTab === 'reports'
+                    ? 'bg-blue-600 text-white shadow-xs font-bold'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer'
               }`}
             >
-              <BarChart3 className="w-4.5 h-4.5" />
-              Monthly Reports
+              {isExcelExporting ? (
+                <>
+                  <div className="w-4.5 h-4.5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="truncate">Generating...</span>
+                </>
+              ) : (
+                <>
+                  <BarChart3 className="w-4.5 h-4.5 shrink-0" />
+                  <span>Monthly Reports</span>
+                </>
+              )}
             </button>
 
             {/* WhatsApp Support Link */}
@@ -2354,6 +2367,8 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 snapshots={snapshots}
                 onAddSnapshot={handleAddSnapshot}
                 onDeleteSnapshot={handleDeleteSnapshot}
+                isExportingExcel={isExcelExporting}
+                onExcelExportStateChange={setIsExcelExporting}
               />
             )}
           </React.Suspense>

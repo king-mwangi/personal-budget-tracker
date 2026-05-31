@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import * as XLSX from 'xlsx-js-style';
 import { Transaction, MonthlySnapshot } from '../types';
 import { 
   BarChart3, 
@@ -32,9 +33,19 @@ interface MonthlyReportsProps {
   snapshots: MonthlySnapshot[];
   onAddSnapshot: (newSnapshot: Omit<MonthlySnapshot, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
   onDeleteSnapshot: (id: string) => Promise<void>;
+  isExportingExcel?: boolean;
+  onExcelExportStateChange?: (exporting: boolean) => void;
 }
 
-export default function MonthlyReports({ transactions, currencySymbol, snapshots, onAddSnapshot, onDeleteSnapshot }: MonthlyReportsProps) {
+export default function MonthlyReports({ 
+  transactions, 
+  currencySymbol, 
+  snapshots, 
+  onAddSnapshot, 
+  onDeleteSnapshot,
+  isExportingExcel = false,
+  onExcelExportStateChange
+}: MonthlyReportsProps) {
   // Extract all available months (YYYY-MM) from transactions
   const availableMonths = Array.from(
     new Set(
@@ -69,6 +80,21 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
   const [copied, setCopied] = useState(false);
   const [compareSnapshotId, setCompareSnapshotId] = useState<string | null>(null);
   const [snapshotSuccessMsg, setSnapshotSuccessMsg] = useState<string | null>(null);
+
+  // States for custom Excel export date-range filter scope
+  const [filterExcelByDate, setFilterExcelByDate] = useState(false);
+  const [excelStartDate, setExcelStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().substring(0, 10);
+  });
+  const [excelEndDate, setExcelEndDate] = useState<string>(() => {
+    return new Date().toISOString().substring(0, 10);
+  });
+
+  // States for custom Excel export sorting configurations
+  const [excelSortField, setExcelSortField] = useState<'date' | 'amount'>('date');
+  const [excelSortDirection, setExcelSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const selectedCompareSnapshot = snapshots?.find(s => s.id === compareSnapshotId);
 
@@ -239,6 +265,345 @@ export default function MonthlyReports({ transactions, currencySymbol, snapshots
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Export to Excel (.XLSX) with full worksheet formatting
+  const handleExportExcel = () => {
+    if (isExportingExcel) return;
+    onExcelExportStateChange?.(true);
+
+    setTimeout(() => {
+      try {
+        // 1. Initialize empty workbook
+        const wb = XLSX.utils.book_new();
+
+        // Determine dataset to export dynamically
+        const baseExportTransactions = filterExcelByDate
+          ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
+          : monthlyTransactions;
+
+        // Perform sorting on exportTransactions based on user preferences
+        const exportTransactions = [...baseExportTransactions].sort((a, b) => {
+          if (excelSortField === 'date') {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA !== dateB) {
+              return excelSortDirection === 'asc' 
+                ? dateA.localeCompare(dateB) 
+                : dateB.localeCompare(dateA);
+            }
+            return (a.id || '').localeCompare(b.id || '');
+          } else {
+            // Sort by amount
+            const amtA = a.amount || 0;
+            const amtB = b.amount || 0;
+            if (amtA !== amtB) {
+              return excelSortDirection === 'asc' 
+                ? amtA - amtB 
+                : amtB - amtA;
+            }
+            // fallback sorting by date to keep it stable
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            return dateA.localeCompare(dateB);
+          }
+        });
+
+        const excelMonthLabel = filterExcelByDate
+          ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}`
+          : monthLabel;
+
+        const excelIncomeTx = exportTransactions.filter(t => t.type === 'income');
+        const excelExpenseTx = exportTransactions.filter(t => t.type === 'expense');
+
+        const excelTotalIncome = excelIncomeTx.reduce((sum, t) => sum + t.amount, 0);
+        const excelTotalExpense = excelExpenseTx.reduce((sum, t) => sum + t.amount, 0);
+        const excelNetSavings = excelTotalIncome - excelTotalExpense;
+        const excelSavingsRate = excelTotalIncome > 0 ? (excelNetSavings / excelTotalIncome) * 100 : 0;
+
+        // Breakdown categories for income
+        const excelIncMap: Record<string, number> = {};
+        excelIncomeTx.forEach(t => {
+          excelIncMap[t.category] = (excelIncMap[t.category] || 0) + t.amount;
+        });
+        const excelIncCats = Object.entries(excelIncMap)
+          .map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: excelTotalIncome > 0 ? (amount / excelTotalIncome) * 100 : 0
+          }))
+          .sort((a, b) => b.amount - a.amount);
+
+        // Breakdown categories for expense
+        const excelExpMap: Record<string, number> = {};
+        excelExpenseTx.forEach(t => {
+          excelExpMap[t.category] = (excelExpMap[t.category] || 0) + t.amount;
+        });
+        const excelExpCats = Object.entries(excelExpMap)
+          .map(([category, amount]) => ({
+            category,
+            amount,
+            percentage: excelTotalExpense > 0 ? (amount / excelTotalExpense) * 100 : 0
+          }))
+          .sort((a, b) => b.amount - a.amount);
+
+        // 2. Prepare Summary dataset
+        const summaryData: any[][] = [];
+        summaryData.push(["LEDGER FINANCIAL PRO ABSTRACT"]);
+        summaryData.push(["Report Period", excelMonthLabel]);
+        summaryData.push(["Generated On", new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString()]);
+        summaryData.push([]);
+
+        summaryData.push(["CORE PERFORMANCE METRICS"]);
+        summaryData.push(["Metric", "Value"]);
+        const coreMetricsStart = summaryData.length;
+        summaryData.push(["Total Income", excelTotalIncome]);
+        summaryData.push(["Total Expenses", excelTotalExpense]);
+        summaryData.push(["Net Cash Savings", excelNetSavings]);
+        summaryData.push(["Savings Rate", excelSavingsRate / 100]); // Use fractional value for % format
+        summaryData.push([]);
+
+        summaryData.push(["INCOME CATEGORY BREAKDOWN"]);
+        summaryData.push(["Category", "Total Inflow", "Proportion"]);
+        const incomeStart = summaryData.length;
+        excelIncCats.forEach(c => {
+          summaryData.push([c.category, c.amount, c.percentage / 100]);
+        });
+        const incomeEnd = summaryData.length;
+        summaryData.push([]);
+
+        summaryData.push(["EXPENSE CATEGORY BREAKDOWN"]);
+        summaryData.push(["Category", "Total Outlay", "Proportion"]);
+        const expenseStart = summaryData.length;
+        excelExpCats.forEach(c => {
+          summaryData.push([c.category, c.amount, c.percentage / 100]);
+        });
+        const expenseEnd = summaryData.length;
+
+        // Convert to Excel Worksheet
+        const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+
+        // Merge cells for the title block (A1 to C1)
+        wsSummary['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }
+        ];
+
+        // Apply currency and percentage formatting to Summary worksheet
+        for (let r = coreMetricsStart; r < coreMetricsStart + 3; r++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c: 1 });
+          if (wsSummary[cellRef]) {
+            wsSummary[cellRef].t = 'n';
+            wsSummary[cellRef].z = `"${currencySymbol}"#,##0.00`;
+          }
+        }
+        const savingsRateRef = XLSX.utils.encode_cell({ r: coreMetricsStart + 3, c: 1 });
+        if (wsSummary[savingsRateRef]) {
+          wsSummary[savingsRateRef].t = 'n';
+          wsSummary[savingsRateRef].z = '0.0%';
+        }
+
+        // Income category breakdown lists
+        for (let r = incomeStart; r < incomeEnd; r++) {
+          const amtRef = XLSX.utils.encode_cell({ r, c: 1 });
+          if (wsSummary[amtRef]) {
+            wsSummary[amtRef].t = 'n';
+            wsSummary[amtRef].z = `"${currencySymbol}"#,##0.00`;
+          }
+          const pctRef = XLSX.utils.encode_cell({ r, c: 2 });
+          if (wsSummary[pctRef]) {
+            wsSummary[pctRef].t = 'n';
+            wsSummary[pctRef].z = '0.0%';
+          }
+        }
+
+        // Expense category breakdown lists
+        for (let r = expenseStart; r < expenseEnd; r++) {
+          const amtRef = XLSX.utils.encode_cell({ r, c: 1 });
+          if (wsSummary[amtRef]) {
+            wsSummary[amtRef].t = 'n';
+            wsSummary[amtRef].z = `"${currencySymbol}"#,##0.00`;
+          }
+          const pctRef = XLSX.utils.encode_cell({ r, c: 2 });
+          if (wsSummary[pctRef]) {
+            wsSummary[pctRef].t = 'n';
+            wsSummary[pctRef].z = '0.0%';
+          }
+        }
+
+        // Explicit generous column widths for Summary tab
+        wsSummary['!cols'] = [
+          { wch: 30 }, // Meta field or category
+          { wch: 18 }, // Value or Amount
+          { wch: 15 }  // Proportion %
+        ];
+
+        // 3. Prepare Transactions dataset
+        const rawHeaders = ['Transaction ID', 'Date', 'Type', 'Category', 'Amount', 'Description'];
+        const rawRows = exportTransactions.map(t => [
+          t.id,
+          t.date,
+          t.type.toUpperCase(),
+          t.category,
+          t.amount,
+          t.description
+        ]);
+
+        const wsTransactions = XLSX.utils.aoa_to_sheet([rawHeaders, ...rawRows]);
+
+        // Apply currency formatting to Amount column (E-column, index 4) in Transactions sheet
+        for (let r = 1; r <= rawRows.length; r++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c: 4 });
+          if (wsTransactions[cellRef]) {
+            wsTransactions[cellRef].t = 'n';
+            wsTransactions[cellRef].z = `"${currencySymbol}"#,##0.00`;
+          }
+        }
+
+        // Generous Column Widths for Raw ledger sheet
+        wsTransactions['!cols'] = [
+          { wch: 22 }, // Transaction ID
+          { wch: 12 }, // Date
+          { wch: 10 }, // Type
+          { wch: 18 }, // Category
+          { wch: 16 }, // Amount
+          { wch: 45 }  // Description
+        ];
+
+        // 4. Auto-calculating column filters and frozen view pane for seamless table scanning
+        wsTransactions['!autofilter'] = { ref: `A1:F${rawRows.length + 1}` };
+        wsTransactions['!views'] = [
+          { state: 'frozen', ySplit: 1, activePane: 'bottomLeft', paneType: 'frozen' }
+        ];
+
+        // 5. Apply Professional Styling scheme across cells
+        const applyProfessionalStyles = (ws: XLSX.WorkSheet, isRawLedger: boolean = false) => {
+          const cells = Object.keys(ws).filter(key => !key.startsWith('!'));
+          
+          cells.forEach(key => {
+            const cell = ws[key];
+            if (!cell) return;
+
+            const rowNum = parseInt(key.replace(/[A-Z]/g, ''), 10);
+            const colLetter = key.replace(/[0-9]/g, '');
+
+            const style: any = {
+              font: { name: "Segoe UI", sz: 10, color: { rgb: "334155" } },
+              alignment: { vertical: "center" },
+              border: {
+                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                top: { style: "thin", color: { rgb: "E2E8F0" } },
+                left: { style: "thin", color: { rgb: "E2E8F0" } },
+                right: { style: "thin", color: { rgb: "E2E8F0" } }
+              }
+            };
+
+            const val = String(cell.v || '');
+
+            if (isRawLedger) {
+              if (rowNum === 1) {
+                // Header row
+                style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+                style.fill = { patternType: "solid", fgColor: { rgb: "1E293B" } }; // Deep Slate executive header
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (colLetter === 'E') {
+                  style.alignment.horizontal = "right";
+                }
+              } else {
+                // Transactions records
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (colLetter === 'E') {
+                  style.alignment.horizontal = "right";
+                }
+                // Alternating light gray striping
+                if (rowNum % 2 === 0) {
+                  style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                } else {
+                  style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                }
+              }
+            } else {
+              // Summary sheet
+              if (rowNum === 1) {
+                // Master hero title row
+                style.font = { name: "Segoe UI", sz: 12, bold: true, color: { rgb: "FFFFFF" } };
+                style.fill = { patternType: "solid", fgColor: { rgb: "0F172A" } }; // Rich slate-900 title Block
+                style.alignment = { horizontal: "center", vertical: "center" };
+              } else if (
+                val === "CORE PERFORMANCE METRICS" || 
+                val === "INCOME CATEGORY BREAKDOWN" || 
+                val === "EXPENSE CATEGORY BREAKDOWN"
+              ) {
+                // Heading rows
+                style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
+                style.fill = { patternType: "solid", fgColor: { rgb: "E2E8F0" } }; // Soft slate header banner
+                style.alignment = { horizontal: "left", vertical: "center" };
+              } else if (
+                val === "Metric" || 
+                val === "Value" || 
+                val === "Category" || 
+                val === "Total Inflow" || 
+                val === "Proportion" || 
+                val === "Total Outlay"
+              ) {
+                // Subheadings
+                style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+                style.fill = { patternType: "solid", fgColor: { rgb: "475569" } }; // Medium slate
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (val === "Value" || val === "Total Inflow" || val === "Total Outlay" || val === "Proportion") {
+                  style.alignment.horizontal = "right";
+                }
+              } else if (rowNum >= 2 && rowNum <= 3) {
+                // Meta summary lines (naked borders, dimmed text)
+                style.font = { name: "Segoe UI", sz: 9, italic: true, color: { rgb: "64748B" } };
+                style.alignment = { horizontal: "left", vertical: "center" };
+                style.border = {};
+              } else {
+                // General cells
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (colLetter === 'B' || colLetter === 'C') {
+                  style.alignment.horizontal = "right";
+                }
+                if (rowNum % 2 === 0) {
+                  style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                } else {
+                  style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                }
+
+                // Bold specific high priority labels & totals
+                if (
+                  val === "Total Income" || 
+                  val === "Total Expenses" || 
+                  val === "Net Cash Savings" || 
+                  val === "Savings Rate"
+                ) {
+                  style.font.bold = true;
+                }
+              }
+            }
+
+            cell.s = style;
+          });
+        };
+
+        // Style summary and ledger sheets
+        applyProfessionalStyles(wsSummary, false);
+        applyProfessionalStyles(wsTransactions, true);
+
+        // 6. Attach worksheets to workbook
+        XLSX.utils.book_append_sheet(wb, wsSummary, "Financial Summary");
+        XLSX.utils.book_append_sheet(wb, wsTransactions, "Raw Ledger");
+
+        // 7. Generate trigger and trigger download
+        const fileDateLabel = filterExcelByDate
+          ? `${excelStartDate}_to_${excelEndDate}`
+          : (reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`);
+        XLSX.writeFile(wb, `Ledger_Master_Portfolio_${fileDateLabel}.xlsx`);
+      } catch (err) {
+        console.error("XLSX Export failure:", err);
+      } finally {
+        onExcelExportStateChange?.(false);
+      }
+    }, 150);
   };
 
   // Export to formatted txt summary
@@ -786,6 +1151,151 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
                   <Download className="w-4 h-4 text-slate-400 group-hover:text-blue-500 transition-colors" />
                 </button>
+
+                {/* Export as Excel */}
+                <div className="border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/5 dark:bg-slate-950/20 p-3 space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Excel Portfolio (.XLSX)</p>
+                        <p className="text-[10px] text-slate-400 font-medium">Multi-sheet master audit package</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Excel Specific Date Range Scope Option */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date Export Scope</span>
+                      <label id="excel-custom-range-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={filterExcelByDate}
+                          onChange={(e) => setFilterExcelByDate(e.target.checked)}
+                          className="w-3.5 h-3.5 text-emerald-600 bg-gray-150 rounded border-gray-300 dark:border-slate-700 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                        />
+                        <span className="text-[10px] font-bold text-slate-650 dark:text-slate-350 select-none">Custom Filter</span>
+                      </label>
+                    </div>
+
+                    {filterExcelByDate ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Start Date</label>
+                          <input
+                            type="date"
+                            value={excelStartDate}
+                            onChange={(e) => setExcelStartDate(e.target.value)}
+                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">End Date</label>
+                          <input
+                            type="date"
+                            value={excelEndDate}
+                            onChange={(e) => setExcelEndDate(e.target.value)}
+                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
+                        Using active range: <strong className="text-slate-700 dark:text-slate-300 font-bold">{monthLabel}</strong>
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Excel Specific Sort Configuration */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sort Configuration</span>
+                      <button
+                        type="button"
+                        onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-350 transition-colors cursor-pointer"
+                        title={`Currently sorting ${excelSortDirection === 'asc' ? 'ascending' : 'descending'}. Click to toggle.`}
+                      >
+                        <ArrowLeftRight className="w-3 h-3 rotate-90 shrink-0" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (excelSortField === 'date') {
+                            // Already Date, option to toggle direction
+                            setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setExcelSortField('date');
+                          }
+                        }}
+                        className={`py-1.5 px-2 text-[10.5px] font-bold rounded border transition-all text-center cursor-pointer ${
+                          excelSortField === 'date'
+                            ? 'bg-emerald-55 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350'
+                            : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        📅 Date {excelSortField === 'date' ? (excelSortDirection === 'asc' ? '▲' : '▼') : ''}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (excelSortField === 'amount') {
+                            // Already Amount, option to toggle direction
+                            setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setExcelSortField('amount');
+                          }
+                        }}
+                        className={`py-1.5 px-2 text-[10.5px] font-bold rounded border transition-all text-center cursor-pointer ${
+                          excelSortField === 'amount'
+                            ? 'bg-emerald-55 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350'
+                            : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        💰 Amount {excelSortField === 'amount' ? (excelSortDirection === 'asc' ? '▲' : '▼') : ''}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-1.5 mt-0.5 text-[9.5px] text-slate-500 dark:text-slate-400 font-medium select-none">
+                      <span>Direction:</span>
+                      <button
+                        type="button"
+                        onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        {excelSortDirection === 'asc' ? 'Ascending (Low-High / Oldest first)' : 'Descending (High-Low / Newest first)'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    id="btn-export-excel"
+                    disabled={isExportingExcel}
+                    onClick={handleExportExcel}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-150 dark:border-slate-800/80 transition-all group ${
+                      isExportingExcel 
+                        ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
+                        : 'hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {isExportingExcel ? (
+                        <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                      )}
+                      <span className="text-xs font-bold leading-none">
+                        {isExportingExcel ? 'Assembling files...' : 'Generate Spreadsheet (.xlsx)'}
+                      </span>
+                    </div>
+                  </button>
+                </div>
 
                 {/* Export as TXT report */}
                 <button
