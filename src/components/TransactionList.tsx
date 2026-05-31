@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Transaction } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { 
@@ -286,14 +287,17 @@ export default function TransactionList({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50/80">
-              {paginatedTransactions.map((tx) => {
+              {paginatedTransactions.map((tx, idx) => {
                 const categoryDetails = CATEGORIES[tx.category];
                 const IconComp = categoryDetails?.icon;
                 const isExpanded = expandedTxId === tx.id;
                 
                 return (
                   <React.Fragment key={tx.id}>
-                    <tr 
+                    <motion.tr 
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.45), ease: "easeOut" }}
                       onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
                       className="transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-850/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40"
                     >
@@ -350,11 +354,16 @@ export default function TransactionList({
                           </button>
                         </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                     
                     {/* Expanded details template */}
                     {isExpanded && (
-                      <tr className="bg-slate-50/50 dark:bg-slate-950/30">
+                      <motion.tr 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        className="bg-slate-50/50 dark:bg-slate-950/30"
+                      >
                         <td colSpan={5} className="px-5 py-4 border-b border-gray-150 dark:border-slate-800/80">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
@@ -373,14 +382,14 @@ export default function TransactionList({
                             </div>
                             
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
-                              <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">Budget Category Insight</span>
+                              <span className="text-[10px] font-bold text-slate-405 dark:text-slate-500 uppercase font-mono tracking-wider block">Budget Category Insight</span>
                               <p className="text-slate-650 dark:text-slate-350 leading-relaxed text-[11px]">
                                 {categoryDescriptions[tx.category] || "No description loaded."}
                               </p>
                             </div>
                           </div>
                         </td>
-                      </tr>
+                      </motion.tr>
                     )}
                   </React.Fragment>
                 );

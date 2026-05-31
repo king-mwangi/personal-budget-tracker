@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { Transaction, Budget } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { 
@@ -238,19 +239,29 @@ export default function Dashboard({
   return (
     <div className="space-y-6">
       {/* Top Welcome Panel */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+      <motion.div 
+        initial={{ opacity: 0, y: -15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors"
+      >
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Welcome, {userFirstName}!</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time balances, tracking statistics, and cash flow velocities.</p>
         </div>
         <div className="mt-4 sm:mt-0 flex items-center gap-2 bg-gray-50 dark:bg-slate-950 rounded-lg py-1.5 px-3 border border-gray-200 dark:border-slate-800 w-fit self-start sm:self-auto">
           <Calendar className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-mono text-gray-600 dark:text-gray-400 font-medium font-semibold">May 2026 Tracking Period</span>
+          <span className="text-xs font-mono text-gray-600 dark:text-gray-400 font-semibold font-bold">May 2026 Tracking Period</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* AI-Powered Weekly Insights Box */}
-      <div className="bg-white dark:bg-slate-905 border border-slate-105 dark:border-slate-800 p-6 rounded-2xl shadow-3xs space-y-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.05, ease: "easeOut" }}
+        className="bg-white dark:bg-slate-905 border border-slate-105 dark:border-slate-800 p-6 rounded-2xl shadow-3xs space-y-4"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-blue-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-xl">
@@ -344,12 +355,17 @@ export default function Dashboard({
             </>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Grid Status Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Net Balance */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-blue-200 dark:hover:border-blue-900/40 transition-colors">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.1, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-blue-200 dark:hover:border-blue-900/40 transition-colors"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Net Balance</span>
             <div className="p-2 bg-blue-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400 rounded-lg">
@@ -362,10 +378,15 @@ export default function Dashboard({
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Total revenue minus logged expenditure</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Monthly Income */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-colors">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.15, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-emerald-200 dark:hover:border-emerald-900/40 transition-colors"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inflow Revenue</span>
             <div className="p-2 bg-emerald-50 dark:bg-slate-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
@@ -378,10 +399,15 @@ export default function Dashboard({
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'income').length} active income stream logs</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Monthly Outflow */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-amber-200 dark:hover:border-amber-900/40 transition-colors">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.2, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-amber-200 dark:hover:border-amber-900/40 transition-colors"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Outflow Spent</span>
             <div className="p-2 bg-amber-50 dark:bg-slate-950 text-amber-600 dark:text-amber-400 rounded-lg">
@@ -394,10 +420,15 @@ export default function Dashboard({
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'expense').length} active expenditure lines</p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Savings Rate */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-purple-200 dark:hover:border-purple-900/40 transition-colors">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.25, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-xs hover:border-purple-200 dark:hover:border-purple-900/40 transition-colors"
+        >
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Savings Rate</span>
             <div className="p-2 bg-purple-50 dark:bg-slate-950 text-purple-600 dark:text-purple-400 rounded-lg">
@@ -415,13 +446,18 @@ export default function Dashboard({
               />
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Visualizer Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Cumulative Billing Run */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-3 flex flex-col justify-between">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.28, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-3 flex flex-col justify-between"
+        >
           <div>
             <div className="flex items-center justify-between">
               <div>
@@ -520,10 +556,15 @@ export default function Dashboard({
             <span>Day 20</span>
             <span>Day 30</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Category breakdown Pie Donut */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2 flex flex-col justify-between">
+        <motion.div 
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, delay: 0.32, ease: "easeOut" }}
+          className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2 flex flex-col justify-between"
+        >
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Allocation Split</h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Budget category ratio allocation comparison.</p>
@@ -614,11 +655,16 @@ export default function Dashboard({
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Monthly spending distribution & Budget Utilization Chart using Recharts */}
-      <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, delay: 0.36, ease: "easeOut" }}
+        className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors"
+      >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Budget Utilization & Spending Distribution</h3>
@@ -725,7 +771,7 @@ export default function Dashboard({
             </ResponsiveContainer>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
