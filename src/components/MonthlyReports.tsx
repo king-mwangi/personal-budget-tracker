@@ -36,6 +36,19 @@ interface MonthlyReportsProps {
   onDeleteSnapshot: (id: string) => Promise<void>;
   isExportingExcel?: boolean;
   onExcelExportStateChange?: (exporting: boolean) => void;
+  onExcelPreviewChange?: (info: { 
+    count: number; 
+    label: string; 
+    details: string;
+    currentMonthTrends?: number[];
+    prevMonthTrends?: number[];
+    currentMonthLabel?: string;
+    prevMonthLabel?: string;
+  }) => void;
+  excelIncludeCategoryId?: boolean;
+  onExcelIncludeCategoryIdChange?: (val: boolean) => void;
+  excelStyleTheme?: 'professional' | 'minimal';
+  onExcelStyleThemeChange?: (val: 'professional' | 'minimal') => void;
 }
 
 export default function MonthlyReports({ 
@@ -45,7 +58,12 @@ export default function MonthlyReports({
   onAddSnapshot, 
   onDeleteSnapshot,
   isExportingExcel = false,
-  onExcelExportStateChange
+  onExcelExportStateChange,
+  onExcelPreviewChange,
+  excelIncludeCategoryId: propExcelIncludeCategoryId,
+  onExcelIncludeCategoryIdChange,
+  excelStyleTheme: propExcelStyleTheme,
+  onExcelStyleThemeChange
 }: MonthlyReportsProps) {
   // Extract all available months (YYYY-MM) from transactions
   const availableMonths = Array.from(
@@ -92,6 +110,37 @@ export default function MonthlyReports({
   const [excelEndDate, setExcelEndDate] = useState<string>(() => {
     return new Date().toISOString().substring(0, 10);
   });
+  const [excelDatePreset, setExcelDatePreset] = useState<'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom'>('active');
+  const [excelEnableDateFiltering, setExcelEnableDateFiltering] = useState<boolean>(true);
+
+  const handleExcelDatePresetChange = (preset: 'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom') => {
+    setExcelDatePreset(preset);
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    if (preset === 'active') {
+      setFilterExcelByDate(false);
+      return;
+    }
+
+    setFilterExcelByDate(true);
+    if (preset === 'last-7') {
+      start.setDate(today.getDate() - 7);
+    } else if (preset === 'last-30') {
+      start.setDate(today.getDate() - 30);
+    } else if (preset === 'last-90') {
+      start.setDate(today.getDate() - 90);
+    } else if (preset === 'this-year') {
+      start = new Date(today.getFullYear(), 0, 1);
+      end = new Date(today.getFullYear(), 11, 31);
+    } else if (preset === 'custom') {
+      return;
+    }
+
+    setExcelStartDate(start.toISOString().substring(0, 10));
+    setExcelEndDate(end.toISOString().substring(0, 10));
+  };
 
   // States for custom Excel export sorting configurations
   const [excelSortField, setExcelSortField] = useState<'date' | 'amount'>('date');
@@ -108,7 +157,14 @@ export default function MonthlyReports({
     notes: 'Transaction Notes',
     categoryId: 'Category ID'
   });
-  const [excelIncludeCategoryId, setExcelIncludeCategoryId] = useState(false);
+  const [localExcelIncludeCategoryId, setLocalExcelIncludeCategoryId] = useState(false);
+  const excelIncludeCategoryId = propExcelIncludeCategoryId !== undefined ? propExcelIncludeCategoryId : localExcelIncludeCategoryId;
+  const setExcelIncludeCategoryId = onExcelIncludeCategoryIdChange !== undefined ? onExcelIncludeCategoryIdChange : setLocalExcelIncludeCategoryId;
+  
+  const [localExcelStyleTheme, setLocalExcelStyleTheme] = useState<'professional' | 'minimal'>('professional');
+  const excelStyleTheme = propExcelStyleTheme !== undefined ? propExcelStyleTheme : localExcelStyleTheme;
+  const setExcelStyleTheme = onExcelStyleThemeChange !== undefined ? onExcelStyleThemeChange : setLocalExcelStyleTheme;
+
   const [showCustomHeaders, setShowCustomHeaders] = useState(false);
   const [showExcelPreviewOverlay, setShowExcelPreviewOverlay] = useState(false);
 
@@ -125,9 +181,11 @@ export default function MonthlyReports({
   });
 
   // Compute live info for hover preview of Excel export
-  const excelExportPreviewTransactions = filterExcelByDate
-    ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
-    : monthlyTransactions;
+  const excelExportPreviewTransactions = !excelEnableDateFiltering
+    ? transactions
+    : (filterExcelByDate
+      ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
+      : monthlyTransactions);
 
   const excelExportPreviewIncome = excelExportPreviewTransactions
     .filter(t => t.type === 'income')
@@ -193,6 +251,94 @@ export default function MonthlyReports({
   const monthLabel = reportMode === 'month'
     ? formatMonthName(selectedMonth)
     : `${formatDateFriendly(startDateStr)} – ${formatDateFriendly(endDateStr)}`;
+
+  React.useEffect(() => {
+    if (onExcelPreviewChange) {
+      const label = !excelEnableDateFiltering
+        ? "All-Time Master Ledger"
+        : (filterExcelByDate
+          ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}`
+          : monthLabel);
+
+      const details = !excelEnableDateFiltering
+        ? "Exporting All Time database entries without any date constraints."
+        : (filterExcelByDate
+          ? "Exporting filtered custom date-range entries."
+          : `Exporting transactions corresponding to the active period: ${monthLabel}.`);
+
+      // Calculate trends for preview
+      const daysInMonth = 30;
+      const currentDayTotals = Array(daysInMonth).fill(0);
+      const currentMonthTrends = Array(daysInMonth).fill(0);
+      transactions.forEach(t => {
+        if (t.type === 'expense' && t.date && t.date.startsWith(selectedMonth)) {
+          const day = parseInt(t.date.substring(8, 10));
+          const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+          currentDayTotals[index] += t.amount;
+        }
+      });
+      let currentSum = 0;
+      for (let i = 0; i < daysInMonth; i++) {
+        currentSum += currentDayTotals[i];
+        currentMonthTrends[i] = parseFloat(currentSum.toFixed(2));
+      }
+
+      // Calculate previous month string YYYY-MM
+      const [yearText, monthText] = selectedMonth.split('-');
+      const year = parseInt(yearText);
+      const month = parseInt(monthText);
+      const prevDate = new Date(year, month - 2, 1);
+      const prevYear = prevDate.getFullYear();
+      const prevMonthIdx = prevDate.getMonth() + 1;
+      const prevMonthIdxStr = prevMonthIdx < 10 ? `0${prevMonthIdx}` : `${prevMonthIdx}`;
+      const prevMonth = `${prevYear}-${prevMonthIdxStr}`;
+
+      const prevDayTotals = Array(daysInMonth).fill(0);
+      const prevMonthTrends = Array(daysInMonth).fill(0);
+      transactions.forEach(t => {
+        if (t.type === 'expense' && t.date && t.date.startsWith(prevMonth)) {
+          const day = parseInt(t.date.substring(8, 10));
+          const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+          prevDayTotals[index] += t.amount;
+        }
+      });
+      let prevSum = 0;
+      for (let i = 0; i < daysInMonth; i++) {
+        prevSum += prevDayTotals[i];
+        prevMonthTrends[i] = parseFloat(prevSum.toFixed(2));
+      }
+
+      const formatMonthNameSmall = (monthStr: string) => {
+        const parts = monthStr.split('-');
+        if (parts.length !== 2) return monthStr;
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+        return d.toLocaleDateString('default', { month: 'short', year: '2-digit' });
+      };
+
+      const currentMonthLabel = formatMonthNameSmall(selectedMonth);
+      const prevMonthLabel = formatMonthNameSmall(prevMonth);
+
+      onExcelPreviewChange({
+        count: excelExportPreviewCount,
+        label,
+        details,
+        currentMonthTrends,
+        prevMonthTrends,
+        currentMonthLabel,
+        prevMonthLabel
+      });
+    }
+  }, [
+    excelExportPreviewCount,
+    excelEnableDateFiltering,
+    filterExcelByDate,
+    excelStartDate,
+    excelEndDate,
+    monthLabel,
+    transactions,
+    selectedMonth,
+    onExcelPreviewChange
+  ]);
 
   const handleSaveSnapshot = async () => {
     if (monthlyTransactions.length === 0) {
@@ -309,9 +455,11 @@ export default function MonthlyReports({
         const wb = XLSX.utils.book_new();
 
         // Determine dataset to export dynamically
-        const baseExportTransactions = filterExcelByDate
-          ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
-          : monthlyTransactions;
+        const baseExportTransactions = !excelEnableDateFiltering
+          ? transactions
+          : (filterExcelByDate
+            ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
+            : monthlyTransactions);
 
         // Perform sorting on exportTransactions based on user preferences
         const exportTransactions = [...baseExportTransactions].sort((a, b) => {
@@ -340,9 +488,11 @@ export default function MonthlyReports({
           }
         });
 
-        const excelMonthLabel = filterExcelByDate
-          ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}`
-          : monthLabel;
+        const excelMonthLabel = !excelEnableDateFiltering
+          ? "All-Time Master Ledger"
+          : (filterExcelByDate
+            ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}`
+            : monthLabel);
 
         const excelIncomeTx = exportTransactions.filter(t => t.type === 'income');
         const excelExpenseTx = exportTransactions.filter(t => t.type === 'expense');
@@ -378,7 +528,86 @@ export default function MonthlyReports({
           }))
           .sort((a, b) => b.amount - a.amount);
 
-        // 2. Prepare Summary dataset
+        // 2. Prepare visual Dashboard dataset
+        const dashboardData: any[][] = [];
+        dashboardData.push(["EXECUTIVE FINANCIAL DASHBOARD"]); // Row 1 (A1:M1 merged)
+        dashboardData.push(["Period Scope", excelMonthLabel]); // Row 2
+        dashboardData.push(["Export Timestamp", new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString()]); // Row 3
+        dashboardData.push([]); // Row 4
+        
+        dashboardData.push(["CORE FINANCIAL PERFORMANCE KPI METRICS"]); // Row 5 (A5:M5 merged)
+        dashboardData.push(["Performance Key", "Absolute Value", "Status Tracking", "", "", "", "", "", "", "", "", "", "Relative Share"]); // Row 6 (Col C to L merged)
+        dashboardData.push(["Total Income", excelTotalIncome, "◀ INFLOW BASELINE", "", "", "", "", "", "", "", "", "", 1.0]); // Row 7 (Col C to L merged)
+        dashboardData.push(["Total Expenses", excelTotalExpense, `Outflow Rate: ${(excelTotalIncome > 0 ? (excelTotalExpense / excelTotalIncome) * 100 : 0).toFixed(1)}%`, "", "", "", "", "", "", "", "", "", excelTotalIncome > 0 ? excelTotalExpense / excelTotalIncome : 0]); // Row 8 (Col C to L merged)
+        dashboardData.push(["Net Cash Savings", excelNetSavings, excelNetSavings >= 0 ? "▲ SURPLUS CASH" : "▼ DEFICIT CASH", "", "", "", "", "", "", "", "", "", excelTotalIncome > 0 ? excelNetSavings / excelTotalIncome : 0]); // Row 9
+        dashboardData.push(["Savings Rate", excelSavingsRate / 100, "INVESTMENT / HEALTH INDEX", "", "", "", "", "", "", "", "", "", excelSavingsRate / 100]); // Row 10
+        dashboardData.push([]); // Row 11
+        
+        dashboardData.push(["VISUAL SUMMARY CHART: INCOME VS. EXPENSES"]); // Row 12 (A12:M12 merged)
+        dashboardData.push(["Financial Stream Flow", "Absolute Value", "Visual Proportional Performance Bar Chart (Cell-Shading Comparison)", "", "", "", "", "", "", "", "", "", "Relative Share"]); // Row 13 (Col C to L merged)
+        dashboardData.push(["Total Inflow (Income)", excelTotalIncome, "", "", "", "", "", "", "", "", "", "", excelTotalIncome > 0 ? (excelTotalIncome / (excelTotalIncome + excelTotalExpense || 1)) : 0]); // Row 14 (Col C to L are individual chart blocks!)
+        dashboardData.push(["Total Outlay (Expenses)", excelTotalExpense, "", "", "", "", "", "", "", "", "", "", excelTotalExpense > 0 ? (excelTotalExpense / (excelTotalIncome + excelTotalExpense || 1)) : 0]); // Row 15 (Col C to L are individual chart blocks!)
+        dashboardData.push([]); // Row 16
+        
+        dashboardData.push(["VISUAL SUMMARY CHART: SAVINGS RATE TARGET TRACKER"]); // Row 17 (A17:M17 merged)
+        dashboardData.push(["Savings Rate Metric", "Metric Ratio", "Savings Progress Tracker Bar (0% to 100% Core Target Progress)", "", "", "", "", "", "", "", "", "", "Core Progress Index"]); // Row 18 (Col C to L merged)
+        dashboardData.push(["Direct Savings Quotient", excelSavingsRate / 100, "", "", "", "", "", "", "", "", "", "", excelSavingsRate / 100]); // Row 19 (Col C to L are individual chart blocks!)
+        dashboardData.push([]); // Row 20
+
+        const wsDashboard = XLSX.utils.aoa_to_sheet(dashboardData);
+
+        // Setup merges for wsDashboard
+        wsDashboard['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }, // Row 1 merged (A1:M1)
+          { s: { r: 4, c: 0 }, e: { r: 4, c: 12 } }, // Row 5 merged (A5:M5)
+          { s: { r: 5, c: 2 }, e: { r: 5, c: 11 } }, // Row 6 C:L merged (col 2-11)
+          { s: { r: 6, c: 2 }, e: { r: 6, c: 11 } }, // Row 7 C:L merged (col 2-11)
+          { s: { r: 7, c: 2 }, e: { r: 7, c: 11 } }, // Row 8 C:L merged (col 2-11)
+          { s: { r: 8, c: 2 }, e: { r: 8, c: 11 } }, // Row 9 C:L merged (col 2-11)
+          { s: { r: 9, c: 2 }, e: { r: 9, c: 11 } }, // Row 10 C:L merged (col 2-11)
+          
+          { s: { r: 11, c: 0 }, e: { r: 11, c: 12 } }, // Row 12 (A12:M12)
+          { s: { r: 12, c: 2 }, e: { r: 12, c: 11 } }, // Row 13 C:L merged (col 2-11)
+          
+          { s: { r: 16, c: 0 }, e: { r: 16, c: 12 } }, // Row 17 (A17:M17)
+          { s: { r: 17, c: 2 }, e: { r: 17, c: 11 } }  // Row 18 C:L merged (col 2-11)
+        ];
+
+        // Explicit columns for Dashboard tab
+        wsDashboard['!cols'] = [
+          { wch: 25 }, // Col A (Label)
+          { wch: 16 }, // Col B (Value)
+          { wch: 5 },  // Col C (Chart 1)
+          { wch: 5 },  // Col D (Chart 2)
+          { wch: 5 },  // Col E (Chart 3)
+          { wch: 5 },  // Col F (Chart 4)
+          { wch: 5 },  // Col G (Chart 5)
+          { wch: 5 },  // Col H (Chart 6)
+          { wch: 5 },  // Col I (Chart 7)
+          { wch: 5 },  // Col J (Chart 8)
+          { wch: 5 },  // Col K (Chart 9)
+          { wch: 5 },  // Col L (Chart 10)
+          { wch: 18 }  // Col M (Relative ratio percentage)
+        ];
+
+        // Apply numeric / currency / percentage formatting on wsDashboard cells
+        const dashboardCurrencyRef = ['B7', 'B8', 'B9', 'B14', 'B15'];
+        dashboardCurrencyRef.forEach(ref => {
+          if (wsDashboard[ref]) {
+            wsDashboard[ref].t = 'n';
+            wsDashboard[ref].z = `"${currencySymbol}"#,##0.00`;
+          }
+        });
+        
+        const dashboardPercentageRef = ['B10', 'B19', 'M7', 'M8', 'M9', 'M10', 'M14', 'M15', 'M19'];
+        dashboardPercentageRef.forEach(ref => {
+          if (wsDashboard[ref]) {
+            wsDashboard[ref].t = 'n';
+            wsDashboard[ref].z = '0.0%';
+          }
+        });
+
+        // 3. Prepare Summary dataset
         const summaryData: any[][] = [];
         summaryData.push(["LEDGER FINANCIAL PRO ABSTRACT"]);
         summaryData.push(["Report Period", excelMonthLabel]);
@@ -468,7 +697,7 @@ export default function MonthlyReports({
           { wch: 15 }  // Proportion %
         ];
 
-        // 3. Prepare Transactions dataset
+        // 4. Prepare Transactions dataset
         const rawHeaders = [
           excelHeaders.id || 'Transaction ID',
           excelHeaders.date || 'Date',
@@ -518,16 +747,17 @@ export default function MonthlyReports({
           ...(excelIncludeCategoryId ? [{ wch: 24 }] : [])
         ];
 
-        // 4. Auto-calculating column filters and frozen view pane for seamless table scanning
+        // 5. Auto-calculating column filters and frozen view pane for seamless table scanning
         const lastColLetter = excelIncludeCategoryId ? 'H' : 'G';
         wsTransactions['!autofilter'] = { ref: `A1:${lastColLetter}${rawRows.length + 1}` };
         wsTransactions['!views'] = [
           { state: 'frozen', ySplit: 1, activePane: 'bottomLeft', paneType: 'frozen' }
         ];
 
-        // 5. Apply Professional Styling scheme across cells
-        const applyProfessionalStyles = (ws: XLSX.WorkSheet, isRawLedger: boolean = false) => {
+        // 6. Apply Professional/Minimalist Styling scheme across cells
+        const applyProfessionalStyles = (ws: XLSX.WorkSheet, sheetType: 'dashboard' | 'summary' | 'raw') => {
           const cells = Object.keys(ws).filter(key => !key.startsWith('!'));
+          const isMinimal = excelStyleTheme === 'minimal';
           
           cells.forEach(key => {
             const cell = ws[key];
@@ -536,10 +766,19 @@ export default function MonthlyReports({
             const rowNum = parseInt(key.replace(/[A-Z]/g, ''), 10);
             const colLetter = key.replace(/[0-9]/g, '');
 
+            // Convert colLetter to index (A=0, B=1, etc.)
+            let colIndex = 0;
+            for (let i = 0; i < colLetter.length; i++) {
+              colIndex = colIndex * 26 + (colLetter.charCodeAt(i) - 64);
+            }
+            colIndex -= 1; // 0-based index
+
             const style: any = {
               font: { name: "Segoe UI", sz: 10, color: { rgb: "334155" } },
               alignment: { vertical: "center" },
-              border: {
+              border: isMinimal ? {
+                bottom: { style: "thin", color: { rgb: "E2E8F0" } }
+              } : {
                 bottom: { style: "thin", color: { rgb: "E2E8F0" } },
                 top: { style: "thin", color: { rgb: "E2E8F0" } },
                 left: { style: "thin", color: { rgb: "E2E8F0" } },
@@ -549,11 +788,19 @@ export default function MonthlyReports({
 
             const val = String(cell.v || '');
 
-            if (isRawLedger) {
+            if (sheetType === 'raw') {
               if (rowNum === 1) {
                 // Header row
-                style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
-                style.fill = { patternType: "solid", fgColor: { rgb: "1E293B" } }; // Deep Slate executive header
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "0F172A" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                  style.border = {
+                    bottom: { style: "medium", color: { rgb: "94A3B8" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "1E293B" } }; // Deep Slate executive header
+                }
                 style.alignment = { horizontal: "left", vertical: "center" };
                 if (colLetter === 'E') {
                   style.alignment.horizontal = "right";
@@ -572,39 +819,59 @@ export default function MonthlyReports({
 
                 if (isIncomeType) {
                   // Alternating green tinting
-                  if (rowNum % 2 === 0) {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "ECFDF5" } }; // Light emerald
+                  if (isMinimal) {
+                    style.fill = { patternType: "none" };
                   } else {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "F0FDF4" } }; // Lighter emerald
+                    if (rowNum % 2 === 0) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "ECFDF5" } }; // Light emerald
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "F0FDF4" } }; // Lighter emerald
+                    }
                   }
                   if (colLetter === 'C') {
                     style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "047857" } };
                   }
                 } else if (isExpenseType) {
                   // Alternating rose tinting
-                  if (rowNum % 2 === 0) {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "FFF1F2" } }; // Light rose
+                  if (isMinimal) {
+                    style.fill = { patternType: "none" };
                   } else {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "FEF2F2" } }; // Lighter rose
+                    if (rowNum % 2 === 0) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "FFF1F2" } }; // Light rose
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "FEF2F2" } }; // Lighter rose
+                    }
                   }
                   if (colLetter === 'C') {
                     style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "B91C1C" } };
                   }
                 } else {
                   // Alternating light gray striping
-                  if (rowNum % 2 === 0) {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                  if (isMinimal) {
+                    style.fill = { patternType: "none" };
                   } else {
-                    style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                    if (rowNum % 2 === 0) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                    }
                   }
                 }
               }
-            } else {
+            } else if (sheetType === 'summary') {
               // Summary sheet
               if (rowNum === 1) {
                 // Master hero title row
-                style.font = { name: "Segoe UI", sz: 12, bold: true, color: { rgb: "FFFFFF" } };
-                style.fill = { patternType: "solid", fgColor: { rgb: "0F172A" } }; // Rich slate-900 title Block
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 12, bold: true, color: { rgb: "0F172A" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "medium", color: { rgb: "94A3B8" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 12, bold: true, color: { rgb: "FFFFFF" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "0F172A" } }; // Rich slate-900 title Block
+                }
                 style.alignment = { horizontal: "center", vertical: "center" };
               } else if (
                 val === "CORE PERFORMANCE METRICS" || 
@@ -612,8 +879,16 @@ export default function MonthlyReports({
                 val === "EXPENSE CATEGORY BREAKDOWN"
               ) {
                 // Heading rows
-                style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
-                style.fill = { patternType: "solid", fgColor: { rgb: "E2E8F0" } }; // Soft slate header banner
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "thin", color: { rgb: "94A3B8" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "E2E8F0" } }; // Soft slate header banner
+                }
                 style.alignment = { horizontal: "left", vertical: "center" };
               } else if (
                 val === "Metric" || 
@@ -624,8 +899,16 @@ export default function MonthlyReports({
                 val === "Total Outlay"
               ) {
                 // Subheadings
-                style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
-                style.fill = { patternType: "solid", fgColor: { rgb: "475569" } }; // Medium slate
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "475569" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "thin", color: { rgb: "CBD5E1" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "475569" } }; // Medium slate
+                }
                 style.alignment = { horizontal: "left", vertical: "center" };
                 if (val === "Value" || val === "Total Inflow" || val === "Total Outlay" || val === "Proportion") {
                   style.alignment.horizontal = "right";
@@ -641,10 +924,14 @@ export default function MonthlyReports({
                 if (colLetter === 'B' || colLetter === 'C') {
                   style.alignment.horizontal = "right";
                 }
-                if (rowNum % 2 === 0) {
-                  style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                if (isMinimal) {
+                  style.fill = { patternType: "none" };
                 } else {
-                  style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                  if (rowNum % 2 === 0) {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                  } else {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                  }
                 }
 
                 // Bold specific high priority labels & totals
@@ -657,24 +944,154 @@ export default function MonthlyReports({
                   style.font.bold = true;
                 }
               }
+            } else if (sheetType === 'dashboard') {
+              if (rowNum === 1) {
+                // Master hero title row
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 14, bold: true, color: { rgb: "0F172A" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "medium", color: { rgb: "94A3B8" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 14, bold: true, color: { rgb: "FFFFFF" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "0F172A" } }; // Rich slate-900 title Block
+                }
+                style.alignment = { horizontal: "center", vertical: "center" };
+              } else if (
+                val === "CORE FINANCIAL PERFORMANCE KPI METRICS" || 
+                val === "VISUAL SUMMARY CHART: INCOME VS. EXPENSES" || 
+                val === "VISUAL SUMMARY CHART: SAVINGS RATE TARGET TRACKER"
+              ) {
+                // Section Heading banners
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "thin", color: { rgb: "94A3B8" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 11, bold: true, color: { rgb: "1E293B" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "E2E8F0" } }; // Soft slate header banner
+                }
+                style.alignment = { horizontal: "left", vertical: "center" };
+              } else if (
+                val === "Performance Key" || 
+                val === "Financial Stream Flow" || 
+                val === "Savings Rate Metric" || 
+                val === "Absolute Value" || 
+                val === "Metric Ratio" || 
+                val === "Status Tracking" || 
+                val === "Relative Share" || 
+                val === "Core Progress Index" || 
+                val === "Visual Proportional Performance Bar Chart (Active Cell-Shading)" || 
+                val === "Savings Progress Tracker Bar (0% to 100% Core Target Progress)"
+              ) {
+                // Table Subheadings
+                if (isMinimal) {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "475569" } };
+                  style.fill = { patternType: "none" };
+                  style.border = {
+                    bottom: { style: "thin", color: { rgb: "CBD5E1" } }
+                  };
+                } else {
+                  style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "FFFFFF" } };
+                  style.fill = { patternType: "solid", fgColor: { rgb: "475569" } }; // Medium slate
+                }
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (colIndex === 1 || colIndex === 12) {
+                  style.alignment.horizontal = "right";
+                } else if (colIndex >= 2 && colIndex <= 11) {
+                  style.alignment.horizontal = "center";
+                }
+              } else if (rowNum >= 2 && rowNum <= 3) {
+                // Scope descriptors
+                style.font = { name: "Segoe UI", sz: 9.5, italic: true, color: { rgb: "64748B" } };
+                style.alignment = { horizontal: "left", vertical: "center" };
+                style.border = {};
+              } else {
+                // General cells
+                style.alignment = { horizontal: "left", vertical: "center" };
+                if (colIndex === 1 || colIndex === 12) {
+                  style.alignment.horizontal = "right";
+                }
+
+                if (isMinimal) {
+                  style.fill = { patternType: "none" };
+                } else {
+                  if (rowNum % 2 === 0) {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                  } else {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                  }
+                }
+
+                // Bold Row Headers (Column A)
+                if (colIndex === 0) {
+                  style.font.bold = true;
+                }
+
+                // Custom charts parsing for row 14, 15, 19
+                if (rowNum === 14) {
+                  // Total Income Chart Bar Space
+                  const maxVal = Math.max(excelTotalIncome, excelTotalExpense, 1);
+                  const numIncCells = Math.round((excelTotalIncome / maxVal) * 10);
+                  const barColOffset = colIndex - 2; // Col C (2) is index 0
+                  if (colIndex >= 2 && colIndex <= 11) {
+                    if (barColOffset < numIncCells) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "10B981" } }; // Vibrant Emerald
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "F1F5F9" } }; // Light grey track
+                    }
+                  }
+                } else if (rowNum === 15) {
+                  // Total Expense Chart Bar Space
+                  const maxVal = Math.max(excelTotalIncome, excelTotalExpense, 1);
+                  const numExpCells = Math.round((excelTotalExpense / maxVal) * 10);
+                  const barColOffset = colIndex - 2;
+                  if (colIndex >= 2 && colIndex <= 11) {
+                    if (barColOffset < numExpCells) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "EF4444" } }; // Vibrant Rose Red
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "F1F5F9" } }; // Light grey track
+                    }
+                  }
+                } else if (rowNum === 19) {
+                  // Savings Quotient Progress Bar Space
+                  const pctSavings = Math.max(0, Math.min(100, excelSavingsRate));
+                  const numSavingsCells = Math.round((pctSavings / 100) * 10);
+                  const barColOffset = colIndex - 2;
+                  if (colIndex >= 2 && colIndex <= 11) {
+                    if (barColOffset < numSavingsCells) {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "0EA5E9" } }; // Sky Blue
+                    } else {
+                      style.fill = { patternType: "solid", fgColor: { rgb: "F1F5F9" } }; // Light grey track
+                    }
+                  }
+                }
+              }
             }
 
             cell.s = style;
           });
         };
 
-        // Style summary and ledger sheets
-        applyProfessionalStyles(wsSummary, false);
-        applyProfessionalStyles(wsTransactions, true);
+        // Style the worksheets with matching executive themes
+        applyProfessionalStyles(wsDashboard, 'dashboard');
+        applyProfessionalStyles(wsSummary, 'summary');
+        applyProfessionalStyles(wsTransactions, 'raw');
 
-        // 6. Attach worksheets to workbook
+        // 7. Attach and sort worksheets within the workbook
+        XLSX.utils.book_append_sheet(wb, wsDashboard, "Dashboard");
         XLSX.utils.book_append_sheet(wb, wsSummary, "Financial Summary");
         XLSX.utils.book_append_sheet(wb, wsTransactions, "Raw Ledger");
 
-        // 7. Generate trigger and trigger download
-        const fileDateLabel = filterExcelByDate
-          ? `${excelStartDate}_to_${excelEndDate}`
-          : (reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`);
+        // 8. Generate trigger and trigger download
+        const fileDateLabel = !excelEnableDateFiltering
+          ? "All_Time"
+          : (filterExcelByDate
+            ? `${excelStartDate}_to_${excelEndDate}`
+            : (reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`));
         XLSX.writeFile(wb, `Ledger_Master_Portfolio_${fileDateLabel}.xlsx`);
       } catch (err) {
         console.error("XLSX Export failure:", err);
@@ -1245,44 +1662,87 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
 
                   {/* Excel Specific Date Range Scope Option */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date Export Scope</span>
-                      <label id="excel-custom-range-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-450 dark:text-slate-400 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date Export Scope</span>
+                      </div>
+                      
+                      {/* Modern Toggle Switch to Enable or Disable Date Range Filtering */}
+                      <label id="excel-enable-date-filter-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={filterExcelByDate}
-                          onChange={(e) => setFilterExcelByDate(e.target.checked)}
-                          className="w-3.5 h-3.5 text-emerald-600 bg-gray-150 rounded border-gray-300 dark:border-slate-700 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                          checked={excelEnableDateFiltering}
+                          onChange={(e) => setExcelEnableDateFiltering(e.target.checked)}
+                          className="sr-only peer"
                         />
-                        <span className="text-[10px] font-bold text-slate-650 dark:text-slate-350 select-none">Custom Filter</span>
+                        <div className="relative w-8 h-4.5 bg-slate-200 dark:bg-slate-755 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-emerald-500"></div>
+                        <span className="text-[9.5px] font-extrabold text-slate-650 dark:text-slate-350 select-none">
+                          {excelEnableDateFiltering ? "Date-Range" : "All Time"}
+                        </span>
                       </label>
                     </div>
 
-                    {filterExcelByDate ? (
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Start Date</label>
-                          <input
-                            type="date"
-                            value={excelStartDate}
-                            onChange={(e) => setExcelStartDate(e.target.value)}
-                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                          />
+                    {excelEnableDateFiltering ? (
+                      <>
+                        <div className="space-y-1.5">
+                          <label htmlFor="excel-date-range-preset-select" className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">
+                            Filter Time Period
+                          </label>
+                          <select
+                            id="excel-date-range-preset-select"
+                            value={excelDatePreset}
+                            onChange={(e) => handleExcelDatePresetChange(e.target.value as any)}
+                            className="w-full text-[10.5px] font-bold text-slate-750 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                          >
+                            <option value="active">Active period only ({monthLabel})</option>
+                            <option value="last-7">Last 7 Days</option>
+                            <option value="last-30">Last 30 Days</option>
+                            <option value="last-90">Last 90 Days</option>
+                            <option value="this-year">This Year</option>
+                            <option value="custom">Custom Range...</option>
+                          </select>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">End Date</label>
-                          <input
-                            type="date"
-                            value={excelEndDate}
-                            onChange={(e) => setExcelEndDate(e.target.value)}
-                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </div>
-                      </div>
+
+                        {filterExcelByDate ? (
+                          <div className="space-y-2 pt-0.5 border-t border-slate-100/85 dark:border-slate-800/60 mt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Start Date</label>
+                                <input
+                                  type="date"
+                                  value={excelStartDate}
+                                  onChange={(e) => {
+                                    setExcelStartDate(e.target.value);
+                                    setExcelDatePreset('custom');
+                                  }}
+                                  className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">End Date</label>
+                                <input
+                                  type="date"
+                                  value={excelEndDate}
+                                  onChange={(e) => {
+                                    setExcelEndDate(e.target.value);
+                                    setExcelDatePreset('custom');
+                                  }}
+                                  className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed bg-slate-50/50 dark:bg-slate-950/20 p-2 rounded-md border border-slate-100 dark:border-slate-800/40">
+                            Exporting transactions corresponding to the active period: <strong className="text-slate-700 dark:text-slate-300 font-bold">{monthLabel}</strong>.
+                          </p>
+                        )}
+                      </>
                     ) : (
-                      <p className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">
-                        Using active range: <strong className="text-slate-700 dark:text-slate-300 font-bold">{monthLabel}</strong>
+                      <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed bg-slate-50/50 dark:bg-slate-950/20 p-2 rounded-md border border-slate-100 dark:border-slate-800/40">
+                        Exporting <strong className="text-emerald-600 dark:text-emerald-400 font-bold">All Time</strong> database entries ({transactions.length} items) without any date constraints.
                       </p>
                     )}
                   </div>
@@ -1450,6 +1910,42 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                     </div>
                     <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
                       Enable to include an additional kebab-case unique Transaction Category ID column.
+                    </p>
+                  </div>
+
+                  {/* Excel Style Theme Layout */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sheet Layout Style</span>
+                      <div className="flex items-center gap-1 border border-slate-100 dark:border-slate-800 p-0.5 rounded-md bg-slate-55 dark:bg-slate-950">
+                        <button
+                          type="button"
+                          id="excel-style-theme-professional"
+                          onClick={() => setExcelStyleTheme('professional')}
+                          className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
+                            excelStyleTheme === 'professional'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Professional
+                        </button>
+                        <button
+                          type="button"
+                          id="excel-style-theme-minimal"
+                          onClick={() => setExcelStyleTheme('minimal')}
+                          className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
+                            excelStyleTheme === 'minimal'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Minimalist
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+                      Professional adds executive colors and border grids; Minimalist applies elegant horizontal dividers & clean spaces.
                     </p>
                   </div>
 

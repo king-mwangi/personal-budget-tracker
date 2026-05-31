@@ -158,6 +158,129 @@ export default function App() {
     }
   });
 
+  const [excelPreviewCustom, setExcelPreviewCustom] = useState<{
+    count: number;
+    label: string;
+    details: string;
+    currentMonthTrends?: number[];
+    prevMonthTrends?: number[];
+    currentMonthLabel?: string;
+    prevMonthLabel?: string;
+  } | null>(null);
+
+  const [overlayPrevMonth, setOverlayPrevMonth] = useState<boolean>(false);
+  const [excelIncludeCategoryId, setExcelIncludeCategoryId] = useState<boolean>(false);
+  const [excelStyleTheme, setExcelStyleTheme] = useState<'professional' | 'minimal'>('professional');
+
+  // Helper inside useMemo to get previous month
+  const fallbackTrends = React.useMemo(() => {
+    const availableMonths = Array.from(
+      new Set<string>(
+        transactions
+          .filter(t => t.date)
+          .map(t => t.date.substring(0, 7))
+      )
+    ).sort((a: string, b: string) => b.localeCompare(a));
+    const currentSystemMonth = new Date().toISOString().substring(0, 7);
+    const selectedMonth = availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth;
+
+    const [yearText, monthText] = selectedMonth.split('-');
+    const year = parseInt(yearText);
+    const month = parseInt(monthText);
+    const prevDate = new Date(year, month - 2, 1);
+    const prevYear = prevDate.getFullYear();
+    const prevMonthIdx = prevDate.getMonth() + 1;
+    const prevMonthIdxStr = prevMonthIdx < 10 ? `0${prevMonthIdx}` : `${prevMonthIdx}`;
+    const prevMonth = `${prevYear}-${prevMonthIdxStr}`;
+
+    const daysInMonth = 30;
+    const currentDayTotals = Array(daysInMonth).fill(0);
+    const currentTrends = Array(daysInMonth).fill(0);
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.date && t.date.startsWith(selectedMonth)) {
+        const day = parseInt(t.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+        currentDayTotals[index] += t.amount;
+      }
+    });
+    let currentSum = 0;
+    for (let i = 0; i < daysInMonth; i++) {
+      currentSum += currentDayTotals[i];
+      currentTrends[i] = parseFloat(currentSum.toFixed(2));
+    }
+
+    const prevDayTotals = Array(daysInMonth).fill(0);
+    const prevTrends = Array(daysInMonth).fill(0);
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.date && t.date.startsWith(prevMonth)) {
+        const day = parseInt(t.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+        prevDayTotals[index] += t.amount;
+      }
+    });
+    let prevSum = 0;
+    for (let i = 0; i < daysInMonth; i++) {
+      prevSum += prevDayTotals[i];
+      prevTrends[i] = parseFloat(prevSum.toFixed(2));
+    }
+
+    const formatMonthNameSmall = (monthStr: string) => {
+      const parts = monthStr.split('-');
+      if (parts.length !== 2) return monthStr;
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+      return d.toLocaleDateString('default', { month: 'short', year: '2-digit' });
+    };
+
+    return {
+      currentMonthTrends: currentTrends,
+      prevMonthTrends: prevTrends,
+      currentMonthLabel: formatMonthNameSmall(selectedMonth),
+      prevMonthLabel: formatMonthNameSmall(prevMonth)
+    };
+  }, [transactions]);
+
+  const currentMonthTrends = excelPreviewCustom?.currentMonthTrends ?? fallbackTrends.currentMonthTrends;
+  const prevMonthTrends = excelPreviewCustom?.prevMonthTrends ?? fallbackTrends.prevMonthTrends;
+  const currentMonthLabel = excelPreviewCustom?.currentMonthLabel ?? fallbackTrends.currentMonthLabel;
+  const prevMonthLabel = excelPreviewCustom?.prevMonthLabel ?? fallbackTrends.prevMonthLabel;
+
+  const fallbackCount = React.useMemo(() => {
+    const availableMonths = Array.from(
+      new Set<string>(
+        transactions
+          .filter(t => t.date)
+          .map(t => t.date.substring(0, 7))
+      )
+    ).sort((a: string, b: string) => b.localeCompare(a));
+    const currentSystemMonth = new Date().toISOString().substring(0, 7);
+    const selectedMonth = availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth;
+    return transactions.filter(t => t.date && t.date.startsWith(selectedMonth)).length;
+  }, [transactions]);
+
+  const defaultPeriodLabel = React.useMemo(() => {
+    const availableMonths = Array.from(
+      new Set<string>(
+        transactions
+          .filter(t => t.date)
+          .map(t => t.date.substring(0, 7))
+      )
+    ).sort((a: string, b: string) => b.localeCompare(a));
+    if (availableMonths.length > 0) {
+      const parentMonth = availableMonths[0];
+      const [year, month] = parentMonth.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+      const monName = date.toLocaleString('default', { month: 'long' });
+      return `${monName} ${year}`;
+    }
+    const today = new Date();
+    const monName = today.toLocaleString('default', { month: 'long' });
+    return `${monName} ${today.getFullYear()}`;
+  }, [transactions]);
+
+  const excelPreviewCount = excelPreviewCustom !== null ? excelPreviewCustom.count : fallbackCount;
+  const excelPreviewLabel = excelPreviewCustom !== null ? excelPreviewCustom.label : defaultPeriodLabel;
+  const excelPreviewDetails = excelPreviewCustom !== null ? excelPreviewCustom.details : `Active month selection: ${defaultPeriodLabel}`;
+
   const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
   // Editing transaction reference state
@@ -1962,30 +2085,217 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             </button>
 
             {/* Monthly Reports Link */}
-            <button
-              id="sidebar-nav-reports"
-              disabled={isExcelExporting}
-              onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
-              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                isExcelExporting
-                  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 opacity-80 cursor-not-allowed'
-                  : activeTab === 'reports'
-                    ? 'bg-blue-600 text-white shadow-xs font-bold'
-                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer'
-              }`}
-            >
-              {isExcelExporting ? (
-                <>
-                  <div className="w-4.5 h-4.5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                  <span className="truncate">Generating...</span>
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="w-4.5 h-4.5 shrink-0" />
-                  <span>Monthly Reports</span>
-                </>
-              )}
-            </button>
+            <div className="relative group/reports w-full">
+              <button
+                id="sidebar-nav-reports"
+                disabled={isExcelExporting}
+                onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
+                className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  isExcelExporting
+                    ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 opacity-80 cursor-not-allowed'
+                    : activeTab === 'reports'
+                      ? 'bg-blue-600 text-white shadow-xs font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer'
+                }`}
+              >
+                {isExcelExporting ? (
+                  <>
+                    <div className="w-4.5 h-4.5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                    <span className="truncate">Generating...</span>
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-4.5 h-4.5 shrink-0" />
+                    <span>Monthly Reports</span>
+                    <span className="ml-auto bg-gray-100 dark:bg-slate-800 text-gray-550 dark:text-slate-350 px-1.5 py-0.5 rounded text-[10px] font-mono group-hover/reports:bg-blue-500 group-hover/reports:text-white duration-150">
+                      {excelPreviewCount}
+                    </span>
+                  </>
+                )}
+              </button>
+
+              {/* Popover Hover Info Overlay */}
+              <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 w-72 bg-slate-900 dark:bg-slate-950 text-white p-4 rounded-xl shadow-xl border border-slate-800 opacity-0 pointer-events-none group-hover/reports:opacity-100 group-hover/reports:pointer-events-auto transition-all duration-200 z-50 transform scale-95 group-hover/reports:scale-100">
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-8 border-transparent border-r-slate-900 dark:border-r-slate-950" />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest font-mono">Excel Export Estimate</span>
+                    <span className="bg-emerald-500/10 text-emerald-400 text-[9px] px-1.5 py-0.5 rounded-full font-bold font-mono tracking-wider">
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black font-sans tracking-tight text-white">{excelPreviewCount}</span>
+                    <span className="text-[10px] text-slate-350 font-medium">transactions queued</span>
+                  </div>
+                  <div className="border-t border-slate-800/85 pt-2">
+                    <p className="text-[10.5px] text-slate-300 leading-relaxed font-sans">
+                      Preserved Scope: <strong className="text-blue-400 font-bold">{excelPreviewLabel}</strong>
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-1 italic leading-tight">
+                      {excelPreviewDetails}
+                    </p>
+                  </div>
+
+                  {/* Sparkline Visual Spending Trend Chart */}
+                  <div className="border-t border-slate-800/85 pt-2.5 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 leading-none">
+                      <span className="font-semibold text-slate-350">Cumulative Outflow</span>
+                      <div className="flex items-center gap-1.5 text-[9px] font-mono">
+                        <span className="flex items-center gap-0.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                          {currentMonthLabel}
+                        </span>
+                        {overlayPrevMonth && (
+                          <span className="flex items-center gap-0.5 text-amber-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                            {prevMonthLabel}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="w-full bg-slate-950/60 rounded-lg p-1.5 border border-slate-800/50 h-[80px] flex items-center justify-center">
+                      {currentMonthTrends && currentMonthTrends.length > 0 ? (
+                        (() => {
+                          const maxVal = Math.max(...currentMonthTrends, ...prevMonthTrends, 100);
+                          const points = currentMonthTrends.map((val, i) => {
+                            const x = (i / 29) * 220 + 10;
+                            const y = 50 - (val / maxVal) * 40 + 10;
+                            return `${x},${y}`;
+                          }).join(' ');
+
+                          const prevPointsStr = prevMonthTrends.map((val, i) => {
+                            const x = (i / 29) * 220 + 10;
+                            const y = 50 - (val / maxVal) * 40 + 10;
+                            return `${x},${y}`;
+                          }).join(' ');
+
+                          return (
+                            <svg viewBox="0 0 240 70" className="w-full h-full overflow-visible">
+                              {/* Horizontal Grid lines */}
+                              <line x1="5" y1="60" x2="235" y2="60" stroke="#1e293b" strokeWidth="1" />
+                              <line x1="5" y1="35" x2="235" y2="35" stroke="#1e293b" strokeWidth="1" strokeDasharray="3 3" />
+                              <line x1="5" y1="10" x2="235" y2="10" stroke="#1e293b" strokeWidth="1" />
+
+                              {/* Prev Month Trend Line if overlay enabled */}
+                              {overlayPrevMonth && prevPointsStr && (
+                                <polyline
+                                  fill="none"
+                                  stroke="#fbbf24"
+                                  strokeWidth="2"
+                                  strokeDasharray="3 3"
+                                  points={prevPointsStr}
+                                  className="transition-all duration-305"
+                                />
+                              )}
+
+                              {/* Current Month Trend Line */}
+                              {points && (
+                                <polyline
+                                  fill="none"
+                                  stroke="#60a5fa"
+                                  strokeWidth="2.5"
+                                  points={points}
+                                  className="transition-all duration-305"
+                                />
+                              )}
+
+                              {/* Endpoint indicators */}
+                              {currentMonthTrends.length > 0 && (
+                                <circle
+                                  cx={(29 / 29) * 220 + 10}
+                                  cy={50 - (currentMonthTrends[currentMonthTrends.length - 1] / maxVal) * 40 + 10}
+                                  r="3"
+                                  fill="#60a5fa"
+                                  stroke="#0f172a"
+                                  strokeWidth="1.5"
+                                />
+                              )}
+
+                              {overlayPrevMonth && prevMonthTrends.length > 0 && (
+                                <circle
+                                  cx={(29 / 29) * 220 + 10}
+                                  cy={50 - (prevMonthTrends[prevMonthTrends.length - 1] / maxVal) * 40 + 10}
+                                  r="3"
+                                  fill="#fbbf24"
+                                  stroke="#0f172a"
+                                  strokeWidth="1.5"
+                                />
+                              )}
+                            </svg>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-[10px] text-slate-500 italic">No trend data available</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Toggle Selector */}
+                  <div className="flex items-center justify-between border-t border-slate-800/85 pt-2.5 mt-0.5">
+                    <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Overlay Prev Month Trend</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setOverlayPrevMonth(!overlayPrevMonth);
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        overlayPrevMonth ? 'bg-amber-500' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                          overlayPrevMonth ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* Include Category ID Toggle */}
+                  <div className="flex items-center justify-between border-t border-slate-800/85 pt-2.5 mt-0.5">
+                    <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Include Category ID</span>
+                    <label className="inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="excel-include-category-id-sidebar"
+                        checked={excelIncludeCategoryId}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setExcelIncludeCategoryId(e.target.checked);
+                        }}
+                        className="w-4 h-4 text-emerald-500 bg-slate-800 rounded border-slate-700 focus:ring-emerald-400 cursor-pointer accent-emerald-500"
+                      />
+                    </label>
+                  </div>
+
+                  {/* Excel Theme Toggle */}
+                  <div className="flex items-center justify-between border-t border-slate-800/85 pt-2.5 mt-0.5">
+                    <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Minimalist Excel Layout</span>
+                    <button
+                      type="button"
+                      id="excel-style-theme-sidebar"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setExcelStyleTheme(excelStyleTheme === 'professional' ? 'minimal' : 'professional');
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        excelStyleTheme === 'minimal' ? 'bg-emerald-500' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                          excelStyleTheme === 'minimal' ? 'translate-x-4' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* WhatsApp Support Link */}
             <a
@@ -2246,6 +2556,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 aiInsights={aiInsights}
                 loadingInsights={loadingInsights}
                 userFirstName={userFirstName}
+                showPrevMonthTrend={overlayPrevMonth}
               />
             )}
 
@@ -2339,6 +2650,11 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 onDeleteSnapshot={handleDeleteSnapshot}
                 isExportingExcel={isExcelExporting}
                 onExcelExportStateChange={setIsExcelExporting}
+                onExcelPreviewChange={setExcelPreviewCustom}
+                excelIncludeCategoryId={excelIncludeCategoryId}
+                onExcelIncludeCategoryIdChange={setExcelIncludeCategoryId}
+                excelStyleTheme={excelStyleTheme}
+                onExcelStyleThemeChange={setExcelStyleTheme}
               />
             )}
           </React.Suspense>

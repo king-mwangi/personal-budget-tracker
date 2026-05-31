@@ -25,6 +25,7 @@ interface DashboardProps {
   } | null;
   loadingInsights?: boolean;
   userFirstName?: string;
+  showPrevMonthTrend?: boolean;
 }
 
 export default function Dashboard({ 
@@ -33,7 +34,8 @@ export default function Dashboard({
   currencySymbol = "$",
   aiInsights = null,
   loadingInsights = false,
-  userFirstName = "User"
+  userFirstName = "User",
+  showPrevMonthTrend = false
 }: DashboardProps) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
@@ -85,17 +87,40 @@ export default function Dashboard({
     }).sort((a, b) => b.amount - a.amount);
   }, [transactions]);
 
-  // Spend over days trend compilation
-  const dailyBreakdown = useMemo(() => {
+  // Helper to compute selectedMonth and prevMonth for the dashboard
+  const selectedMonth = useMemo(() => {
+    const availableMonths = Array.from(
+      new Set<string>(
+        transactions
+          .filter(t => t.date)
+          .map(t => t.date.substring(0, 7))
+      )
+    ).sort((a, b) => b.localeCompare(a));
+    const currentSystemMonth = new Date().toISOString().substring(0, 7);
+    return availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth;
+  }, [transactions]);
+
+  const prevMonth = useMemo(() => {
+    const [yearText, monthText] = selectedMonth.split('-');
+    const year = parseInt(yearText);
+    const month = parseInt(monthText);
+    const prevDate = new Date(year, month - 2, 1);
+    const prevYear = prevDate.getFullYear();
+    const prevMonthIdx = prevDate.getMonth() + 1;
+    const prevMonthIdxStr = prevMonthIdx < 10 ? `0${prevMonthIdx}` : `${prevMonthIdx}`;
+    return `${prevYear}-${prevMonthIdxStr}`;
+  }, [selectedMonth]);
+
+  // Spend over days trend compilation for current selected month
+  const dailyBreakdownCurrent = useMemo(() => {
     const daysInMonth = 30; // standard month simulation
     const dayTotals = Array(daysInMonth).fill(0);
     const cumulativeTotals = Array(daysInMonth).fill(0);
 
     transactions.forEach(tx => {
-      if (tx.type === 'expense') {
-        const dateObj = new Date(tx.date);
-        const day = isNaN(dateObj.getDate()) ? 1 : dateObj.getDate();
-        const index = Math.min(daysInMonth - 1, Math.max(0, day - 1));
+      if (tx.type === 'expense' && tx.date && tx.date.startsWith(selectedMonth)) {
+        const day = parseInt(tx.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
         dayTotals[index] += tx.amount;
       }
     });
@@ -111,7 +136,34 @@ export default function Dashboard({
       amount: val,
       dailySpend: parseFloat(dayTotals[idx].toFixed(2))
     }));
-  }, [transactions]);
+  }, [transactions, selectedMonth]);
+
+  // Spend over days trend compilation for previous selected month
+  const dailyBreakdownPrev = useMemo(() => {
+    const daysInMonth = 30; // standard month simulation
+    const dayTotals = Array(daysInMonth).fill(0);
+    const cumulativeTotals = Array(daysInMonth).fill(0);
+
+    transactions.forEach(tx => {
+      if (tx.type === 'expense' && tx.date && tx.date.startsWith(prevMonth)) {
+        const day = parseInt(tx.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+        dayTotals[index] += tx.amount;
+      }
+    });
+
+    let runningSum = 0;
+    for (let i = 0; i < daysInMonth; i++) {
+      runningSum += dayTotals[i];
+      cumulativeTotals[i] = parseFloat(runningSum.toFixed(2));
+    }
+
+    return cumulativeTotals.map((val, idx) => ({
+      day: idx + 1,
+      amount: val,
+      dailySpend: parseFloat(dayTotals[idx].toFixed(2))
+    }));
+  }, [transactions, prevMonth]);
 
   // Donut Circle Math
   const donutRadius = 70;
@@ -137,15 +189,28 @@ export default function Dashboard({
   // Trend plot math coordinates matching SVG area
   const svgWidth = 500;
   const svgHeight = 200;
-  const maxCumulative = Math.max(...dailyBreakdown.map(d => d.amount), 100);
+  
+  const maxCumulative = useMemo(() => {
+    const maxCurrent = dailyBreakdownCurrent.length > 0 ? Math.max(...dailyBreakdownCurrent.map(d => d.amount)) : 0;
+    const maxPrev = dailyBreakdownPrev.length > 0 ? Math.max(...dailyBreakdownPrev.map(d => d.amount)) : 0;
+    return Math.max(maxCurrent, maxPrev, 100);
+  }, [dailyBreakdownCurrent, dailyBreakdownPrev]);
   
   const trendPoints = useMemo(() => {
-    return dailyBreakdown.map((d, index) => {
-      const x = (index / (dailyBreakdown.length - 1)) * (svgWidth - 40) + 20;
+    return dailyBreakdownCurrent.map((d, index) => {
+      const x = (index / (dailyBreakdownCurrent.length - 1)) * (svgWidth - 40) + 20;
       const y = svgHeight - 25 - (d.amount / maxCumulative) * (svgHeight - 50);
       return { x, y, ...d };
     });
-  }, [dailyBreakdown, svgWidth, svgHeight, maxCumulative]);
+  }, [dailyBreakdownCurrent, svgWidth, svgHeight, maxCumulative]);
+
+  const prevTrendPoints = useMemo(() => {
+    return dailyBreakdownPrev.map((d, index) => {
+      const x = (index / (dailyBreakdownPrev.length - 1)) * (svgWidth - 40) + 20;
+      const y = svgHeight - 25 - (d.amount / maxCumulative) * (svgHeight - 50);
+      return { x, y, ...d };
+    });
+  }, [dailyBreakdownPrev, svgWidth, svgHeight, maxCumulative]);
 
   const sparklinePath = useMemo(() => {
     if (trendPoints.length === 0) return '';
@@ -153,6 +218,13 @@ export default function Dashboard({
       return i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`;
     }, '');
   }, [trendPoints]);
+
+  const prevSparklinePath = useMemo(() => {
+    if (prevTrendPoints.length === 0) return '';
+    return prevTrendPoints.reduce((acc, p, i) => {
+      return i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`;
+    }, '');
+  }, [prevTrendPoints]);
 
   const gradientAreaPath = useMemo(() => {
     if (trendPoints.length === 0) return '';
@@ -462,13 +534,41 @@ export default function Dashboard({
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Velocity Curve</h3>
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Cumulative monthly outflow logged day-by-day.</p>
-              </div>
-              {hoveredTrendIndex !== null && (
-                <div className="text-right">
-                  <span className="text-xs text-gray-400 dark:text-slate-550 font-mono font-medium">Day {trendPoints[hoveredTrendIndex]?.day}: </span>
-                  <span className="text-sm font-bold font-mono text-gray-900 dark:text-white">
-                    {currencySymbol}{trendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
+                
+                {/* Active Legend Indicators */}
+                <div className="flex items-center gap-3 mt-1.5 leading-none">
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    <span className="w-2.5 h-0.5 bg-blue-500 rounded-full inline-block" /> Active Month
                   </span>
+                  {showPrevMonthTrend && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                      <span className="w-2.5 h-0.5 bg-amber-500 rounded-full inline-block border-t border-dashed animate-pulse" /> Prev Month
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {hoveredTrendIndex !== null && (
+                <div className="text-right space-y-0.5">
+                  <div className="text-xs">
+                    <span className="text-slate-400 dark:text-slate-500 font-mono font-bold">Day {trendPoints[hoveredTrendIndex]?.day}</span>
+                  </div>
+                  <div className="text-[11px] font-semibold flex items-center justify-end gap-1 leading-none">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                    <span className="text-slate-400 dark:text-slate-500">Current: </span>
+                    <span className="font-mono font-bold text-gray-900 dark:text-white">
+                      {currencySymbol}{trendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
+                    </span>
+                  </div>
+                  {showPrevMonthTrend && prevTrendPoints[hoveredTrendIndex] && (
+                    <div className="text-[11px] font-semibold flex items-center justify-end gap-1 leading-none">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                      <span className="text-slate-400 dark:text-slate-400">Prev Mon: </span>
+                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                        {currencySymbol}{prevTrendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -501,6 +601,19 @@ export default function Dashboard({
                     <path d={gradientAreaPath} fill="url(#trend-gradient)" className="transition-all duration-300" />
                   )}
 
+                  {/* Prev Month Curve Line if enabled */}
+                  {showPrevMonthTrend && prevSparklinePath && (
+                    <path 
+                      d={prevSparklinePath} 
+                      fill="none" 
+                      stroke="#fbbf24" 
+                      strokeWidth="2" 
+                      strokeDasharray="4 4"
+                      strokeLinecap="round" 
+                      strokeLinejoin="round"
+                    />
+                  )}
+
                   {/* Main Curve Line */}
                   {sparklinePath && (
                     <path 
@@ -529,7 +642,7 @@ export default function Dashboard({
                           onMouseEnter={() => setHoveredTrendIndex(idx)}
                           onMouseLeave={() => setHoveredTrendIndex(null)}
                         />
-                        {/* Interactive Dot */}
+                        {/* Current Interactive Dot */}
                         {(isHovered || idx === trendPoints.length - 1) && (
                           <circle 
                             cx={pt.x} 
@@ -538,6 +651,18 @@ export default function Dashboard({
                             fill={isHovered ? "#3b82f6" : "#ffffff"} 
                             stroke="#3b82f6" 
                             strokeWidth="2.5" 
+                            pointerEvents="none"
+                          />
+                        )}
+                        {/* Previous Month Interactive Dot */}
+                        {showPrevMonthTrend && prevTrendPoints[idx] && (isHovered || idx === prevTrendPoints.length - 1) && (
+                          <circle 
+                            cx={prevTrendPoints[idx].x} 
+                            cy={prevTrendPoints[idx].y} 
+                            r={isHovered ? 4.5 : 3} 
+                            fill={isHovered ? "#fbbf24" : "#ffffff"} 
+                            stroke="#fbbf24" 
+                            strokeWidth="2" 
                             pointerEvents="none"
                           />
                         )}
