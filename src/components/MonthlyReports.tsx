@@ -1262,15 +1262,31 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-1.5 mt-0.5 text-[9.5px] text-slate-500 dark:text-slate-400 font-medium select-none">
-                      <span>Direction:</span>
-                      <button
-                        type="button"
-                        onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        {excelSortDirection === 'asc' ? 'Ascending (Low-High / Oldest first)' : 'Descending (High-Low / Newest first)'}
-                      </button>
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1 select-none">
+                      <div className="text-left">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Sort Direction</span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-medium leading-normal">
+                          {excelSortDirection === 'asc' ? 'Low-to-High / Oldest first' : 'High-to-Low / Newest first'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'asc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Asc</span>
+                        <button
+                          type="button"
+                          id="excel-sort-direction-switch"
+                          onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
+                            excelSortDirection === 'desc' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-755'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out ${
+                              excelSortDirection === 'desc' ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                        <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'desc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Desc</span>
+                      </div>
                     </div>
                   </div>
 
