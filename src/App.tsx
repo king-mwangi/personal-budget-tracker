@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
 import Login from './components/Login';
 import LedgerSmartLogo from './components/Logo';
@@ -41,6 +42,7 @@ import {
   BellRing,
   Printer,
   CheckCircle,
+  Check,
   HelpCircle
 } from 'lucide-react';
 
@@ -65,6 +67,19 @@ export default function App() {
   // Current active frame tab
   const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
+  const [excelExportSuccess, setExcelExportSuccess] = useState(false);
+  const prevExportingRef = useRef(isExcelExporting);
+
+  useEffect(() => {
+    if (prevExportingRef.current && !isExcelExporting) {
+      setExcelExportSuccess(true);
+      const timer = setTimeout(() => {
+        setExcelExportSuccess(false);
+      }, 3500); // feedback persists for 3.5 seconds
+      return () => clearTimeout(timer);
+    }
+    prevExportingRef.current = isExcelExporting;
+  }, [isExcelExporting]);
 
   const [showResetModal, setShowResetModal] = useState(false);
   
@@ -169,18 +184,94 @@ export default function App() {
   } | null>(null);
 
   const [overlayPrevMonth, setOverlayPrevMonth] = useState<boolean>(false);
+  const [hoveredTrendIdx, setHoveredTrendIdx] = useState<number | null>(null);
   const [excelIncludeCategoryId, setExcelIncludeCategoryId] = useState<boolean>(false);
   const [excelStyleTheme, setExcelStyleTheme] = useState<'professional' | 'minimal'>('professional');
+  const [excelEnableDateFiltering, setExcelEnableDateFiltering] = useState<boolean>(true);
+  const [filterExcelByDate, setFilterExcelByDate] = useState<boolean>(false);
+  const [excelStartDate, setExcelStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().substring(0, 10);
+  });
+  const [excelEndDate, setExcelEndDate] = useState<string>(() => {
+    return new Date().toISOString().substring(0, 10);
+  });
+  const [excelDatePreset, setExcelDatePreset] = useState<'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom'>('active');
+  const [comparePeriodA, setComparePeriodA] = useState<string>('');
+  const [comparePeriodB, setComparePeriodB] = useState<string>('');
 
-  // Helper inside useMemo to get previous month
-  const fallbackTrends = React.useMemo(() => {
-    const availableMonths = Array.from(
+  const availableMonths = React.useMemo(() => {
+    return Array.from(
       new Set<string>(
         transactions
           .filter(t => t.date)
           .map(t => t.date.substring(0, 7))
       )
     ).sort((a: string, b: string) => b.localeCompare(a));
+  }, [transactions]);
+
+  // Dynamic Comparison Trends for any two chosen months
+  const comparisonTrends = React.useMemo(() => {
+    const defaultA = availableMonths.length > 0 ? availableMonths[0] : new Date().toISOString().substring(0, 7);
+    const defaultB = availableMonths.length > 1 ? availableMonths[1] : (availableMonths[0] || new Date().toISOString().substring(0, 7));
+
+    const activeA = comparePeriodA || defaultA;
+    const activeB = comparePeriodB || defaultB;
+
+    const daysInMonth = 30;
+
+    // Period A
+    const aDayTotals = Array(daysInMonth).fill(0);
+    const aTrends = Array(daysInMonth).fill(0);
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.date && t.date.startsWith(activeA)) {
+        const day = parseInt(t.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+        aDayTotals[index] += t.amount;
+      }
+    });
+    let aSum = 0;
+    for (let i = 0; i < daysInMonth; i++) {
+      aSum += aDayTotals[i];
+      aTrends[i] = parseFloat(aSum.toFixed(2));
+    }
+
+    // Period B
+    const bDayTotals = Array(daysInMonth).fill(0);
+    const bTrends = Array(daysInMonth).fill(0);
+    transactions.forEach(t => {
+      if (t.type === 'expense' && t.date && t.date.startsWith(activeB)) {
+        const day = parseInt(t.date.substring(8, 10));
+        const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
+        bDayTotals[index] += t.amount;
+      }
+    });
+    let bSum = 0;
+    for (let i = 0; i < daysInMonth; i++) {
+      bSum += bDayTotals[i];
+      bTrends[i] = parseFloat(bSum.toFixed(2));
+    }
+
+    const formatMonthNameSmall = (monthStr: string) => {
+      const parts = monthStr.split('-');
+      if (parts.length !== 2) return monthStr;
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+      return d.toLocaleDateString('default', { month: 'short', year: '2-digit' });
+    };
+
+    return {
+      trendsA: aTrends,
+      trendsB: bTrends,
+      labelA: formatMonthNameSmall(activeA),
+      labelB: formatMonthNameSmall(activeB),
+      activeA,
+      activeB,
+    };
+  }, [transactions, availableMonths, comparePeriodA, comparePeriodB]);
+
+  // Helper inside useMemo to get previous month
+  const fallbackTrends = React.useMemo(() => {
     const currentSystemMonth = new Date().toISOString().substring(0, 7);
     const selectedMonth = availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth;
 
@@ -1719,6 +1810,38 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           </div>
         </div>
       )}
+
+      {/* Excel Export Success Toast */}
+      <AnimatePresence>
+        {excelExportSuccess && (
+          <div id="excel-success-toast" className="fixed top-20 right-5 z-100 max-w-sm w-full pointer-events-auto">
+            <motion.div
+              initial={{ opacity: 0, x: 200, scale: 0.9 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 200, scale: 0.9 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 120 }}
+              className="bg-slate-900 border border-emerald-500/30 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 backdrop-blur-md bg-opacity-95"
+            >
+              <div className="flex items-center gap-3.5 text-left">
+                <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 rounded-xl border border-emerald-500/30 flex-shrink-0 animate-bounce">
+                  <Check className="w-5 h-5 stroke-[3]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold tracking-wide text-white leading-tight">Spreadsheet Exported!</h4>
+                  <p className="text-[10px] text-slate-350 mt-1 leading-normal font-sans">Your custom Excel report has been downloaded successfully.</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setExcelExportSuccess(false)}
+                className="text-slate-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors border-0 bg-transparent cursor-pointer shrink-0"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       
       {/* Top Elegant bar */}
       <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors">
@@ -2086,33 +2209,68 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
             {/* Monthly Reports Link */}
             <div className="relative group/reports w-full">
-              <button
+              <motion.button
                 id="sidebar-nav-reports"
                 disabled={isExcelExporting}
                 onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
+                whileHover={{ scale: 1.025 }}
+                whileTap={{ scale: 0.98 }}
                 className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all ${
                   isExcelExporting
-                    ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 opacity-80 cursor-not-allowed'
-                    : activeTab === 'reports'
-                      ? 'bg-blue-600 text-white shadow-xs font-bold'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer'
+                    ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 opacity-80 cursor-not-allowed animate-pulse'
+                    : excelExportSuccess
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 shadow-sm'
+                      : activeTab === 'reports'
+                        ? 'bg-blue-600 text-white shadow-xs font-bold'
+                        : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60 cursor-pointer'
                 }`}
               >
-                {isExcelExporting ? (
-                  <>
-                    <div className="w-4.5 h-4.5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                    <span className="truncate">Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <BarChart3 className="w-4.5 h-4.5 shrink-0" />
-                    <span>Monthly Reports</span>
-                    <span className="ml-auto bg-gray-100 dark:bg-slate-800 text-gray-550 dark:text-slate-350 px-1.5 py-0.5 rounded text-[10px] font-mono group-hover/reports:bg-blue-500 group-hover/reports:text-white duration-150">
-                      {excelPreviewCount}
-                    </span>
-                  </>
-                )}
-              </button>
+                <AnimatePresence mode="wait">
+                  {isExcelExporting ? (
+                    <motion.div
+                      key="generating"
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      transition={{ duration: 0.18 }}
+                      className="flex items-center gap-3 w-full"
+                    >
+                      <div className="w-4.5 h-4.5 border-2 border-amber-600 dark:border-amber-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                      <span className="truncate">Generating...</span>
+                    </motion.div>
+                  ) : excelExportSuccess ? (
+                    <motion.div 
+                      key="success"
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      transition={{ type: 'spring', damping: 15, stiffness: 120 }}
+                      className="flex items-center gap-3 w-full"
+                    >
+                      <Check className="w-4.5 h-4.5 text-emerald-650 dark:text-emerald-400 shrink-0 stroke-[3.5]" />
+                      <span className="font-extrabold text-emerald-750 dark:text-emerald-400">Exported !</span>
+                      <span className="ml-auto bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold">
+                        Saved
+                      </span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="idle"
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 15 }}
+                      transition={{ duration: 0.18 }}
+                      className="flex items-center gap-3 w-full"
+                    >
+                      <BarChart3 className="w-4.5 h-4.5 shrink-0" />
+                      <span>Monthly Reports</span>
+                      <span className="ml-auto bg-gray-100 dark:bg-slate-800 text-gray-550 dark:text-slate-350 px-1.5 py-0.5 rounded text-[10px] font-mono group-hover/reports:bg-blue-500 group-hover/reports:text-white duration-150">
+                        {excelPreviewCount}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.button>
 
               {/* Popover Hover Info Overlay */}
               <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 w-72 bg-slate-900 dark:bg-slate-950 text-white p-4 rounded-xl shadow-xl border border-slate-800 opacity-0 pointer-events-none group-hover/reports:opacity-100 group-hover/reports:pointer-events-auto transition-all duration-200 z-50 transform scale-95 group-hover/reports:scale-100">
@@ -2142,44 +2300,63 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     <div className="flex items-center justify-between text-[10px] text-slate-400 leading-none">
                       <span className="font-semibold text-slate-350">Cumulative Outflow</span>
                       <div className="flex items-center gap-1.5 text-[9px] font-mono">
-                        <span className="flex items-center gap-0.5">
+                        <span className="flex items-center gap-0.5 text-blue-400">
                           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
-                          {currentMonthLabel}
+                          {comparisonTrends.labelA}
                         </span>
-                        {overlayPrevMonth && (
-                          <span className="flex items-center gap-0.5 text-amber-400">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                            {prevMonthLabel}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1 text-amber-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" strokeDasharray="1 1" />
+                          {comparisonTrends.labelB}
+                        </span>
                       </div>
                     </div>
                     
                     <div className="w-full bg-slate-950/60 rounded-lg p-1.5 border border-slate-800/50 h-[80px] flex items-center justify-center">
-                      {currentMonthTrends && currentMonthTrends.length > 0 ? (
+                      {comparisonTrends.trendsA && comparisonTrends.trendsA.length > 0 ? (
                         (() => {
-                          const maxVal = Math.max(...currentMonthTrends, ...prevMonthTrends, 100);
-                          const points = currentMonthTrends.map((val, i) => {
+                          const trendsA = comparisonTrends.trendsA;
+                          const trendsB = comparisonTrends.trendsB;
+                          const maxVal = Math.max(...trendsA, ...trendsB, 100);
+                          const points = trendsA.map((val, i) => {
                             const x = (i / 29) * 220 + 10;
                             const y = 50 - (val / maxVal) * 40 + 10;
                             return `${x},${y}`;
                           }).join(' ');
 
-                          const prevPointsStr = prevMonthTrends.map((val, i) => {
+                          const prevPointsStr = trendsB.map((val, i) => {
                             const x = (i / 29) * 220 + 10;
                             const y = 50 - (val / maxVal) * 40 + 10;
                             return `${x},${y}`;
                           }).join(' ');
 
                           return (
-                            <svg viewBox="0 0 240 70" className="w-full h-full overflow-visible">
+                            <svg
+                              viewBox="0 0 240 70"
+                              className="w-full h-full overflow-visible select-none cursor-crosshair touch-none"
+                              onPointerMove={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const mouseX = e.clientX - rect.left;
+                                const svgX = (mouseX / rect.width) * 240;
+                                const N = trendsA.length;
+                                if (N > 0) {
+                                  const relativeX = svgX - 10;
+                                  const pct = relativeX / 220;
+                                  const rawIdx = Math.round(pct * (N - 1));
+                                  const idx = Math.max(0, Math.min(N - 1, rawIdx));
+                                  setHoveredTrendIdx(idx);
+                                }
+                              }}
+                              onPointerLeave={() => {
+                                setHoveredTrendIdx(null);
+                              }}
+                            >
                               {/* Horizontal Grid lines */}
-                              <line x1="5" y1="60" x2="235" y2="60" stroke="#1e293b" strokeWidth="1" />
-                              <line x1="5" y1="35" x2="235" y2="35" stroke="#1e293b" strokeWidth="1" strokeDasharray="3 3" />
-                              <line x1="5" y1="10" x2="235" y2="10" stroke="#1e293b" strokeWidth="1" />
+                              <line x1="5" y1="60" x2="235" y2="60" stroke="#1e293b" strokeWidth="1" pointerEvents="none" />
+                              <line x1="5" y1="35" x2="235" y2="35" stroke="#1e293b" strokeWidth="1" strokeDasharray="3 3" pointerEvents="none" />
+                              <line x1="5" y1="10" x2="235" y2="10" stroke="#1e293b" strokeWidth="1" pointerEvents="none" />
 
-                              {/* Prev Month Trend Line if overlay enabled */}
-                              {overlayPrevMonth && prevPointsStr && (
+                              {/* Period B Trend Line (Amber) */}
+                              {prevPointsStr && (
                                 <polyline
                                   fill="none"
                                   stroke="#fbbf24"
@@ -2187,10 +2364,11 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                   strokeDasharray="3 3"
                                   points={prevPointsStr}
                                   className="transition-all duration-305"
+                                  pointerEvents="none"
                                 />
                               )}
 
-                              {/* Current Month Trend Line */}
+                              {/* Period A Trend Line (Blue) */}
                               {points && (
                                 <polyline
                                   fill="none"
@@ -2198,31 +2376,148 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                   strokeWidth="2.5"
                                   points={points}
                                   className="transition-all duration-305"
+                                  pointerEvents="none"
                                 />
                               )}
 
-                              {/* Endpoint indicators */}
-                              {currentMonthTrends.length > 0 && (
+                              {/* Endpoint indicators when not hovering */}
+                              {hoveredTrendIdx === null && trendsA.length > 0 && (
                                 <circle
                                   cx={(29 / 29) * 220 + 10}
-                                  cy={50 - (currentMonthTrends[currentMonthTrends.length - 1] / maxVal) * 40 + 10}
+                                  cy={50 - (trendsA[trendsA.length - 1] / maxVal) * 40 + 10}
                                   r="3"
                                   fill="#60a5fa"
                                   stroke="#0f172a"
                                   strokeWidth="1.5"
+                                  pointerEvents="none"
                                 />
                               )}
 
-                              {overlayPrevMonth && prevMonthTrends.length > 0 && (
+                              {hoveredTrendIdx === null && trendsB.length > 0 && (
                                 <circle
                                   cx={(29 / 29) * 220 + 10}
-                                  cy={50 - (prevMonthTrends[prevMonthTrends.length - 1] / maxVal) * 40 + 10}
+                                  cy={50 - (trendsB[trendsB.length - 1] / maxVal) * 40 + 10}
                                   r="3"
                                   fill="#fbbf24"
                                   stroke="#0f172a"
                                   strokeWidth="1.5"
+                                  pointerEvents="none"
                                 />
                               )}
+
+                              {/* Interactive Snapping Crosshair and custom tooltip overlays */}
+                              {hoveredTrendIdx !== null && hoveredTrendIdx < trendsA.length && (() => {
+                                const hoverX = (hoveredTrendIdx / 29) * 220 + 10;
+                                const hoverYCurrent = 50 - ((trendsA[hoveredTrendIdx] || 0) / maxVal) * 40 + 10;
+                                const hoverValCurrent = trendsA[hoveredTrendIdx] || 0;
+                                const prevValCurrent = hoveredTrendIdx > 0 ? (trendsA[hoveredTrendIdx - 1] || 0) : 0;
+                                const daySpendCurrent = parseFloat((hoverValCurrent - prevValCurrent).toFixed(2));
+
+                                const hoverYPrev = trendsB[hoveredTrendIdx] !== undefined
+                                  ? 50 - ((trendsB[hoveredTrendIdx] || 0) / maxVal) * 40 + 10
+                                  : 0;
+                                const hoverValPrev = trendsB[hoveredTrendIdx] || 0;
+                                const prevValPrev = hoveredTrendIdx > 0 ? (trendsB[hoveredTrendIdx - 1] || 0) : 0;
+                                const daySpendPrev = parseFloat((hoverValPrev - prevValPrev).toFixed(2));
+
+                                return (
+                                  <>
+                                    <line
+                                      x1={hoverX}
+                                      y1={5}
+                                      x2={hoverX}
+                                      y2={65}
+                                      stroke="#475569"
+                                      strokeWidth="1"
+                                      strokeDasharray="3 3"
+                                      pointerEvents="none"
+                                    />
+                                    <circle
+                                      cx={hoverX}
+                                      cy={hoverYCurrent}
+                                      r="5"
+                                      fill="#60a5fa"
+                                      stroke="#1d4ed8"
+                                      strokeWidth="1.5"
+                                      pointerEvents="none"
+                                    />
+                                    <circle
+                                      cx={hoverX}
+                                      cy={hoverYCurrent}
+                                      r="2"
+                                      fill="#ffffff"
+                                      pointerEvents="none"
+                                    />
+
+                                    {trendsB[hoveredTrendIdx] !== undefined && (
+                                      <>
+                                        <circle
+                                          cx={hoverX}
+                                          cy={hoverYPrev}
+                                          r="5"
+                                          fill="#fbbf24"
+                                          stroke="#b45309"
+                                          strokeWidth="1.5"
+                                          pointerEvents="none"
+                                        />
+                                        <circle
+                                          cx={hoverX}
+                                          cy={hoverYPrev}
+                                          r="2"
+                                          fill="#ffffff"
+                                          pointerEvents="none"
+                                        />
+                                      </>
+                                    )}
+
+                                    <g pointerEvents="none">
+                                      <rect
+                                        x={2}
+                                        y={2}
+                                        width={236}
+                                        height={14}
+                                        rx="3"
+                                        fill="#0f172a"
+                                        fillOpacity="0.95"
+                                        stroke="#334155"
+                                        strokeWidth="0.5"
+                                      />
+                                      <text
+                                        x={6}
+                                        y={11}
+                                        fill="#94a3b8"
+                                        fontSize="6.5"
+                                        fontWeight="bold"
+                                        fontFamily="monospace"
+                                      >
+                                        D{hoveredTrendIdx + 1}:
+                                      </text>
+                                      <text
+                                        x={32}
+                                        y={11}
+                                        fill="#60a5fa"
+                                        fontSize="6.5"
+                                        fontWeight="bold"
+                                        fontFamily="monospace"
+                                      >
+                                        {comparisonTrends.labelA}: {currencySymbol}{hoverValCurrent.toLocaleString(undefined, { minimumFractionDigits: 0 })} (+{daySpendCurrent})
+                                      </text>
+                                      {trendsB[hoveredTrendIdx] !== undefined && (
+                                        <text
+                                          x={134}
+                                          y={11}
+                                          fill="#fbbf24"
+                                          fontSize="6.5"
+                                          fontWeight="bold"
+                                          fontFamily="monospace"
+                                        >
+                                          {comparisonTrends.labelB}: {currencySymbol}{hoverValPrev.toLocaleString(undefined, { minimumFractionDigits: 0 })} (+{daySpendPrev})
+                                        </text>
+                                      )}
+                                    </g>
+                                  </>
+                                );
+                              })()}
                             </svg>
                           );
                         })()
@@ -2232,26 +2527,46 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     </div>
                   </div>
 
-                  {/* Toggle Selector */}
-                  <div className="flex items-center justify-between border-t border-slate-800/85 pt-2.5 mt-0.5">
-                    <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Overlay Prev Month Trend</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setOverlayPrevMonth(!overlayPrevMonth);
-                      }}
-                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        overlayPrevMonth ? 'bg-amber-500' : 'bg-slate-700'
-                      }`}
-                    >
-                      <span
-                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
-                          overlayPrevMonth ? 'translate-x-4' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
+                  {/* Compare Period selectors */}
+                  <div className="border-t border-slate-800/85 pt-2.5 mt-0.5 space-y-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Compare Periods</span>
+                      <span className="text-[9px] bg-blue-500/10 text-blue-400 font-mono px-1 rounded uppercase font-bold tracking-wider">OVERLAY SPEND</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label htmlFor="compare-period-a" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Period A</label>
+                        <select
+                          id="compare-period-a"
+                          value={comparisonTrends.activeA}
+                          onChange={(e) => setComparePeriodA(e.target.value)}
+                          className="w-full text-[10.5px] font-semibold text-slate-200 bg-slate-950 border border-slate-800 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                        >
+                          {availableMonths.map((m) => (
+                            <option key={`comp-a-${m}`} value={m} className="bg-slate-950 text-slate-200">{m}</option>
+                          ))}
+                          {availableMonths.length === 0 && (
+                            <option value={comparisonTrends.activeA} className="bg-slate-950 text-slate-200">{comparisonTrends.activeA}</option>
+                          )}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="compare-period-b" className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Period B</label>
+                        <select
+                          id="compare-period-b"
+                          value={comparisonTrends.activeB}
+                          onChange={(e) => setComparePeriodB(e.target.value)}
+                          className="w-full text-[10.5px] font-semibold text-slate-200 bg-slate-950 border border-slate-800 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+                        >
+                          {availableMonths.map((m) => (
+                            <option key={`comp-b-${m}`} value={m} className="bg-slate-950 text-slate-200">{m}</option>
+                          ))}
+                          {availableMonths.length === 0 && (
+                            <option value={comparisonTrends.activeB} className="bg-slate-950 text-slate-200">{comparisonTrends.activeB}</option>
+                          )}
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Include Category ID Toggle */}
@@ -2292,6 +2607,60 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                         }`}
                       />
                     </button>
+                  </div>
+
+                  {/* Excel Custom Date Range Limit */}
+                  <div className="border-t border-slate-800/85 pt-2.5 mt-0.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-300 font-semibold uppercase tracking-wider font-sans">Filter Excel By Date</span>
+                      <button
+                        type="button"
+                        id="excel-filter-by-date-sidebar"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const updatedVal = !filterExcelByDate;
+                          setFilterExcelByDate(updatedVal);
+                          if (updatedVal) {
+                            setExcelDatePreset('custom');
+                          } else {
+                            setExcelDatePreset('active');
+                          }
+                        }}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          filterExcelByDate ? 'bg-emerald-500' : 'bg-slate-700'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ease-in-out ${
+                            filterExcelByDate ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {filterExcelByDate && (
+                      <div className="grid grid-cols-2 gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Start Date</label>
+                          <input
+                            type="date"
+                            value={excelStartDate}
+                            onChange={(e) => setExcelStartDate(e.target.value)}
+                            className="w-full text-[10px] font-medium text-slate-200 bg-slate-950 border border-slate-800 rounded px-1.5 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 font-mono"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">End Date</label>
+                          <input
+                            type="date"
+                            value={excelEndDate}
+                            onChange={(e) => setExcelEndDate(e.target.value)}
+                            className="w-full text-[10px] font-medium text-slate-200 bg-slate-950 border border-slate-800 rounded px-1.5 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2655,6 +3024,16 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 onExcelIncludeCategoryIdChange={setExcelIncludeCategoryId}
                 excelStyleTheme={excelStyleTheme}
                 onExcelStyleThemeChange={setExcelStyleTheme}
+                excelEnableDateFiltering={excelEnableDateFiltering}
+                onExcelEnableDateFilteringChange={setExcelEnableDateFiltering}
+                excelStartDate={excelStartDate}
+                onExcelStartDateChange={setExcelStartDate}
+                excelEndDate={excelEndDate}
+                onExcelEndDateChange={setExcelEndDate}
+                filterExcelByDate={filterExcelByDate}
+                onFilterExcelByDateChange={setFilterExcelByDate}
+                excelDatePreset={excelDatePreset}
+                onExcelDatePresetChange={setExcelDatePreset}
               />
             )}
           </React.Suspense>

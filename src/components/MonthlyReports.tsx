@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
@@ -49,6 +50,16 @@ interface MonthlyReportsProps {
   onExcelIncludeCategoryIdChange?: (val: boolean) => void;
   excelStyleTheme?: 'professional' | 'minimal';
   onExcelStyleThemeChange?: (val: 'professional' | 'minimal') => void;
+  excelEnableDateFiltering?: boolean;
+  onExcelEnableDateFilteringChange?: (val: boolean) => void;
+  excelStartDate?: string;
+  onExcelStartDateChange?: (val: string) => void;
+  excelEndDate?: string;
+  onExcelEndDateChange?: (val: string) => void;
+  filterExcelByDate?: boolean;
+  onFilterExcelByDateChange?: (val: boolean) => void;
+  excelDatePreset?: 'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom';
+  onExcelDatePresetChange?: (val: 'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom') => void;
 }
 
 export default function MonthlyReports({ 
@@ -63,7 +74,17 @@ export default function MonthlyReports({
   excelIncludeCategoryId: propExcelIncludeCategoryId,
   onExcelIncludeCategoryIdChange,
   excelStyleTheme: propExcelStyleTheme,
-  onExcelStyleThemeChange
+  onExcelStyleThemeChange,
+  excelEnableDateFiltering: propExcelEnableDateFiltering,
+  onExcelEnableDateFilteringChange,
+  excelStartDate: propExcelStartDate,
+  onExcelStartDateChange,
+  excelEndDate: propExcelEndDate,
+  onExcelEndDateChange,
+  filterExcelByDate: propFilterExcelByDate,
+  onFilterExcelByDateChange,
+  excelDatePreset: propExcelDatePreset,
+  onExcelDatePresetChange
 }: MonthlyReportsProps) {
   // Extract all available months (YYYY-MM) from transactions
   const availableMonths = Array.from(
@@ -97,21 +118,49 @@ export default function MonthlyReports({
   });
 
   const [copied, setCopied] = useState(false);
+  const [excelSuccess, setExcelSuccess] = useState(false);
+  const prevExportExcelRef = useRef(isExportingExcel);
+
+  useEffect(() => {
+    if (prevExportExcelRef.current && !isExportingExcel) {
+      setExcelSuccess(true);
+      const timer = setTimeout(() => {
+        setExcelSuccess(false);
+      }, 3500);
+      return () => clearTimeout(timer);
+    }
+    prevExportExcelRef.current = isExportingExcel;
+  }, [isExportingExcel]);
   const [compareSnapshotId, setCompareSnapshotId] = useState<string | null>(null);
   const [snapshotSuccessMsg, setSnapshotSuccessMsg] = useState<string | null>(null);
 
   // States for custom Excel export date-range filter scope
-  const [filterExcelByDate, setFilterExcelByDate] = useState(false);
-  const [excelStartDate, setExcelStartDate] = useState<string>(() => {
+  const [localFilterExcelByDate, setLocalFilterExcelByDate] = useState(false);
+  const [localExcelStartDate, setLocalExcelStartDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
     return d.toISOString().substring(0, 10);
   });
-  const [excelEndDate, setExcelEndDate] = useState<string>(() => {
+  const [localExcelEndDate, setLocalExcelEndDate] = useState<string>(() => {
     return new Date().toISOString().substring(0, 10);
   });
-  const [excelDatePreset, setExcelDatePreset] = useState<'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom'>('active');
-  const [excelEnableDateFiltering, setExcelEnableDateFiltering] = useState<boolean>(true);
+  const [localExcelDatePreset, setLocalExcelDatePreset] = useState<'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom'>('active');
+  const [localExcelEnableDateFiltering, setLocalExcelEnableDateFiltering] = useState<boolean>(true);
+
+  const excelStartDate = propExcelStartDate !== undefined ? propExcelStartDate : localExcelStartDate;
+  const setExcelStartDate = onExcelStartDateChange !== undefined ? onExcelStartDateChange : setLocalExcelStartDate;
+
+  const excelEndDate = propExcelEndDate !== undefined ? propExcelEndDate : localExcelEndDate;
+  const setExcelEndDate = onExcelEndDateChange !== undefined ? onExcelEndDateChange : setLocalExcelEndDate;
+
+  const filterExcelByDate = propFilterExcelByDate !== undefined ? propFilterExcelByDate : localFilterExcelByDate;
+  const setFilterExcelByDate = onFilterExcelByDateChange !== undefined ? onFilterExcelByDateChange : setLocalFilterExcelByDate;
+
+  const excelDatePreset = propExcelDatePreset !== undefined ? propExcelDatePreset : localExcelDatePreset;
+  const setExcelDatePreset = onExcelDatePresetChange !== undefined ? onExcelDatePresetChange : setLocalExcelDatePreset;
+
+  const excelEnableDateFiltering = propExcelEnableDateFiltering !== undefined ? propExcelEnableDateFiltering : localExcelEnableDateFiltering;
+  const setExcelEnableDateFiltering = onExcelEnableDateFilteringChange !== undefined ? onExcelEnableDateFilteringChange : setLocalExcelEnableDateFiltering;
 
   const handleExcelDatePresetChange = (preset: 'active' | 'last-7' | 'last-30' | 'last-90' | 'this-year' | 'custom') => {
     setExcelDatePreset(preset);
@@ -2126,22 +2175,53 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                       id="btn-export-excel"
                       disabled={isExportingExcel}
                       onClick={handleExportExcel}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-150 dark:border-slate-800/80 transition-all group ${
+                      className={`w-full overflow-hidden relative p-2.5 h-[38px] flex items-center justify-center rounded-lg border transition-all duration-300 group ${
                         isExportingExcel 
-                          ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
-                          : 'hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
+                          ? 'border-slate-150 dark:border-slate-800/80 opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
+                          : excelSuccess
+                            ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs'
+                            : 'border-slate-150 dark:border-slate-800/80 hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <AnimatePresence mode="wait">
                         {isExportingExcel ? (
-                          <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                          <motion.div
+                            key="exporting-excel-state"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.18 }}
+                            className="flex items-center gap-2"
+                          >
+                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0" />
+                            <span className="text-xs font-bold leading-none">Assembling workbook files...</span>
+                          </motion.div>
+                        ) : excelSuccess ? (
+                          <motion.div
+                            key="success-excel-state"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ type: 'spring', damping: 15, stiffness: 120 }}
+                            className="flex items-center gap-2"
+                          >
+                            <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 stroke-[3.5] animate-bounce" />
+                            <span className="text-xs font-bold leading-none">Workbook Exported Successfully!</span>
+                          </motion.div>
                         ) : (
-                          <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                          <motion.div
+                            key="idle-excel-state"
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.18 }}
+                            className="flex items-center gap-2"
+                          >
+                            <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                            <span className="text-xs font-bold leading-none">Generate Spreadsheet (.xlsx)</span>
+                          </motion.div>
                         )}
-                        <span className="text-xs font-bold leading-none">
-                          {isExportingExcel ? 'Assembling files...' : 'Generate Spreadsheet (.xlsx)'}
-                        </span>
-                      </div>
+                      </AnimatePresence>
                     </button>
                   </div>
                 </div>
