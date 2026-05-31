@@ -2081,10 +2081,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                )}
 
               <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs space-y-5 transition-colors">
-              <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+              <div className="flex items-center justify-between border-b border-gray-50 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <h3 className="font-bold text-sm text-gray-800 uppercase tracking-wider">Gemini Smart Diagnostics</h3>
+                  <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <h3 className="font-bold text-sm text-slate-800 dark:text-[#FFFFFF] uppercase tracking-wider">Gemini Smart Diagnostics</h3>
                 </div>
                 <button
                   onClick={fetchAIInsights}
@@ -2184,44 +2184,44 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 </div>
               ) : aiInsights ? (
                 /* Interactive custom parsed advice widgets */
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-4 animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2.5">
                     <span className={`text-[9px] font-bold uppercase py-0.5 px-2.5 rounded-full ${
                       aiInsights.overallStatus === 'On Track' 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-                        : 'bg-amber-50 text-amber-700 border border-amber-100'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' 
+                        : 'bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-955/20 dark:text-amber-300 dark:border-amber-800'
                     }`}>
                       {aiInsights.overallStatus}
                     </span>
-                    <p className="text-xs font-semibold text-gray-700 leading-relaxed">
+                    <p className="text-xs font-bold text-slate-800 dark:text-[#FFFFFF] leading-relaxed">
                       {aiInsights.summaryMessage}
                     </p>
                   </div>
 
                   {/* Bullet tips list */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-50">
-                    <div className="space-y-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Observed spend trends</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3.5 border-t border-gray-100 dark:border-slate-800">
+                    <div className="space-y-2.5">
+                      <span className="text-[10px] uppercase font-black text-slate-500 dark:text-[#F1F5F9] tracking-wider block">OBSERVED SPEND TRENDS</span>
                       <ul className="space-y-2">
                         {aiInsights.actionableInsights.map((insight, idx) => (
-                          <li key={idx} className="text-xs text-gray-600 leading-relaxed font-semibold flex items-start gap-2">
-                            <span className="text-blue-500 mt-1 shrink-0">•</span>
+                          <li key={idx} className="text-xs text-slate-700 dark:text-[#F1F5F9] leading-relaxed font-semibold flex items-start gap-2">
+                            <span className="text-blue-600 dark:text-cyan-400 mt-1 shrink-0 font-bold">•</span>
                             <span>{insight}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="space-y-2">
-                      <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Estimated Savings suggestions</span>
+                    <div className="space-y-2.5">
+                      <span className="text-[10px] uppercase font-black text-slate-500 dark:text-[#F1F5F9] tracking-wider block">ESTIMATED SAVINGS SUGGESTIONS</span>
                       <div className="space-y-2">
                         {aiInsights.savingsOpportunities.map((op, idx) => (
-                          <div key={idx} className="p-2.5 bg-purple-50/50 border border-purple-100/30 rounded-xl leading-relaxed">
+                          <div key={idx} className="p-3 bg-purple-50/90 border border-purple-200/50 dark:bg-slate-950 dark:border-2 dark:border-indigo-500/80 rounded-xl leading-relaxed shadow-xs">
                             <div className="flex items-center justify-between text-[11px] font-bold">
-                              <span className="text-purple-900">{op.category} Savings target</span>
-                              <span className="text-emerald-700 font-mono">+{currencySymbol}{op.savingEstimate}</span>
+                              <span className="text-purple-950 dark:text-[#FFFFFF] font-extrabold">{op.category} Savings target</span>
+                              <span className="text-emerald-700 dark:text-emerald-300 font-bold font-mono">+{currencySymbol}{op.savingEstimate}</span>
                             </div>
-                            <p className="text-[10px] text-purple-700 font-medium mt-1">
+                            <p className="text-[10px] text-purple-900 dark:text-[#E2E8F0] font-semibold mt-1.5">
                               {op.actionableTip}
                             </p>
                           </div>
@@ -2366,44 +2366,44 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-150 dark:border-slate-800 flex items-center justify-around py-2 px-1 lg:hidden shadow-lg transition-colors duration-150">
         <button 
           onClick={() => { setActiveTab('dash'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'dash' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'dash' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Overview</span>
         </button>
         <button 
           onClick={() => { setActiveTab('ledger'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ledger' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ledger' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <Receipt className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Ledger</span>
         </button>
         <button 
           onClick={() => { setActiveTab('finance'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'finance' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'finance' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <Scale className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Budgets</span>
         </button>
         <button 
           onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'reports' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'reports' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <BarChart3 className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Reports</span>
         </button>
         <button 
           onClick={() => { setActiveTab('recurring'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'recurring' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'recurring' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <CalendarClock className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Fixed</span>
         </button>
         <button 
           onClick={() => { setActiveTab('ai'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ai' ? 'text-blue-600 dark:text-blue-400 font-bold scale-105' : 'text-slate-400 dark:text-slate-500'}`}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ai' ? 'text-purple-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
-          <Sparkles className="w-5 h-5 text-purple-600 animate-pulse" />
+          <Sparkles className={`w-5 h-5 animate-pulse ${activeTab === 'ai' ? 'text-purple-600 dark:text-purple-400' : 'text-purple-500 dark:text-purple-300'}`} />
           <span className="text-[9px] uppercase font-bold tracking-wider">Gemini</span>
         </button>
       </nav>
