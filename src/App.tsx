@@ -271,6 +271,47 @@ export default function App() {
     }
   }, [currentMonthBudgetAlerts, browserNotificationsEnabled, currencySymbol]);
 
+  // Handle popup window logic if this app is rendered inside an OAuth popup
+  useEffect(() => {
+    if (window.opener) {
+      const notifyAndClose = (session: any) => {
+        try {
+          window.opener.postMessage({
+            type: 'OAUTH_AUTH_SUCCESS',
+            session: session
+          }, '*');
+          setTimeout(() => {
+            try {
+              window.close();
+            } catch (closeErr) {
+              console.error("Popup window self-close blocked:", closeErr);
+            }
+          }, 150);
+        } catch (msgErr) {
+          console.error("Failed to post message to parent window:", msgErr);
+        }
+      };
+
+      supabase.auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          notifyAndClose(data.session);
+        }
+      }).catch(err => {
+        console.error("Popup check fetch session error:", err);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'INITIAL_SESSION')) {
+          notifyAndClose(session);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, []);
+
   // Hook subscription monitoring Supabase authentication session lifecycle
   useEffect(() => {
     setIsAuthLoading(true);
