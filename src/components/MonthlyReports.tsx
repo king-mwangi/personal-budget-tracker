@@ -105,9 +105,12 @@ export default function MonthlyReports({
     category: 'Category',
     amount: 'Amount',
     description: 'Description',
-    notes: 'Transaction Notes'
+    notes: 'Transaction Notes',
+    categoryId: 'Category ID'
   });
+  const [excelIncludeCategoryId, setExcelIncludeCategoryId] = useState(false);
   const [showCustomHeaders, setShowCustomHeaders] = useState(false);
+  const [showExcelPreviewOverlay, setShowExcelPreviewOverlay] = useState(false);
 
   const selectedCompareSnapshot = snapshots?.find(s => s.id === compareSnapshotId);
 
@@ -120,6 +123,21 @@ export default function MonthlyReports({
       return t.date >= startDateStr && t.date <= endDateStr;
     }
   });
+
+  // Compute live info for hover preview of Excel export
+  const excelExportPreviewTransactions = filterExcelByDate
+    ? transactions.filter(t => t.date && t.date >= excelStartDate && t.date <= excelEndDate)
+    : monthlyTransactions;
+
+  const excelExportPreviewIncome = excelExportPreviewTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const excelExportPreviewExpense = excelExportPreviewTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const excelExportPreviewCount = excelExportPreviewTransactions.length;
 
   // Math totals
   const incomeTransactions = monthlyTransactions.filter(t => t.type === 'income');
@@ -458,17 +476,24 @@ export default function MonthlyReports({
           excelHeaders.category || 'Category',
           excelHeaders.amount || 'Amount',
           excelHeaders.description || 'Description',
-          excelHeaders.notes || 'Transaction Notes'
+          excelHeaders.notes || 'Transaction Notes',
+          ...(excelIncludeCategoryId ? [excelHeaders.categoryId || 'Category ID'] : [])
         ];
-        const rawRows = exportTransactions.map(t => [
-          t.id,
-          t.date,
-          t.type.toUpperCase(),
-          t.category,
-          t.amount,
-          t.description,
-          t.description
-        ]);
+        const rawRows = exportTransactions.map(t => {
+          const computedCatId = t.category 
+            ? t.category.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') 
+            : 'uncategorized';
+          return [
+            t.id,
+            t.date,
+            t.type.toUpperCase(),
+            t.category,
+            t.amount,
+            t.description,
+            t.description,
+            ...(excelIncludeCategoryId ? [computedCatId] : [])
+          ];
+        });
 
         const wsTransactions = XLSX.utils.aoa_to_sheet([rawHeaders, ...rawRows]);
 
@@ -489,11 +514,13 @@ export default function MonthlyReports({
           { wch: 18 }, // Category
           { wch: 16 }, // Amount
           { wch: 45 }, // Description
-          { wch: 45 }  // Transaction Notes
+          { wch: 45 }, // Transaction Notes
+          ...(excelIncludeCategoryId ? [{ wch: 24 }] : [])
         ];
 
         // 4. Auto-calculating column filters and frozen view pane for seamless table scanning
-        wsTransactions['!autofilter'] = { ref: `A1:G${rawRows.length + 1}` };
+        const lastColLetter = excelIncludeCategoryId ? 'H' : 'G';
+        wsTransactions['!autofilter'] = { ref: `A1:${lastColLetter}${rawRows.length + 1}` };
         wsTransactions['!views'] = [
           { state: 'frozen', ySplit: 1, activePane: 'bottomLeft', paneType: 'frozen' }
         ];
@@ -537,11 +564,39 @@ export default function MonthlyReports({
                 if (colLetter === 'E') {
                   style.alignment.horizontal = "right";
                 }
-                // Alternating light gray striping
-                if (rowNum % 2 === 0) {
-                  style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+
+                // Check transaction type from Column C
+                const typeCell = ws["C" + rowNum];
+                const isIncomeType = typeCell && String(typeCell.v).toUpperCase() === 'INCOME';
+                const isExpenseType = typeCell && String(typeCell.v).toUpperCase() === 'EXPENSE';
+
+                if (isIncomeType) {
+                  // Alternating green tinting
+                  if (rowNum % 2 === 0) {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "ECFDF5" } }; // Light emerald
+                  } else {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "F0FDF4" } }; // Lighter emerald
+                  }
+                  if (colLetter === 'C') {
+                    style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "047857" } };
+                  }
+                } else if (isExpenseType) {
+                  // Alternating rose tinting
+                  if (rowNum % 2 === 0) {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "FFF1F2" } }; // Light rose
+                  } else {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "FEF2F2" } }; // Lighter rose
+                  }
+                  if (colLetter === 'C') {
+                    style.font = { name: "Segoe UI", sz: 10, bold: true, color: { rgb: "B91C1C" } };
+                  }
                 } else {
-                  style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                  // Alternating light gray striping
+                  if (rowNum % 2 === 0) {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "F8FAFC" } };
+                  } else {
+                    style.fill = { patternType: "solid", fgColor: { rgb: "FFFFFF" } };
+                  }
                 }
               }
             } else {
@@ -1246,6 +1301,28 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                       </button>
                     </div>
 
+                    {/* Sorting Preset Dropdown */}
+                    <div className="space-y-1 pb-1">
+                      <label htmlFor="excel-sort-dropdown" className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">
+                        Ordering Preset
+                      </label>
+                      <select
+                        id="excel-sort-dropdown"
+                        value={`${excelSortField}-${excelSortDirection}`}
+                        onChange={(e) => {
+                          const [field, dir] = e.target.value.split('-');
+                          setExcelSortField(field as 'date' | 'amount');
+                          setExcelSortDirection(dir as 'asc' | 'desc');
+                        }}
+                        className="w-full text-[10.5px] font-bold text-slate-750 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                      >
+                        <option value="date-asc">📅 Chronological (Date: Oldest first)</option>
+                        <option value="date-desc">📅 Reverse-Chronological (Date: Newest first)</option>
+                        <option value="amount-asc">💰 Amount: Smallest first</option>
+                        <option value="amount-desc">💰 Amount: Largest first</option>
+                      </select>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-2 pt-0.5">
                       <button
                         type="button"
@@ -1311,6 +1388,69 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                         <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'desc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Desc</span>
                       </div>
                     </div>
+
+                    {/* Date Chronology Quick-Toggle */}
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 px-0.5 mt-1 select-none">
+                      <div className="text-left">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">Date Chronology</span>
+                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-medium leading-normal">
+                          {excelSortField === 'date'
+                            ? (excelSortDirection === 'asc' ? 'Chronological (Oldest first)' : 'Reverse (Newest first)')
+                            : 'Switch to chronological order'}
+                        </span>
+                      </div>
+                      <div className="flex bg-slate-55 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800/60 shrink-0">
+                        <button
+                          type="button"
+                          id="excel-sort-date-asc"
+                          onClick={() => {
+                            setExcelSortField('date');
+                            setExcelSortDirection('asc');
+                          }}
+                          className={`px-2.5 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
+                            excelSortField === 'date' && excelSortDirection === 'asc'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'text-slate-650 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Oldest First
+                        </button>
+                        <button
+                          type="button"
+                          id="excel-sort-date-desc"
+                          onClick={() => {
+                            setExcelSortField('date');
+                            setExcelSortDirection('desc');
+                          }}
+                          className={`px-2.5 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
+                            excelSortField === 'date' && excelSortDirection === 'desc'
+                              ? 'bg-emerald-500 text-white shadow-xs'
+                              : 'text-slate-650 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                          }`}
+                        >
+                          Newest First
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Excel Optional Columns Configuration */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Optional Columns</span>
+                      <label id="excel-include-category-id-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={excelIncludeCategoryId}
+                          onChange={(e) => setExcelIncludeCategoryId(e.target.checked)}
+                          className="w-3.5 h-3.5 text-emerald-600 bg-gray-150 rounded border-gray-300 dark:border-slate-700 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
+                        />
+                        <span className="text-[10px] font-bold text-slate-650 dark:text-slate-350 select-none font-sans">Include Category ID</span>
+                      </label>
+                    </div>
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
+                      Enable to include an additional kebab-case unique Transaction Category ID column.
+                    </p>
                   </div>
 
                   {/* Excel Custom Table Headers Interface */}
@@ -1397,15 +1537,28 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Transaction Notes Column</label>
-                          <input
-                            type="text"
-                            value={excelHeaders.notes}
-                            onChange={(e) => setExcelHeaders({ ...excelHeaders, notes: e.target.value })}
-                            placeholder="Transaction Notes"
-                            className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                          />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Transaction Notes Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.notes}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, notes: e.target.value })}
+                              placeholder="Transaction Notes"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Category ID Column</label>
+                            <input
+                              type="text"
+                              value={excelHeaders.categoryId}
+                              disabled={!excelIncludeCategoryId}
+                              onChange={(e) => setExcelHeaders({ ...excelHeaders, categoryId: e.target.value })}
+                              placeholder="Category ID"
+                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          </div>
                         </div>
 
                         <div className="flex justify-end pt-1">
@@ -1418,7 +1571,8 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                               category: 'Category',
                               amount: 'Amount',
                               description: 'Description',
-                              notes: 'Transaction Notes'
+                              notes: 'Transaction Notes',
+                              categoryId: 'Category ID'
                             })}
                             className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors uppercase tracking-wider cursor-pointer"
                           >
@@ -1429,27 +1583,71 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                     )}
                   </div>
 
-                  <button
-                    id="btn-export-excel"
-                    disabled={isExportingExcel}
-                    onClick={handleExportExcel}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-150 dark:border-slate-800/80 transition-all group ${
-                      isExportingExcel 
-                        ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
-                        : 'hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
-                    }`}
+                  <div 
+                    className="relative w-full"
+                    onMouseEnter={() => setShowExcelPreviewOverlay(true)}
+                    onMouseLeave={() => setShowExcelPreviewOverlay(false)}
                   >
-                    <div className="flex items-center gap-2">
-                      {isExportingExcel ? (
-                        <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                      )}
-                      <span className="text-xs font-bold leading-none">
-                        {isExportingExcel ? 'Assembling files...' : 'Generate Spreadsheet (.xlsx)'}
-                      </span>
-                    </div>
-                  </button>
+                    {/* Hover quick-view Summary Overlay */}
+                    {showExcelPreviewOverlay && (
+                      <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none select-none">
+                        <div className="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Excel Scope Summary</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block">Quantity</span>
+                            <span className="text-[11.5px] font-extrabold text-slate-800 dark:text-slate-200 font-mono">
+                              {excelExportPreviewCount} <span className="text-[9px] font-normal text-slate-400 font-sans">txs</span>
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block text-emerald-500 dark:text-emerald-400">Total In</span>
+                            <span className="text-[11.5px] font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+                              ${excelExportPreviewIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block text-rose-500 dark:text-rose-450">Total Out</span>
+                            <span className="text-[11.5px] font-extrabold text-rose-600 dark:text-rose-450 font-mono">
+                              ${excelExportPreviewExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-[8px] text-slate-450 dark:text-slate-500 mt-2.5 pt-1.5 border-t border-slate-100/80 dark:border-slate-800/80 flex items-center justify-between">
+                          <span>Timeline scope:</span>
+                          <span className="font-semibold text-slate-600 dark:text-slate-400">
+                            {filterExcelByDate 
+                              ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}` 
+                              : monthLabel}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                      id="btn-export-excel"
+                      disabled={isExportingExcel}
+                      onClick={handleExportExcel}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-lg border border-slate-150 dark:border-slate-800/80 transition-all group ${
+                        isExportingExcel 
+                          ? 'opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
+                          : 'hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {isExportingExcel ? (
+                          <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                        )}
+                        <span className="text-xs font-bold leading-none">
+                          {isExportingExcel ? 'Assembling files...' : 'Generate Spreadsheet (.xlsx)'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Export as TXT report */}
