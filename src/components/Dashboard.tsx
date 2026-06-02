@@ -11,7 +11,21 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Cell,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Legend
+} from 'recharts';
 
 interface DashboardProps {
   transactions: Transaction[];
@@ -43,6 +57,10 @@ export default function Dashboard({
 }: DashboardProps) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
+
+  // Dashboard Sub-view Toggles for Multi-View Visualizer Dashboard
+  const [trendView, setTrendView] = useState<'velocity' | 'monthly'>('velocity');
+  const [allocationView, setAllocationView] = useState<'split' | 'recharts_donut'>('recharts_donut');
 
   // System month automatically defaults to June 2026 i.e. "2026-06"
   const currentSystemMonth = useMemo(() => {
@@ -300,6 +318,53 @@ export default function Dashboard({
 
     return { fastestCategory: topCategory, fastestAmount: topAmount };
   }, [transactions]);
+
+  // Compiled data for Recharts Historical Monthly Spending Trends (Inflows vs Outflows over time)
+  const monthlyTrendsData = useMemo(() => {
+    const monthsSet = new Set<string>();
+    monthsSet.add(currentSystemMonth);
+    transactions.forEach(tx => {
+      if (tx.date && tx.date.length >= 7) {
+        const yyyymm = tx.date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(yyyymm)) {
+          monthsSet.add(yyyymm);
+        }
+      }
+    });
+
+    const sortedMonths = Array.from(monthsSet).sort((a, b) => a.localeCompare(b)); // chronological: oldest to newest
+    
+    return sortedMonths.map(m => {
+      let income = 0;
+      let expense = 0;
+      transactions.forEach(tx => {
+        if (tx.date && tx.date.startsWith(m)) {
+          if (tx.type === 'income') {
+            income += tx.amount;
+          } else {
+            expense += tx.amount;
+          }
+        }
+      });
+
+      // Format Year-Month key cleanly "2026-06" -> "Jun '26"
+      const [year, month] = m.split('-');
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      const monthIdx = parseInt(month, 10) - 1;
+      const monthName = (monthIdx >= 0 && monthIdx < 12) ? monthNames[monthIdx] : m;
+      const shortYear = year.substring(2);
+
+      return {
+        monthKey: m,
+        monthLabel: `${monthName} '${shortYear}`,
+        "Income": parseFloat(income.toFixed(2)),
+        "Expenses": parseFloat(expense.toFixed(2))
+      };
+    });
+  }, [transactions, currentSystemMonth]);
 
   // Standard local fallback advice tips
   const activeSavingTip = useMemo(() => {
@@ -651,161 +716,261 @@ export default function Dashboard({
           className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-3 flex flex-col justify-between"
         >
           <div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-150/40 dark:border-slate-800/60 pb-3">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Velocity Curve</h3>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Financial Trends</h3>
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-                  {selectedPeriod === 'all' 
-                    ? `Cumulative daily spends for ${getPeriodLabel(trendMonth)} (latest active period).`
-                    : `Cumulative daily spend logged for ${getPeriodLabel(selectedPeriod)}.`
+                  {trendView === 'velocity' 
+                    ? (selectedPeriod === 'all' 
+                      ? `Cumulative daily spends for ${getPeriodLabel(trendMonth)} (latest).` 
+                      : `Cumulative daily spend logged for ${getPeriodLabel(selectedPeriod)}.`)
+                    : 'Historical inflowing revenue and outflowing expenses trends.'
                   }
                 </p>
-                
+              </div>
+
+              {/* View Selector Tabs */}
+              <div className="flex bg-gray-50 dark:bg-slate-950 p-1 border border-gray-150 dark:border-slate-800 rounded-xl space-x-1 self-start sm:self-auto shrink-0 select-none">
+                <button
+                  type="button"
+                  onClick={() => setTrendView('velocity')}
+                  className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    trendView === 'velocity'
+                      ? 'bg-blue-650 dark:bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-550 dark:text-slate-400 hover:text-gray-850 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Daily Velocity
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrendView('monthly')}
+                  className={`px-3 py-1.5 text-[10.5px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                    trendView === 'monthly'
+                      ? 'bg-blue-650 dark:bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-550 dark:text-slate-400 hover:text-gray-850 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Monthly Trends
+                </button>
+              </div>
+            </div>
+
+            {trendView === 'velocity' && (
+              <div className="flex flex-wrap items-center justify-between gap-3 mt-3 text-xs leading-none">
                 {/* Active Legend Indicators */}
-                <div className="flex items-center gap-3 mt-1.5 leading-none">
-                  <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     <span className="w-2.5 h-0.5 bg-blue-500 rounded-full inline-block" /> {selectedPeriod === 'all' ? getPeriodLabel(trendMonth) : 'Selected Period'}
                   </span>
                   {showPrevMonthTrend && (
-                    <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                       <span className="w-2.5 h-0.5 bg-amber-500 rounded-full inline-block border-t border-dashed animate-pulse" /> Prev Month
                     </span>
                   )}
                 </div>
-              </div>
-              
-              {hoveredTrendIndex !== null && (
-                <div className="text-right space-y-0.5">
-                  <div className="text-xs">
-                    <span className="text-slate-400 dark:text-slate-500 font-mono font-bold">Day {trendPoints[hoveredTrendIndex]?.day}</span>
-                  </div>
-                  <div className="text-[11px] font-semibold flex items-center justify-end gap-1 leading-none">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    <span className="text-slate-400 dark:text-slate-500">Current: </span>
-                    <span className="font-mono font-bold text-gray-900 dark:text-white">
+
+                {hoveredTrendIndex !== null && (
+                  <div className="flex items-center gap-2 text-[10.5px] font-mono leading-none">
+                    <span className="text-slate-450 dark:text-slate-500 font-bold">Day {trendPoints[hoveredTrendIndex]?.day}:</span>
+                    <span className="font-bold text-gray-950 dark:text-white">
                       {currencySymbol}{trendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
                     </span>
-                  </div>
-                  {showPrevMonthTrend && prevTrendPoints[hoveredTrendIndex] && (
-                    <div className="text-[11px] font-semibold flex items-center justify-end gap-1 leading-none">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                      <span className="text-slate-400 dark:text-slate-400">Prev Mon: </span>
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                        {currencySymbol}{prevTrendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
+                    {showPrevMonthTrend && prevTrendPoints[hoveredTrendIndex] && (
+                      <span className="text-amber-600 dark:text-amber-400 font-bold ml-1">
+                        (Prev: {currencySymbol}{prevTrendPoints[hoveredTrendIndex]?.amount.toLocaleString()})
                       </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* SVG Graph Canvas */}
-            <div className="relative mt-6 w-full h-[220px]">
-              {transactions.filter(t => t.type === 'expense').length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
-                    <AlertCircle className="w-4 h-4 text-gray-400" />
+                    )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-2">No expenses logged. Please log entries to display curves.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {trendView === 'velocity' ? (
+            <>
+              {/* SVG Graph Canvas */}
+              <div className="relative mt-4 w-full h-[220px]">
+                {transactions.filter(t => t.type === 'expense').length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center">
+                      <AlertCircle className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <p className="text-xs text-gray-400 mt-2">No expenses logged. Please log entries to display curves.</p>
+                  </div>
+                ) : (
+                  <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible">
+                    <defs>
+                      <linearGradient id="trend-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.00" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Horizontal Grid lines */}
+                    <line x1="20" y1={svgHeight - 25} x2={svgWidth - 20} y2={svgHeight - 25} stroke="#f3f4f6" strokeWidth="1" />
+                    <line x1="20" y1={svgHeight / 2} x2={svgWidth - 20} y2={svgHeight / 2} stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
+                    <line x1="20" y1="25" x2={svgWidth - 20} y2="25" stroke="#f3f4f6" strokeWidth="1" />
+
+                    {/* Filled Gradient Area */}
+                    {gradientAreaPath && (
+                      <path d={gradientAreaPath} fill="url(#trend-gradient)" className="transition-all duration-300" />
+                    )}
+
+                    {/* Prev Month Curve Line if enabled */}
+                    {showPrevMonthTrend && prevSparklinePath && (
+                      <path 
+                        d={prevSparklinePath} 
+                        fill="none" 
+                        stroke="#fbbf24" 
+                        strokeWidth="2" 
+                        strokeDasharray="4 4"
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    )}
+
+                    {/* Main Curve Line */}
+                    {sparklinePath && (
+                      <path 
+                        d={sparklinePath} 
+                        fill="none" 
+                        stroke="#3b82f6" 
+                        strokeWidth="2.5" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    )}
+
+                    {/* Coordinates Nodes/Dots & Hover Zones */}
+                    {trendPoints.map((pt, idx) => {
+                      const isHovered = hoveredTrendIndex === idx;
+                      return (
+                        <g key={idx}>
+                          {/* Hidden ultra-wide bar for frictionless hover */}
+                          <rect
+                            x={pt.x - 8}
+                            y="10"
+                            width="16"
+                            height={svgHeight - 20}
+                            fill="transparent"
+                            className="cursor-pointer"
+                            onMouseEnter={() => setHoveredTrendIndex(idx)}
+                            onMouseLeave={() => setHoveredTrendIndex(null)}
+                          />
+                          {/* Current Interactive Dot */}
+                          {(isHovered || idx === trendPoints.length - 1) && (
+                            <circle 
+                              cx={pt.x} 
+                              cy={pt.y} 
+                              r={isHovered ? 5 : 3.5} 
+                              fill={isHovered ? "#3b82f6" : "#ffffff"} 
+                              stroke="#3b82f6" 
+                              strokeWidth="2.5" 
+                              pointerEvents="none"
+                            />
+                          )}
+                          {/* Previous Month Interactive Dot */}
+                          {showPrevMonthTrend && prevTrendPoints[idx] && (isHovered || idx === prevTrendPoints.length - 1) && (
+                            <circle 
+                              cx={prevTrendPoints[idx].x} 
+                              cy={prevTrendPoints[idx].y} 
+                              r={isHovered ? 4.5 : 3} 
+                              fill={isHovered ? "#fbbf24" : "#ffffff"} 
+                              stroke="#fbbf24" 
+                              strokeWidth="2" 
+                              pointerEvents="none"
+                            />
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                )}
+              </div>
+              <div className="flex justify-between items-center text-[10px] font-mono font-medium text-gray-400 mt-2">
+                <span>Day 1</span>
+                <span>Day 10</span>
+                <span>Day 20</span>
+                <span>Day 30</span>
+              </div>
+            </>
+          ) : (
+            /* Recharts LineChart for Monthly Inflows vs Outflows */
+            <div className="w-full h-[220px] mt-6">
+              {transactions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="p-3 bg-gray-50 dark:bg-slate-950 inline-flex rounded-full">
+                    <AlertCircle className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2 font-medium">No transaction database loaded. Log entries to observe monthly trends.</p>
                 </div>
               ) : (
-                <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible">
-                  <defs>
-                    <linearGradient id="trend-gradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15" />
-                      <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.00" />
-                    </linearGradient>
-                  </defs>
-
-                  {/* Horizontal Grid lines */}
-                  <line x1="20" y1={svgHeight - 25} x2={svgWidth - 20} y2={svgHeight - 25} stroke="#f3f4f6" strokeWidth="1" />
-                  <line x1="20" y1={svgHeight / 2} x2={svgWidth - 20} y2={svgHeight / 2} stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
-                  <line x1="20" y1="25" x2={svgWidth - 20} y2="25" stroke="#f3f4f6" strokeWidth="1" />
-
-                  {/* Filled Gradient Area */}
-                  {gradientAreaPath && (
-                    <path d={gradientAreaPath} fill="url(#trend-gradient)" className="transition-all duration-300" />
-                  )}
-
-                  {/* Prev Month Curve Line if enabled */}
-                  {showPrevMonthTrend && prevSparklinePath && (
-                    <path 
-                      d={prevSparklinePath} 
-                      fill="none" 
-                      stroke="#fbbf24" 
-                      strokeWidth="2" 
-                      strokeDasharray="4 4"
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyTrendsData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" className="dark:stroke-slate-800" strokeOpacity={0.4} />
+                    <XAxis 
+                      dataKey="monthLabel" 
+                      tick={{ fill: '#888888', fontSize: 10, fontWeight: 500 }}
+                      axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
+                      className="dark:stroke-slate-800"
                     />
-                  )}
-
-                  {/* Main Curve Line */}
-                  {sparklinePath && (
-                    <path 
-                      d={sparklinePath} 
-                      fill="none" 
-                      stroke="#3b82f6" 
-                      strokeWidth="2.5" 
-                      strokeLinecap="round" 
-                      strokeLinejoin="round"
+                    <YAxis
+                      tickFormatter={(val) => `${currencySymbol}${val}`}
+                      tick={{ fill: '#888888', fontSize: 10 }}
+                      axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
+                      className="dark:stroke-slate-800"
                     />
-                  )}
-
-                  {/* Coordinates Nodes/Dots & Hover Zones */}
-                  {trendPoints.map((pt, idx) => {
-                    const isHovered = hoveredTrendIndex === idx;
-                    return (
-                      <g key={idx}>
-                        {/* Hidden ultra-wide bar for frictionless hover */}
-                        <rect
-                          x={pt.x - 8}
-                          y="10"
-                          width="16"
-                          height={svgHeight - 20}
-                          fill="transparent"
-                          className="cursor-pointer"
-                          onMouseEnter={() => setHoveredTrendIndex(idx)}
-                          onMouseLeave={() => setHoveredTrendIndex(null)}
-                        />
-                        {/* Current Interactive Dot */}
-                        {(isHovered || idx === trendPoints.length - 1) && (
-                          <circle 
-                            cx={pt.x} 
-                            cy={pt.y} 
-                            r={isHovered ? 5 : 3.5} 
-                            fill={isHovered ? "#3b82f6" : "#ffffff"} 
-                            stroke="#3b82f6" 
-                            strokeWidth="2.5" 
-                            pointerEvents="none"
-                          />
-                        )}
-                        {/* Previous Month Interactive Dot */}
-                        {showPrevMonthTrend && prevTrendPoints[idx] && (isHovered || idx === prevTrendPoints.length - 1) && (
-                          <circle 
-                            cx={prevTrendPoints[idx].x} 
-                            cy={prevTrendPoints[idx].y} 
-                            r={isHovered ? 4.5 : 3} 
-                            fill={isHovered ? "#fbbf24" : "#ffffff"} 
-                            stroke="#fbbf24" 
-                            strokeWidth="2" 
-                            pointerEvents="none"
-                          />
-                        )}
-                      </g>
-                    );
-                  })}
-                </svg>
+                    <Tooltip
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-3 rounded-xl shadow-lg text-xs space-y-1">
+                              <p className="font-bold text-gray-900 dark:text-white mb-1">{label}</p>
+                              {payload.map((pld, idx) => (
+                                <div key={idx} className="flex items-center gap-4 justify-between">
+                                  <span className="flex items-center gap-1.5 text-gray-500 dark:text-slate-400 font-medium">
+                                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: pld.color }} />
+                                    {pld.name}:
+                                  </span>
+                                  <span className="font-mono font-bold text-gray-900 dark:text-white">
+                                    {currencySymbol}{(pld.value as number).toLocaleString()}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Income" 
+                      stroke="#10b981" 
+                      strokeWidth={2.5} 
+                      dot={{ r: 3.5, strokeWidth: 2, fill: "#ffffff" }} 
+                      activeDot={{ r: 5 }} 
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Expenses" 
+                      stroke="#ef4444" 
+                      strokeWidth={2.5} 
+                      dot={{ r: 3.5, strokeWidth: 2, fill: "#ffffff" }} 
+                      activeDot={{ r: 5 }} 
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={24} 
+                      iconSize={10} 
+                      wrapperStyle={{ fontSize: '10px', marginTop: '10px' }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               )}
             </div>
-          </div>
-          
-          <div className="flex justify-between items-center text-[10px] font-mono font-medium text-gray-400 mt-2">
-            <span>Day 1</span>
-            <span>Day 10</span>
-            <span>Day 20</span>
-            <span>Day 30</span>
-          </div>
+          )}
         </motion.div>
 
         {/* Category breakdown Pie Donut */}
@@ -816,62 +981,183 @@ export default function Dashboard({
           className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-2 flex flex-col justify-between"
         >
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Allocation Split</h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Budget category ratio allocation comparison.</p>
-          </div>
+            <div className="flex items-center justify-between border-b border-gray-150/45 dark:border-slate-800/60 pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white">Expense Donut</h3>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Distribution by category.</p>
+              </div>
 
-          <div className="flex flex-col items-center justify-center my-4 relative h-[160px]">
-            {categorySplit.length === 0 ? (
-              <p className="text-xs text-gray-400 dark:text-slate-500">Log expenses to analyze categories.</p>
+              {/* Allocation View Selector */}
+              <div className="flex bg-gray-50 dark:bg-slate-950 p-0.5 border border-gray-150 dark:border-slate-800 rounded-lg space-x-0.5 select-none">
+                <button
+                  type="button"
+                  onClick={() => setAllocationView('recharts_donut')}
+                  className={`px-2 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                    allocationView === 'recharts_donut'
+                      ? 'bg-blue-650 dark:bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Interactive
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllocationView('split')}
+                  className={`px-2 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer whitespace-nowrap ${
+                    allocationView === 'split'
+                      ? 'bg-blue-650 dark:bg-blue-600 text-white shadow-xs'
+                      : 'text-gray-550 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Rings
+                </button>
+              </div>
+            </div>
+
+            {/* Chart Area */}
+            {allocationView === 'recharts_donut' ? (
+              <div className="relative w-full h-[185px] my-3">
+                {categorySplit.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center">
+                    <p className="text-xs text-gray-450 dark:text-slate-500 font-medium">Log expenses to analyze categories.</p>
+                  </div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={categorySplit}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={55}
+                          outerRadius={75}
+                          paddingAngle={3}
+                          dataKey="amount"
+                          nameKey="category"
+                          onMouseEnter={(_, index) => {
+                            if (categorySplit[index]) {
+                              setHoveredSlice(categorySplit[index].category);
+                            }
+                          }}
+                          onMouseLeave={() => setHoveredSlice(null)}
+                        >
+                          {categorySplit.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.color} 
+                              stroke={hoveredSlice === entry.category ? '#ffffff' : 'transparent'} 
+                              strokeWidth={2}
+                              style={{
+                                outline: 'none',
+                                cursor: 'pointer',
+                                filter: hoveredSlice === entry.category ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.15))' : 'none'
+                              }}
+                            />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload as typeof categorySplit[0];
+                              return (
+                                <div className="bg-white dark:bg-slate-950 border border-slate-250 dark:border-slate-800 p-2.5 rounded-xl shadow-lg text-xs space-y-0.5">
+                                  <p className="font-bold text-gray-950 dark:text-white flex items-center gap-1.5 leading-none">
+                                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.color }} />
+                                    {data.category}
+                                  </p>
+                                  <p className="text-gray-500 dark:text-slate-400">
+                                    Amount: <span className="font-mono font-bold text-gray-900 dark:text-white">{currencySymbol}{data.amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>
+                                  </p>
+                                  <p className="text-gray-550 dark:text-slate-450">
+                                    Share: <span className="font-mono font-bold text-gray-900 dark:text-white">{data.percentage}%</span>
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    
+                    {/* Absolute Center Label Indicator */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                      {hoveredSlice ? (
+                        <div className="text-center px-4 max-w-[120px]">
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider truncate">
+                            {hoveredSlice}
+                          </p>
+                          <p className="text-xs font-mono font-bold text-gray-800 dark:text-slate-200 mt-0.5">
+                            {categorySplit.find(c => c.category === hoveredSlice)?.percentage}%
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center px-4">
+                          <p className="text-[9px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total logged</p>
+                          <p className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
+                            {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             ) : (
-              <div className="relative w-[150px] h-[150px]">
-                <svg width="100%" height="100%" viewBox="0 0 180 180" className="transform rotate-0">
-                  {slices.map((slice, i) => {
-                    const isHovered = hoveredSlice === slice.category;
-                    return (
-                      <circle
-                        key={slice.category}
-                        cx="90"
-                        cy="90"
-                        r={donutRadius}
-                        fill="transparent"
-                        stroke={slice.color}
-                        strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
-                        strokeDasharray={circumference}
-                        strokeDashoffset={slice.strokeDashoffset}
-                        style={{
-                          transformOrigin: '90px 90px',
-                          transform: `rotate(${slice.rotation}deg)`,
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                        }}
-                        onMouseEnter={() => setHoveredSlice(slice.category)}
-                        onMouseLeave={() => setHoveredSlice(null)}
-                        className="cursor-pointer"
-                      />
-                    );
-                  })}
-                </svg>
+              <div className="flex flex-col items-center justify-center my-4 relative h-[160px]">
+                {categorySplit.length === 0 ? (
+                  <p className="text-xs text-gray-400 dark:text-slate-500">Log expenses to analyze categories.</p>
+                ) : (
+                  <div className="relative w-[150px] h-[150px]">
+                    <svg width="100%" height="100%" viewBox="0 0 180 180" className="transform rotate-0">
+                      {slices.map((slice, i) => {
+                        const isHovered = hoveredSlice === slice.category;
+                        return (
+                          <circle
+                            key={slice.category}
+                            cx="90"
+                            cy="90"
+                            r={donutRadius}
+                            fill="transparent"
+                            stroke={slice.color}
+                            strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
+                            strokeDasharray={circumference}
+                            strokeDashoffset={slice.strokeDashoffset}
+                            style={{
+                              transformOrigin: '90px 90px',
+                              transform: `rotate(${slice.rotation}deg)`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                            }}
+                            onMouseEnter={() => setHoveredSlice(slice.category)}
+                            onMouseLeave={() => setHoveredSlice(null)}
+                            className="cursor-pointer"
+                          />
+                        );
+                      })}
+                    </svg>
 
-                {/* Center Core label */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  {hoveredSlice ? (
-                    <>
-                      <span className="text-xs font-bold text-gray-705 dark:text-slate-200 max-w-[80px] truncate text-center">
-                        {hoveredSlice}
-                      </span>
-                      <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400">
-                        {categorySplit.find(c => c.category === hoveredSlice)?.percentage}%
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total</span>
-                      <span className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
-                        {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                      </span>
-                    </>
-                  )}
-                </div>
+                    {/* Center Core label */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      {hoveredSlice ? (
+                        <>
+                          <span className="text-xs font-bold text-gray-705 dark:text-slate-200 max-w-[80px] truncate text-center">
+                            {hoveredSlice}
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-500 dark:text-slate-400">
+                            {categorySplit.find(c => c.category === hoveredSlice)?.percentage}%
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total</span>
+                          <span className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
+                            {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
