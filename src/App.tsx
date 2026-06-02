@@ -1951,12 +1951,27 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               }`}
             >
               <div className="flex items-center gap-3.5 text-left pr-6">
-                <div className={`p-2 rounded-xl border flex-shrink-0 animate-bounce transition-colors duration-300 ${
+                <div className={`p-2 rounded-xl border flex-shrink-0 transition-colors duration-300 ${
                   excelStyleTheme === 'minimal'
                     ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
                     : 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                 }`}>
-                  <Check className="w-5 h-5 stroke-[3]" />
+                  <svg
+                    className="w-5 h-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={3.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <motion.path
+                      d="M20 6L9 17l-5-5"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 0.6, ease: "easeInOut" }}
+                    />
+                  </svg>
                 </div>
                 <div>
                   <h4 className={`text-xs font-extrabold tracking-wide leading-tight transition-colors duration-300 ${
