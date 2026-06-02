@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Budget } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { 
@@ -40,12 +40,60 @@ export default function Dashboard({
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
-  // Core Financial Compilations
+  // System month automatically defaults to June 2026 i.e. "2026-06"
+  const currentSystemMonth = useMemo(() => {
+    return new Date().toISOString().substring(0, 7);
+  }, []);
+
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentSystemMonth);
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
+
+  // Available unique periods extraction from transactions plus the current active tracking period
+  const availableMonths = useMemo(() => {
+    const monthsSet = new Set<string>();
+    monthsSet.add(currentSystemMonth); // Ensure the brand new June 2026 is always selectable
+    
+    transactions.forEach(tx => {
+      if (tx.date && tx.date.length >= 7) {
+        const yyyymm = tx.date.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(yyyymm)) {
+          monthsSet.add(yyyymm);
+        }
+      }
+    });
+
+    return Array.from(monthsSet).sort((a, b) => b.localeCompare(a));
+  }, [transactions, currentSystemMonth]);
+
+  // Convert month key to user-friendly label (e.g., "2026-06" -> "June 2026")
+  const getPeriodLabel = (period: string) => {
+    if (period === 'all') return 'Combine All Periods (All-Time)';
+    const [year, month] = period.split('-');
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const monthIndex = parseInt(month, 10) - 1;
+    if (monthIndex >= 0 && monthIndex < 12) {
+      return `${monthNames[monthIndex]} ${year}`;
+    }
+    return period;
+  };
+
+  // Dynamically filter transactions based on selected tracking period
+  const filteredTransactions = useMemo(() => {
+    if (selectedPeriod === 'all') {
+      return transactions;
+    }
+    return transactions.filter(t => t.date && t.date.startsWith(selectedPeriod));
+  }, [transactions, selectedPeriod]);
+
+  // Core Financial Compilations mapped on the active tracking period selection
   const stats = useMemo(() => {
     let totalIncome = 0;
     let totalExpense = 0;
 
-    transactions.forEach(tx => {
+    filteredTransactions.forEach(tx => {
       if (tx.type === 'income') {
         totalIncome += tx.amount;
       } else {
@@ -62,14 +110,14 @@ export default function Dashboard({
       totalBalance,
       savingsRate: Math.max(0, parseFloat(savingsRate.toFixed(1)))
     };
-  }, [transactions]);
+  }, [filteredTransactions]);
 
-  // Donut Pie data compilation
+  // Donut Allocation Split data compilation mapped on active selection
   const categorySplit = useMemo(() => {
     const map: Record<string, number> = {};
     let totalExp = 0;
 
-    transactions.forEach(tx => {
+    filteredTransactions.forEach(tx => {
       if (tx.type === 'expense') {
         map[tx.category] = (map[tx.category] || 0) + tx.amount;
         totalExp += tx.amount;
@@ -85,23 +133,19 @@ export default function Dashboard({
         color: CATEGORIES[category]?.color || '#9ca3af'
       };
     }).sort((a, b) => b.amount - a.amount);
-  }, [transactions]);
+  }, [filteredTransactions]);
 
-  // Helper to compute selectedMonth and prevMonth for the dashboard
-  const selectedMonth = useMemo(() => {
-    const availableMonths = Array.from(
-      new Set<string>(
-        transactions
-          .filter(t => t.date)
-          .map(t => t.date.substring(0, 7))
-      )
-    ).sort((a, b) => b.localeCompare(a));
-    const currentSystemMonth = new Date().toISOString().substring(0, 7);
-    return availableMonths.length > 0 ? availableMonths[0] : currentSystemMonth;
-  }, [transactions]);
+  // Helper to compute selectedMonth and prevMonth for daily breakdown trend charts
+  const trendMonth = useMemo(() => {
+    if (selectedPeriod !== 'all') {
+      return selectedPeriod;
+    }
+    // If combined view is active, plot curves for the latest available month
+    return availableMonths[0] || currentSystemMonth;
+  }, [selectedPeriod, availableMonths, currentSystemMonth]);
 
   const prevMonth = useMemo(() => {
-    const [yearText, monthText] = selectedMonth.split('-');
+    const [yearText, monthText] = trendMonth.split('-');
     const year = parseInt(yearText);
     const month = parseInt(monthText);
     const prevDate = new Date(year, month - 2, 1);
@@ -109,7 +153,7 @@ export default function Dashboard({
     const prevMonthIdx = prevDate.getMonth() + 1;
     const prevMonthIdxStr = prevMonthIdx < 10 ? `0${prevMonthIdx}` : `${prevMonthIdx}`;
     return `${prevYear}-${prevMonthIdxStr}`;
-  }, [selectedMonth]);
+  }, [trendMonth]);
 
   // Spend over days trend compilation for current selected month
   const dailyBreakdownCurrent = useMemo(() => {
@@ -118,7 +162,7 @@ export default function Dashboard({
     const cumulativeTotals = Array(daysInMonth).fill(0);
 
     transactions.forEach(tx => {
-      if (tx.type === 'expense' && tx.date && tx.date.startsWith(selectedMonth)) {
+      if (tx.type === 'expense' && tx.date && tx.date.startsWith(trendMonth)) {
         const day = parseInt(tx.date.substring(8, 10));
         const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
         dayTotals[index] += tx.amount;
@@ -136,7 +180,7 @@ export default function Dashboard({
       amount: val,
       dailySpend: parseFloat(dayTotals[idx].toFixed(2))
     }));
-  }, [transactions, selectedMonth]);
+  }, [transactions, trendMonth]);
 
   // Spend over days trend compilation for previous selected month
   const dailyBreakdownPrev = useMemo(() => {
@@ -321,9 +365,83 @@ export default function Dashboard({
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight">Welcome, {userFirstName}!</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Real-time balances, tracking statistics, and cash flow velocities.</p>
         </div>
-        <div className="mt-4 sm:mt-0 flex items-center gap-2 bg-gray-50 dark:bg-slate-950 rounded-lg py-1.5 px-3 border border-gray-200 dark:border-slate-800 w-fit self-start sm:self-auto">
-          <Calendar className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-mono text-gray-600 dark:text-gray-400 font-semibold font-bold">May 2026 Tracking Period</span>
+        <div className="mt-4 sm:mt-0 relative">
+          <button
+            onClick={() => setShowPeriodDropdown(!showPeriodDropdown)}
+            className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 dark:bg-slate-950 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800 rounded-xl py-2 px-3.5 text-xs font-mono text-gray-700 dark:text-slate-300 font-bold transition-all shadow-xs cursor-pointer select-none"
+          >
+            <Calendar className="w-4 h-4 text-blue-500 shrink-0" />
+            <span>{getPeriodLabel(selectedPeriod)}</span>
+            <span className="text-[9px] bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 px-1.5 py-0.5 rounded font-sans uppercase font-bold tracking-wider leading-none">
+              {selectedPeriod === 'all' ? 'Combined' : 'Active'}
+            </span>
+          </button>
+
+          <AnimatePresence>
+            {showPeriodDropdown && (
+              <>
+                {/* Backdrop overlay to close when clicking outside */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowPeriodDropdown(false)} 
+                />
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl p-1.5 z-50 text-left"
+                >
+                  <p className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest px-2.5 py-1.5 font-sans border-b border-gray-100 dark:border-slate-900">
+                    Switch Tracking Period
+                  </p>
+                  <div className="max-h-60 overflow-y-auto mt-1 space-y-0.5">
+                    {/* Combine option */}
+                    <button
+                      onClick={() => {
+                        setSelectedPeriod('all');
+                        setShowPeriodDropdown(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-all text-left font-sans font-semibold cursor-pointer ${
+                        selectedPeriod === 'all'
+                          ? 'bg-blue-600 text-white font-bold'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <span className="truncate">Combine All Periods (All-Time)</span>
+                      {selectedPeriod === 'all' && <span className="w-1.5 h-1.5 rounded-full bg-white ml-2" />}
+                    </button>
+
+                    {/* Divider */}
+                    <div className="h-px bg-gray-150 dark:bg-slate-800 my-1" />
+
+                    {/* Available Months */}
+                    {availableMonths.map((period) => {
+                      const isSelected = selectedPeriod === period;
+                      return (
+                        <button
+                          key={period}
+                          onClick={() => {
+                            setSelectedPeriod(period);
+                            setShowPeriodDropdown(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-all text-left font-mono font-semibold cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-600 text-white font-bold'
+                              : 'text-gray-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <span>{getPeriodLabel(period)}</span>
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white ml-2" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </motion.div>
 
@@ -533,12 +651,17 @@ export default function Dashboard({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Spending Velocity Curve</h3>
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">Cumulative monthly outflow logged day-by-day.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
+                  {selectedPeriod === 'all' 
+                    ? `Cumulative daily spends for ${getPeriodLabel(trendMonth)} (latest active period).`
+                    : `Cumulative daily spend logged for ${getPeriodLabel(selectedPeriod)}.`
+                  }
+                </p>
                 
                 {/* Active Legend Indicators */}
                 <div className="flex items-center gap-3 mt-1.5 leading-none">
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    <span className="w-2.5 h-0.5 bg-blue-500 rounded-full inline-block" /> Active Month
+                    <span className="w-2.5 h-0.5 bg-blue-500 rounded-full inline-block" /> {selectedPeriod === 'all' ? getPeriodLabel(trendMonth) : 'Selected Period'}
                   </span>
                   {showPrevMonthTrend && (
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">

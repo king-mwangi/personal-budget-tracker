@@ -12,7 +12,8 @@ import {
   ChevronLeft, 
   ChevronRight,
   Sparkles,
-  Download
+  Download,
+  Calendar
 } from 'lucide-react';
 
 interface TransactionListProps {
@@ -35,6 +36,45 @@ export default function TransactionList({
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc'>('date-desc');
+  
+  const [dateRangePreset, setDateRangePreset] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  const handlePresetChange = (preset: string) => {
+    setDateRangePreset(preset);
+    setCurrentPage(1);
+
+    const today = new Date();
+    
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === '7days') {
+      const pastDate = new Date();
+      pastDate.setDate(today.getDate() - 7);
+      setStartDate(pastDate.toISOString().split('T')[0]);
+      setEndDate(today.toISOString().split('T')[0]);
+    } else if (preset === '30days') {
+      const pastDate = new Date();
+      pastDate.setDate(today.getDate() - 30);
+      setStartDate(pastDate.toISOString().split('T')[0]);
+      setEndDate(today.toISOString().split('T')[0]);
+    } else if (preset === 'thismonth') {
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      setStartDate(startOfMonth.toISOString().split('T')[0]);
+      setEndDate(endOfMonth.toISOString().split('T')[0]);
+    } else if (preset === 'lastmonth') {
+      const startOfLast = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const endOfLast = new Date(today.getFullYear(), today.getMonth(), 0);
+      setStartDate(startOfLast.toISOString().split('T')[0]);
+      setEndDate(endOfLast.toISOString().split('T')[0]);
+    } else if (preset === 'custom') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,7 +148,15 @@ export default function TransactionList({
       filtered = filtered.filter(tx => tx.category === categoryFilter);
     }
 
-    // 4. Sorting logic
+    // 4. Custom Date Range filtering
+    if (startDate) {
+      filtered = filtered.filter(tx => tx.date && tx.date >= startDate);
+    }
+    if (endDate) {
+      filtered = filtered.filter(tx => tx.date && tx.date <= endDate);
+    }
+
+    // 5. Sorting logic
     filtered.sort((a, b) => {
       if (sortBy === 'date-desc') {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
@@ -122,7 +170,7 @@ export default function TransactionList({
     });
 
     return filtered;
-  }, [transactions, searchQuery, typeFilter, categoryFilter, sortBy]);
+  }, [transactions, searchQuery, typeFilter, categoryFilter, sortBy, startDate, endDate]);
 
   // Paginated chunk
   const totalPages = Math.ceil(processedTransactions.length / itemsPerPage);
@@ -235,6 +283,61 @@ export default function TransactionList({
               <option value="amount-asc">📉 Lowest Amount</option>
             </select>
           </div>
+        </div>
+
+        {/* Date Range & Presets Filter */}
+        <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 p-3.5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Date Filter:
+            </span>
+            <select
+              value={dateRangePreset}
+              onChange={(e) => handlePresetChange(e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-lg py-1 px-2 text-xs font-semibold cursor-pointer dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 focus:outline-hidden"
+            >
+              <option value="all">All Time</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="thismonth">This Month</option>
+              <option value="lastmonth">Last Month</option>
+              <option value="custom">Custom Range...</option>
+            </select>
+          </div>
+
+          {dateRangePreset === 'custom' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => { setStartDate(e.target.value); setCurrentPage(1); }}
+                className="bg-gray-50 border border-gray-200 rounded-lg py-1 px-2 text-xs focus:ring-1 focus:ring-blue-500 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 focus:outline-hidden"
+              />
+              <span className="text-gray-405 dark:text-slate-500">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => { setEndDate(e.target.value); setCurrentPage(1); }}
+                className="bg-gray-50 border border-gray-200 rounded-lg py-1 px-2 text-xs focus:ring-1 focus:ring-blue-500 dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 focus:outline-hidden"
+              />
+              {(startDate || endDate) && (
+                <button
+                  onClick={() => { setStartDate(''); setEndDate(''); setDateRangePreset('all'); setCurrentPage(1); }}
+                  className="text-red-500 hover:text-red-600 font-semibold cursor-pointer text-xs ml-1 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          ) : dateRangePreset !== 'all' ? (
+            <div className="text-gray-500 dark:text-slate-400 text-xs font-mono">
+              Active: <span className="font-bold text-gray-800 dark:text-white">{startDate}</span> to <span className="font-bold text-gray-800 dark:text-white">{endDate}</span>
+            </div>
+          ) : (
+            <div className="text-gray-450 dark:text-slate-500 text-xs italic font-mono">
+              Showing life-time records
+            </div>
+          )}
         </div>
 
         {/* Categories Pills */}
