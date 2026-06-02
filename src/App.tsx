@@ -536,23 +536,31 @@ export default function App() {
 
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
-        console.error("Retrieve active auth session error:", error);
-        if (
+        // Log less aggressively or check for known auth refresh token problems to avoid blocking the app
+        const isRefreshTokenError = 
           error.message?.includes('Refresh Token') || 
           error.message?.includes('refresh_token') || 
           error.message?.includes('invalid_grant') ||
           error.message?.includes('Not Found') ||
           error.status === 400 ||
-          error.status === 401
-        ) {
-          // Clear Supabase local storage if possible
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-')) {
-              localStorage.removeItem(key);
-            }
-          });
-          supabase.auth.signOut().catch(() => {});
+          error.status === 401;
+
+        if (isRefreshTokenError) {
+          console.warn("Retrieve active auth session: session expired or refresh token invalid. Signing out locally.");
+          // Clear Supabase local storage keys to ensure clean slate
+          try {
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('sb-')) {
+                localStorage.removeItem(key);
+              }
+            });
+          } catch (e) {
+            console.error("Local storage clear error:", e);
+          }
+          supabase.auth.signOut({ scope: 'local' }).catch(() => {});
           setUser(null);
+        } else {
+          console.error("Retrieve active auth session error:", error);
         }
       }
 
@@ -567,8 +575,15 @@ export default function App() {
       }
       setIsAuthLoading(false);
     }).catch((err) => {
-      console.error("Retrieve active auth session error:", err);
-      supabase.auth.signOut().catch(() => {});
+      console.warn("Retrieve active auth session raw error occurred, signing out locally:", err);
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (e) {}
+      supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       setUser(null);
       setIsAuthLoading(false);
     });
@@ -3075,6 +3090,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 onFilterExcelByDateChange={setFilterExcelByDate}
                 excelDatePreset={excelDatePreset}
                 onExcelDatePresetChange={setExcelDatePreset}
+                selectedPeriod={selectedPeriod}
+                setSelectedPeriod={setSelectedPeriod}
+                aiInsights={aiInsights}
+                loadingInsights={loadingInsights}
               />
             )}
           </React.Suspense>

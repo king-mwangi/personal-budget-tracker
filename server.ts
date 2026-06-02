@@ -4,6 +4,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
 
 dotenv.config();
 
@@ -335,6 +336,121 @@ app.post("/api/advisor", async (req, res) => {
       error: errMsg || "An issue occurred while calling Gemini AI",
       isKeyMissing
     });
+  }
+});
+
+// Dispatch Statement Email - sends PDF statement directly to recipient
+app.post("/api/send-report", async (req: any, res: any) => {
+  try {
+    const { toEmail, pdfBase64, monthLabel, reportId } = req.body;
+    if (!toEmail) {
+      return res.status(400).json({ error: "Recipient email address is required" });
+    }
+    if (!pdfBase64) {
+      return res.status(400).json({ error: "PDF document data is required" });
+    }
+
+    // Attempt to convert the base64 string back into a Buffer for attaching
+    // Standard format from PDF generation: "data:application/pdf;base64,JVBERi1..."
+    const cleanBase64 = pdfBase64.includes("base64,") 
+      ? pdfBase64.split("base64,")[1] 
+      : pdfBase64;
+    
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    const host = process.env.SMTP_HOST;
+    const port = parseInt(process.env.SMTP_PORT || "587");
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+    const from = process.env.SMTP_FROM || '"Portfolio Ledger" <no-reply@portfolioledger.com>';
+
+    const subject = `Ledger Financial Statement [Period: ${monthLabel || "Monthly Report"}]`;
+    const htmlBody = `
+      <div style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+        <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 16px;">
+          <h2 style="color: #1e3a8a; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Statements Dispatch</h2>
+          <p style="font-size: 11px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace;">AUDIT DIGEST & EXECUTIVE REPORT</p>
+        </div>
+        
+        <p style="font-size: 14px; line-height: 1.5; color: #334155;">Hello,</p>
+        
+        <p style="font-size: 14px; line-height: 1.5; color: #1e293b; font-weight: 600;">Your requested high-resolution Ledger financial statement has been successfully compiled and compiled securely.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px; margin: 16px 0;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Report Scope Period:</td>
+              <td style="padding: 4px 0; text-align: right; font-weight: bold; color: #1e293b;">${monthLabel || "Standard Scope"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Document ID:</td>
+              <td style="padding: 4px 0; text-align: right; font-family: monospace; color: #0284c7;">${reportId || "LGR-RPT-N/A"}</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Dispatched Timestamp:</td>
+              <td style="padding: 4px 0; text-align: right; color: #475569;">${new Date().toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <p style="font-size: 13px; line-height: 1.5; color: #475569;">The secure PDF report has been compiled and is attached directly to this email for your immediate review, offline saving, or high-fidelity physical printing.</p>
+        
+        <div style="border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 12px; text-align: center; font-size: 10px; color: #94a3b8; font-family: monospace;">
+          <p style="margin: 0; font-weight: bold;">SECURED VIA PORTFOLIO CLIENT LEDGER</p>
+          <p style="margin: 2px 0 0 0;">This transmission is intended solely for the recipient. If you have any inquiries, please inspect your local workspace configurations.</p>
+        </div>
+      </div>
+    `;
+
+    if (host && user && pass) {
+      // Use configured SMTP credentials
+      const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure: port === 465,
+        auth: { user, pass }
+      });
+
+      await transporter.sendMail({
+        from,
+        to: toEmail,
+        subject,
+        html: htmlBody,
+        attachments: [
+          {
+            filename: `Ledger_Financial_Statement_${monthLabel || "report"}.pdf`,
+            content: buffer,
+            contentType: 'application/pdf'
+          }
+        ]
+      });
+
+      console.log(`Email compiled and sent successfully via SMTP to ${toEmail}`);
+      return res.json({ 
+        success: true, 
+        message: `Financial snapshot report for ${monthLabel} compiled and dispatched successfully via secure SMTP transport to ${toEmail}.`,
+        details: "SMTP transmission successfully closed."
+      });
+    } else {
+      // Graceful offline simulated delivery fallback (extremely useful for AI Studio sandbox testing)
+      console.log(`[SIMULATED EMAIL DISPATCH] Recipient: ${toEmail}`);
+      console.log(`[SIMULATED EMAIL DISPATCH] Subject: ${subject}`);
+      console.log(`[SIMULATED EMAIL DISPATCH] PDF attached: (${buffer.length} bytes base64)`);
+      
+      // Simulating a real transport delivery latency
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      return res.json({
+        success: true,
+        isSimulated: true,
+        message: `Financial snapshot report for ${monthLabel} compiled and dispatched successfully (simulated) to ${toEmail}.`,
+        details: "Notice: Since SMTP host credentials are not configured in your settings, a secure offline delivery simulation has successfully finished. Check application terminal logs."
+      });
+    }
+
+  } catch (error: any) {
+    console.error("Email dispatch error:", error);
+    return res.status(500).json({ error: error?.message || "Internal issue dispatching executive statement email." });
   }
 });
 
