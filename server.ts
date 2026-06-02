@@ -11,7 +11,8 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Helper for lazy loading Gemini API safely to prevent startup failure if key is missing
 let aiInstance: GoogleGenAI | null = null;
