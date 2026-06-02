@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Transaction } from '../types';
 import { CATEGORIES } from '../data/categories';
+import { formatCurrency } from '../utils/currencyFormatter';
 import { 
   Search, 
   Trash2, 
@@ -434,7 +435,7 @@ export default function TransactionList({
                       {/* Amount value tags */}
                       <td className="py-3.5 px-5 text-right font-mono font-bold text-xs">
                         <span className={tx.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-800 dark:text-gray-100'}>
-                          {tx.type === 'income' ? '+' : '-'}{currencySymbol}{tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {tx.type === 'income' ? '+' : ''}{formatCurrency(tx.type === 'income' ? tx.amount : -tx.amount, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </td>
 

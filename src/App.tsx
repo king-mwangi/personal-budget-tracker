@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
+import { formatCurrency } from './utils/currencyFormatter';
 import Login from './components/Login';
 import LedgerSmartLogo from './components/Logo';
 
@@ -2554,7 +2555,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                         fontWeight="bold"
                                         fontFamily="monospace"
                                       >
-                                        {comparisonTrends.labelA}: {currencySymbol}{hoverValCurrent.toLocaleString(undefined, { minimumFractionDigits: 0 })} (+{daySpendCurrent})
+                                        {comparisonTrends.labelA}: {formatCurrency(hoverValCurrent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} (+{daySpendCurrent})
                                       </text>
                                       {trendsB[hoveredTrendIdx] !== undefined && (
                                         <text
@@ -2565,7 +2566,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                           fontWeight="bold"
                                           fontFamily="monospace"
                                         >
-                                          {comparisonTrends.labelB}: {currencySymbol}{hoverValPrev.toLocaleString(undefined, { minimumFractionDigits: 0 })} (+{daySpendPrev})
+                                          {comparisonTrends.labelB}: {formatCurrency(hoverValPrev, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} (+{daySpendPrev})
                                         </text>
                                       )}
                                     </g>

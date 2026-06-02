@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { SavingsGoal } from '../types';
+import { formatCurrency } from '../utils/currencyFormatter';
 import { 
   Plus, 
   Trash2, 
@@ -300,13 +301,13 @@ export default function SavingsGoals({
                         <p className="text-xs font-mono font-bold text-gray-800 dark:text-slate-200 flex justify-between">
                           <span>Current:</span>
                           <span className={isComplete ? 'text-emerald-600 dark:text-emerald-450' : 'text-slate-800 dark:text-slate-200'}>
-                            {currencySymbol}{goal.current.toLocaleString()}
+                            {formatCurrency(goal.current, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </span>
                         </p>
                         <p className="text-xs font-mono text-gray-400 dark:text-slate-500 flex justify-between border-t border-slate-100/60 dark:border-slate-800/50 pt-1">
                           <span>Target Limit:</span>
                           <span className="font-semibold text-slate-700 dark:text-slate-350">
-                            {currencySymbol}{goal.target.toLocaleString()}
+                            {formatCurrency(goal.target, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </span>
                         </p>
                       </div>
@@ -529,8 +530,8 @@ export function SavingsGoalProgressChart({
         <span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">30-Day Progress Stream</span>
         {hoveredPoint ? (
           <span className="text-blue-600 dark:text-blue-400 font-semibold px-1 rounded-sm">
-            {hoveredPoint.dayLabel}: {currencySymbol}{hoveredPoint.balance.toLocaleString()}
-            {hoveredPoint.deposit > 0 ? ` (+${currencySymbol}${hoveredPoint.deposit.toLocaleString()})` : ''}
+            {hoveredPoint.dayLabel}: {formatCurrency(hoveredPoint.balance, currencySymbol)}
+            {hoveredPoint.deposit > 0 ? ` (+${formatCurrency(hoveredPoint.deposit, currencySymbol)})` : ''}
           </span>
         ) : (
           <span className="text-gray-400 dark:text-slate-600">Hover graph to audit</span>
@@ -575,7 +576,7 @@ export function SavingsGoalProgressChart({
                 textAnchor="end" 
                 className="fill-slate-400 font-sans text-[7px] font-medium tracking-wide uppercase"
               >
-                Target Level: {currencySymbol}{target.toLocaleString()}
+                Target Level: {formatCurrency(target, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </text>
             </g>
           )}

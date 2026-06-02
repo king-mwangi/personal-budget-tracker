@@ -1,5 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RecurringTransaction, TransactionType } from '../types';
+import { formatCurrency } from '../utils/currencyFormatter';
+import { 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Cell 
+} from 'recharts';
 import { 
   Calendar, 
   Plus, 
@@ -51,6 +62,32 @@ export default function RecurringManager({
 
   const [notification, setNotification] = useState<string | null>(null);
 
+  const totalProjectedIncome = useMemo(() => {
+    return recurringItems
+      .filter(item => item.type === 'income')
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [recurringItems]);
+
+  const totalScheduledOutflows = useMemo(() => {
+    return recurringItems
+      .filter(item => item.type === 'expense')
+      .reduce((sum, item) => sum + item.amount, 0);
+  }, [recurringItems]);
+
+  const netBalance = useMemo(() => {
+    return totalProjectedIncome - totalScheduledOutflows;
+  }, [totalProjectedIncome, totalScheduledOutflows]);
+
+  const isGap = netBalance < 0;
+
+  const barChartData = useMemo(() => {
+    return [
+      { name: 'Projected Incomes', Amount: totalProjectedIncome, fill: '#10b981' },
+      { name: 'Fixed Outflows', Amount: totalScheduledOutflows, fill: '#ef4444' },
+      { name: netBalance < 0 ? 'Deficit Gap' : 'Net Surplus', Amount: Math.abs(netBalance), fill: netBalance < 0 ? '#f59e0b' : '#3b82f6' }
+    ];
+  }, [totalProjectedIncome, totalScheduledOutflows, netBalance]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim() || !amount) return;
@@ -72,7 +109,7 @@ export default function RecurringManager({
 
   const handleManualTrigger = (item: RecurringTransaction) => {
     onTriggerRecurringManually(item.id);
-    setNotification(`Successfully posted invoice of ${currencySymbol}${item.amount} for "${item.description}" into the transaction ledger!`);
+    setNotification(`Successfully posted invoice of ${formatCurrency(item.amount, currencySymbol)} for "${item.description}" into the transaction ledger!`);
     setTimeout(() => setNotification(null), 4000);
   };
 
@@ -299,7 +336,7 @@ export default function RecurringManager({
                   <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800/80">
                     <div className="font-bold text-xs text-right font-mono text-slate-800 dark:text-slate-100">
                       <span className={item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}>
-                        {item.type === 'income' ? '+' : '-'}{currencySymbol}{item.amount.toLocaleString()}
+                        {item.type === 'income' ? '+' : ''}{formatCurrency(item.type === 'income' ? item.amount : -item.amount, currencySymbol)}
                       </span>
                     </div>
 
@@ -333,12 +370,8 @@ export default function RecurringManager({
             <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl">
               <span className="text-[9px] font-bold text-slate-400 uppercase block font-mono">Total Fixed Expenses</span>
               <p className="text-sm font-bold text-rose-600 mt-1 font-mono">
-                {currencySymbol}
-                {recurringItems
-                  .filter(i => i.type === 'expense')
-                  .reduce((sum, item) => sum + item.amount, 0)
-                  .toLocaleString()}
-                <span className="text-[10px] font-medium text-slate-400 block font-sans">Per Month Scheduled</span>
+                {formatCurrency(totalScheduledOutflows, currencySymbol)}
+                <span className="text-[10px] font-medium text-slate-400 block font-sans font-normal mt-0.5">Per Month Scheduled</span>
               </p>
             </div>
             <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl">
@@ -348,9 +381,148 @@ export default function RecurringManager({
                   ? Math.round((recurringItems.filter(i => i.autoLog && i.type === 'expense').length / Math.max(1, recurringItems.filter(i => i.type === 'expense').length)) * 100)
                   : 0}
                 %
-                <span className="text-[10px] font-medium text-slate-400 block font-sans">Self-executing bills</span>
+                <span className="text-[10px] font-medium text-slate-400 block font-sans font-normal mt-0.5">Self-executing bills</span>
               </p>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Monthly Scheduled Cash Flow Summary Chart */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800/80 rounded-2xl p-6 shadow-3xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <CalendarClock className="w-4.5 h-4.5 text-teal-600 animate-pulse" />
+              Projected Monthly Cash Flow & Gap Analysis
+            </h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Comparative visualization of fixed scheduled inflows vs fixed scheduled outflows to verify financial liquidity.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`py-1.5 px-3 border rounded-lg font-bold text-xs uppercase font-mono ${isGap ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-900/30' : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-990/30'}`}>
+              Surplus Position: {formatCurrency(netBalance, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          {/* Chart Section */}
+          <div className="lg:col-span-7 h-[240px] w-full">
+            {recurringItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 space-y-2 py-8">
+                <CalendarClock className="w-10 h-10 text-slate-300 stroke-1" />
+                <p className="text-xs font-semibold">No scheduled items available to compute flow chart.</p>
+                <p className="text-[11px] leading-relaxed max-w-xs mx-auto text-slate-500">Add standard income streams or fixed expense items above to see dynamic gap visualization.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barChartData} margin={{ top: 15, right: 10, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" className="dark:stroke-slate-800" strokeOpacity={0.4} vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: '#888888', fontSize: 10 }} />
+                  <YAxis tickFormatter={(val) => formatCurrency(val, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })} tick={{ fill: '#888888', fontSize: 10 }} />
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-2.5 rounded-xl shadow-lg text-xs space-y-0.5">
+                            <p className="font-bold text-gray-900 dark:text-white leading-none mb-1">{data.name}</p>
+                            <p className="text-gray-500 dark:text-slate-400">
+                              Amount: <span className="font-mono font-bold text-gray-950 dark:text-white">{formatCurrency(data.Amount, currencySymbol)}</span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="Amount" radius={[5, 5, 0, 0]}>
+                    {barChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          {/* Advice/Status Card and Legend Section */}
+          <div className="lg:col-span-5 space-y-4">
+            <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+              Liquidity Health Indicators
+            </h4>
+
+            {/* Custom Legend details */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs p-2 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
+                  <span className="w-2 h-2 rounded-sm bg-emerald-500 shrink-0" />
+                  Projected Recurring Income:
+                </span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatCurrency(totalProjectedIncome, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
+                  <span className="w-2 h-2 rounded-sm bg-rose-500 shrink-0" />
+                  Fixed Monthly Expenses:
+                </span>
+                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+                  {formatCurrency(totalScheduledOutflows, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-100 dark:border-slate-800/80">
+                <span className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-medium">
+                  <span className={`w-2 h-2 rounded-sm shrink-0 ${isGap ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                  Net Savings Margin:
+                </span>
+                <span className={`font-mono font-bold ${isGap ? 'text-amber-600 dark:text-amber-400' : 'text-blue-600 dark:text-blue-400'}`}>
+                  {formatCurrency(netBalance, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning / Success Banner */}
+            {recurringItems.length > 0 && (
+              <div className="animate-in fade-in duration-300">
+                {isGap ? (
+                  <div className="p-3.5 bg-amber-50/70 dark:bg-amber-950/10 border border-amber-200/40 dark:border-amber-900/30 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-amber-800 dark:text-amber-400 font-bold text-xs">
+                      <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                      Critical Budget Deficit Identified
+                    </div>
+                    <p className="text-[10.5px] text-amber-700 dark:text-amber-300 leading-relaxed font-normal">
+                      Your scheduled monthly outflows exceed your guaranteed fixed recurring income by <strong className="font-bold font-mono">{formatCurrency(Math.abs(netBalance), currencySymbol)}</strong>. To bridge this deficit and maintain liquidity, review flexible digital subscriptions.
+                    </p>
+                  </div>
+                ) : totalProjectedIncome === 0 && totalScheduledOutflows > 0 ? (
+                  <div className="p-3.5 bg-sky-50/40 dark:bg-sky-950/10 border border-sky-150/30 dark:border-sky-900/20 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-sky-800 dark:text-sky-300 font-semibold text-xs">
+                      <HelpCircle className="w-4 h-4 text-sky-500" />
+                      Inflow Metrics Missing
+                    </div>
+                    <p className="text-[10.5px] text-sky-600 dark:text-sky-300 leading-relaxed font-normal">
+                      Add stable recurring income streams above (such as Salary or Freelance retainers) to visualize your true monthly cash flow gap and safe margin calculations.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-emerald-50/50 dark:bg-emerald-950/10 border border-emerald-200/40 dark:border-emerald-900/30 rounded-xl space-y-1">
+                    <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-400 font-bold text-xs">
+                      <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                      Solvent Savings Position
+                    </div>
+                    <p className="text-[10.5px] text-emerald-700 dark:text-emerald-300 leading-relaxed font-normal">
+                      Excellent liquid position! You have a healthy fixed cost surplus of <strong className="font-bold font-mono">{formatCurrency(netBalance, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</strong>. This remaining capital can be freely allocated towards savings goals or flexible budgets.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

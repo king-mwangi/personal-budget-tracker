@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Budget } from '../types';
 import { CATEGORIES } from '../data/categories';
+import { formatCurrency } from '../utils/currencyFormatter';
 import { 
   ArrowUpRight, 
   ArrowDownRight, 
@@ -581,7 +582,7 @@ export default function Dashboard({
               <div className="p-4 bg-slate-50/50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider">Top Expenditure Category</span>
                 <p className="text-sm font-black text-slate-800 dark:text-white">
-                  {fastestCategory ? `${fastestCategory} (${currencySymbol}${fastestAmount.toLocaleString('en-US', {maximumFractionDigits:0})})` : "No Spends Recorded"}
+                  {fastestCategory ? `${fastestCategory} (${formatCurrency(fastestAmount, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })})` : "No Spends Recorded"}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal mt-1">
                   {fastestCategory 
@@ -631,7 +632,7 @@ export default function Dashboard({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
-              {stats.totalBalance < 0 ? '-' : ''}{currencySymbol}{Math.abs(stats.totalBalance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(stats.totalBalance, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Total revenue minus logged expenditure</p>
           </div>
@@ -652,7 +653,7 @@ export default function Dashboard({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
-              {currencySymbol}{stats.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(stats.totalIncome, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'income').length} active income stream logs</p>
           </div>
@@ -673,7 +674,7 @@ export default function Dashboard({
           </div>
           <div className="mt-4">
             <h3 className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-450">
-              {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(stats.totalExpense, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'expense').length} active expenditure lines</p>
           </div>
@@ -774,11 +775,11 @@ export default function Dashboard({
                   <div className="flex items-center gap-2 text-[10.5px] font-mono leading-none">
                     <span className="text-slate-450 dark:text-slate-500 font-bold">Day {trendPoints[hoveredTrendIndex]?.day}:</span>
                     <span className="font-bold text-gray-950 dark:text-white">
-                      {currencySymbol}{trendPoints[hoveredTrendIndex]?.amount.toLocaleString()}
+                      {formatCurrency(trendPoints[hoveredTrendIndex]?.amount || 0, currencySymbol)}
                     </span>
                     {showPrevMonthTrend && prevTrendPoints[hoveredTrendIndex] && (
                       <span className="text-amber-600 dark:text-amber-400 font-bold ml-1">
-                        (Prev: {currencySymbol}{prevTrendPoints[hoveredTrendIndex]?.amount.toLocaleString()})
+                        (Prev: {formatCurrency(prevTrendPoints[hoveredTrendIndex]?.amount || 0, currencySymbol)})
                       </span>
                     )}
                   </div>
@@ -916,7 +917,7 @@ export default function Dashboard({
                       className="dark:stroke-slate-800"
                     />
                     <YAxis
-                      tickFormatter={(val) => `${currencySymbol}${val}`}
+                      tickFormatter={(val) => formatCurrency(val, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
                       tick={{ fill: '#888888', fontSize: 10 }}
                       axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
                       className="dark:stroke-slate-800"
@@ -934,7 +935,7 @@ export default function Dashboard({
                                     {pld.name}:
                                   </span>
                                   <span className="font-mono font-bold text-gray-900 dark:text-white">
-                                    {currencySymbol}{(pld.value as number).toLocaleString()}
+                                    {formatCurrency(pld.value as number, currencySymbol)}
                                   </span>
                                 </div>
                               ))}
@@ -1066,9 +1067,9 @@ export default function Dashboard({
                                     {data.category}
                                   </p>
                                   <p className="text-gray-500 dark:text-slate-400">
-                                    Amount: <span className="font-mono font-bold text-gray-900 dark:text-white">{currencySymbol}{data.amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>
+                                    Amount: <span className="font-mono font-bold text-gray-900 dark:text-white">{formatCurrency(data.amount, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
                                   </p>
-                                  <p className="text-gray-550 dark:text-slate-450">
+                                  <p className="text-gray-550 dark:text-slate-455">
                                     Share: <span className="font-mono font-bold text-gray-900 dark:text-white">{data.percentage}%</span>
                                   </p>
                                 </div>
@@ -1095,7 +1096,7 @@ export default function Dashboard({
                         <div className="text-center px-4">
                           <p className="text-[9px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total logged</p>
                           <p className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
-                            {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            {formatCurrency(stats.totalExpense, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </p>
                         </div>
                       )}
@@ -1151,7 +1152,7 @@ export default function Dashboard({
                         <>
                           <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 tracking-wider">Total</span>
                           <span className="text-sm font-bold text-gray-800 dark:text-slate-100 font-mono">
-                            {currencySymbol}{stats.totalExpense.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            {formatCurrency(stats.totalExpense, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
                           </span>
                         </>
                       )}
@@ -1179,7 +1180,7 @@ export default function Dashboard({
                 </div>
                 <div className="text-right flex items-center gap-1.5">
                   <span className="text-xs font-bold text-gray-800 dark:text-slate-100 font-mono">
-                    {currencySymbol}{item.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    {formatCurrency(item.amount, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
                   </span>
                   <span className="text-[10px] text-gray-400 dark:text-slate-500 font-mono">({item.percentage}%)</span>
                 </div>
@@ -1247,7 +1248,7 @@ export default function Dashboard({
                   className="dark:stroke-slate-800"
                 />
                 <YAxis
-                  tickFormatter={(val) => `${currencySymbol}${val}`}
+                  tickFormatter={(val) => formatCurrency(val, currencySymbol, { maximumFractionDigits: 0, minimumFractionDigits: 0 })}
                   tick={{ fill: '#888888', fontSize: 11 }}
                   axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
                   className="dark:stroke-slate-800"
@@ -1264,7 +1265,7 @@ export default function Dashboard({
                           <div className="flex items-center gap-2 justify-between">
                             <span className="text-gray-500 dark:text-slate-400">Spent:</span>
                             <span className="font-mono font-bold text-gray-900 dark:text-white">
-                              {currencySymbol}{spent.toLocaleString()}
+                              {formatCurrency(spent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </span>
                           </div>
                           {budget > 0 && (
@@ -1272,7 +1273,7 @@ export default function Dashboard({
                               <div className="flex items-center gap-2 justify-between">
                                 <span className="text-gray-500 dark:text-slate-400">Budget:</span>
                                 <span className="font-mono font-semibold text-gray-500 dark:text-slate-400">
-                                  {currencySymbol}{budget.toLocaleString()}
+                                  {formatCurrency(budget, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 justify-between pt-1 border-t border-slate-100 dark:border-slate-800">

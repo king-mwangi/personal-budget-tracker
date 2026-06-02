@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Budget, Transaction } from '../types';
 import { CATEGORIES } from '../data/categories';
+import { formatCurrency } from '../utils/currencyFormatter';
 import { 
   Plus, 
   Trash2, 
@@ -130,14 +131,14 @@ export default function BudgetManager({
             <div className="pt-4">
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Limit Cap</span>
               <h2 className="text-2xl font-bold font-mono text-white mt-1">
-                {currencySymbol}{aggregateBudgets.totalLimit.toLocaleString()}
+                {formatCurrency(aggregateBudgets.totalLimit, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </h2>
             </div>
 
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Utilized</span>
               <p className="text-lg font-bold font-mono text-slate-300 mt-1">
-                {currencySymbol}{aggregateBudgets.totalSpent.toLocaleString()}
+                {formatCurrency(aggregateBudgets.totalSpent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
             </div>
           </div>
@@ -316,7 +317,7 @@ export default function BudgetManager({
                       <div className="text-right">
                         <span className="text-xs text-gray-400 font-mono">Limit target:</span>
                         <p className="text-xs font-bold text-gray-800 font-mono">
-                          {currencySymbol}{spent.toLocaleString()} / {currencySymbol}{b.limit.toLocaleString()}
+                          {formatCurrency(spent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / {formatCurrency(b.limit, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                       </div>
                       <button
@@ -347,8 +348,8 @@ export default function BudgetManager({
                       <span>{roundedPercent}% spent</span>
                       <span>
                         {isExceeded 
-                          ? `${currencySymbol}${(spent - b.limit).toLocaleString()} over` 
-                          : `${currencySymbol}${(b.limit - spent).toLocaleString()} left`}
+                          ? `${formatCurrency(spent - b.limit, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} over` 
+                          : `${formatCurrency(b.limit - spent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} left`}
                       </span>
                     </div>
                   </div>
