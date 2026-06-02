@@ -44,6 +44,7 @@ async function handleInsightsRequest(req: any, res: any) {
     let budgets = req.body?.budgets || [];
     let savingsGoals = req.body?.savingsGoals || [];
     const currency = req.body?.currency || "Ksh";
+    const selectedPeriod = req.body?.selectedPeriod || "all";
 
     // Securely retrieve the authenticated user's records strictly from Supabase using their JWT token
     const authHeader = req.headers?.authorization || req.headers?.Authorization;
@@ -85,14 +86,105 @@ async function handleInsightsRequest(req: any, res: any) {
       });
     }
 
-    const ai = getAIClient();
-    const prompt = `Analyze the following monthly personal finance snapshot:
-    - Budgets: ${JSON.stringify(budgets)}
-    - Transactions: ${JSON.stringify(transactions)}
-    - Savings Goals: ${JSON.stringify(savingsGoals)}
-    - Active Currency: ${currency}
+    // Utility helpers for formatting periods
+    const getPeriodLabel = (period: string) => {
+      if (!period || period === 'all') return 'Combine All Periods (All-Time)';
+      const parts = period.split('-');
+      if (parts.length < 2) return period;
+      const [yearStr, monthStr] = parts;
+      const monthNames = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+      ];
+      const monthIdx = parseInt(monthStr, 10) - 1;
+      if (monthIdx >= 0 && monthIdx < 12) {
+        return `${monthNames[monthIdx]} ${yearStr}`;
+      }
+      return period;
+    };
 
-    Provide a professional financial analysis containing overall status, high-level summary, specific actionable insights (noticing specific overspends or saving patterns), and direct category savings goals with estimates.`;
+    const getPreviousMonthString = (yearMonthStr: string): string => {
+      const parts = yearMonthStr.split('-');
+      if (parts.length !== 2) return yearMonthStr;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const prevDate = new Date(year, month - 2, 1);
+      const prevYear = prevDate.getFullYear();
+      const prevMonth = prevDate.getMonth() + 1;
+      const prevMonthStr = prevMonth < 10 ? `0${prevMonth}` : `${prevMonth}`;
+      return `${prevYear}-${prevMonthStr}`;
+    };
+
+    let targetMonthTransactions = [];
+    let comparisonTransactions = [];
+    let isAllView = selectedPeriod === 'all';
+    
+    let selectedIncome = 0;
+    let selectedExpense = 0;
+    let prevIncome = 0;
+    let prevExpense = 0;
+    let prevLabel = "";
+
+    const activeLabel = getPeriodLabel(selectedPeriod);
+
+    if (!isAllView) {
+      targetMonthTransactions = transactions.filter((t: any) => t.date && t.date.substring(0, 7) === selectedPeriod);
+      const prevPeriod = getPreviousMonthString(selectedPeriod);
+      prevLabel = getPeriodLabel(prevPeriod);
+      comparisonTransactions = transactions.filter((t: any) => t.date && t.date.substring(0, 7) === prevPeriod);
+
+      targetMonthTransactions.forEach((t: any) => {
+        if (t.type === 'income') selectedIncome += Number(t.amount || 0);
+        else selectedExpense += Number(t.amount || 0);
+      });
+
+      comparisonTransactions.forEach((t: any) => {
+        if (t.type === 'income') prevIncome += Number(t.amount || 0);
+        else prevExpense += Number(t.amount || 0);
+      });
+    } else {
+      transactions.forEach((t: any) => {
+        if (t.type === 'income') selectedIncome += Number(t.amount || 0);
+        else selectedExpense += Number(t.amount || 0);
+      });
+    }
+
+    const ai = getAIClient();
+    let prompt = "";
+    if (isAllView) {
+      prompt = `Analyze the following all-time combined personal finance snapshot:
+      - Budgets allocations: ${JSON.stringify(budgets)}
+      - All logged transactions count: ${transactions.length}
+      - Complete transaction history: ${JSON.stringify(transactions)}
+      - Cumulative Inflow / Income recorded historical: ${currency} ${selectedIncome.toLocaleString()}
+      - Cumulative Outflow / Expenses recorded historical: ${currency} ${selectedExpense.toLocaleString()}
+      - Savings Goals targets status: ${JSON.stringify(savingsGoals)}
+      - Active Currency: ${currency}
+
+      Provide a professional lifetime financial analysis containing overall status, high-level summary, specific actionable insights, and direct category savings goals with estimates.`;
+    } else {
+      prompt = `Analyze the following monthly personal finance snapshot comparing the selected month with the previous month:
+      - Current selected billing month of review: "${activeLabel}" (${selectedPeriod})
+        - Current Month Total Inflows (Income): ${currency} ${selectedIncome.toLocaleString()}
+        - Current Month Total Outflows (Expenses): ${currency} ${selectedExpense.toLocaleString()}
+        - Current Month Net Savings Balance flow: ${currency} ${(selectedIncome - selectedExpense).toLocaleString()}
+        - Current Month transactions feed: ${JSON.stringify(targetMonthTransactions)}
+      
+      - Comparison base cycle (The previous month): "${prevLabel}" (${getPreviousMonthString(selectedPeriod)})
+        - Previous Month Total Inflows (Income): ${currency} ${prevIncome.toLocaleString()}
+        - Previous Month Total Outflows (Expenses): ${currency} ${prevExpense.toLocaleString()}
+        - Previous Month Net Savings Balance flow: ${currency} ${(prevIncome - prevExpense).toLocaleString()}
+        - Previous Month transactions feed: ${JSON.stringify(comparisonTransactions)}
+      
+      - Configured monthly budgets ceilings: ${JSON.stringify(budgets)}
+      - Savings target plans: ${JSON.stringify(savingsGoals)}
+      - Active regional currency symbol: ${currency}
+
+      Requirements:
+      1. Deliver diagnostics tailored specifically to the Active Selected Month: ${activeLabel}.
+      2. Constructively compare the current month outflows and inflows against the previous month of ${prevLabel}. Point out precise variations in totals (did expenses increase or decrease, by what percent?), check for category priority shifts, and note if they are saving more or less of their income.
+      3. Cite specific numbers with the correct currency prefix (${currency}) to maintain highly credible observations. Double-check all budget ceiling limits.`;
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",

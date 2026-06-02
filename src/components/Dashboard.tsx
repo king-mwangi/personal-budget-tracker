@@ -26,6 +26,8 @@ interface DashboardProps {
   loadingInsights?: boolean;
   userFirstName?: string;
   showPrevMonthTrend?: boolean;
+  selectedPeriod: string;
+  setSelectedPeriod: (period: string) => void;
 }
 
 export default function Dashboard({ 
@@ -35,7 +37,9 @@ export default function Dashboard({
   aiInsights = null,
   loadingInsights = false,
   userFirstName = "User",
-  showPrevMonthTrend = false
+  showPrevMonthTrend = false,
+  selectedPeriod,
+  setSelectedPeriod
 }: DashboardProps) {
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
@@ -45,7 +49,6 @@ export default function Dashboard({
     return new Date().toISOString().substring(0, 7);
   }, []);
 
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentSystemMonth);
   const [showPeriodDropdown, setShowPeriodDropdown] = useState(false);
 
   // Available unique periods extraction from transactions plus the current active tracking period

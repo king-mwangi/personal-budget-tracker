@@ -159,6 +159,10 @@ export default function App() {
 
   // State Stores loaded from Supabase
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const currentSystemMonth = React.useMemo(() => {
+    return new Date().toISOString().substring(0, 7);
+  }, []);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentSystemMonth);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -776,7 +780,11 @@ export default function App() {
 
     let isFallbackNeeded = false;
     let fallbackErrorMessage = "";
-    const cacheKey = user ? `fin_tracker_ai_insights_${user.id}` : 'fin_tracker_ai_insights_demo';
+    
+    // Construct period-specific cache key to prevent leaks across select periods
+    const cacheKey = user 
+      ? `fin_tracker_ai_insights_${selectedPeriod}_${user.id}` 
+      : `fin_tracker_ai_insights_${selectedPeriod}_demo`;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -788,7 +796,7 @@ export default function App() {
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency })
+        body: JSON.stringify({ transactions, budgets, savingsGoals: goals, currency, selectedPeriod })
       });
 
       if (!response.ok) {
@@ -850,13 +858,30 @@ export default function App() {
 
     // Execute fallback routines (Local mathematically generated budget insights)
     if (isFallbackNeeded) {
+      // Helper inside fallback to get previous month YYYY-MM
+      const getPreviousMonthString = (yearMonthStr: string): string => {
+        const parts = yearMonthStr.split('-');
+        if (parts.length !== 2) return yearMonthStr;
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10);
+        const prevDate = new Date(year, month - 2, 1);
+        const prevYear = prevDate.getFullYear();
+        const prevMonth = prevDate.getMonth() + 1;
+        const prevMonthStr = prevMonth < 10 ? `0${prevMonth}` : `${prevMonth}`;
+        return `${prevYear}-${prevMonthStr}`;
+      };
+
       // Compute local data-driven smart insights when no API key exists on client
-      const totalExpenses = transactions
+      const filteredForAnalysis = selectedPeriod === 'all'
+        ? transactions
+        : transactions.filter(t => t.date && t.date.startsWith(selectedPeriod));
+
+      const totalExpenses = filteredForAnalysis
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
       const categorySpend: Record<string, number> = {};
-      transactions.filter(t => t.type === 'expense').forEach(t => {
+      filteredForAnalysis.filter(t => t.type === 'expense').forEach(t => {
         categorySpend[t.category] = (categorySpend[t.category] || 0) + (t.amount || 0);
       });
 
@@ -874,13 +899,26 @@ export default function App() {
 
       const totalBudgetLimit = budgets.reduce((sum, b) => sum + (b.limit || 0), 0);
 
+      let mathCompText = "";
+      if (selectedPeriod !== 'all') {
+        const prevP = getPreviousMonthString(selectedPeriod);
+        const prevMonthTx = transactions.filter(t => t.date && t.date.startsWith(prevP));
+        const prevExpenses = prevMonthTx
+          .filter(t => t.type === 'expense')
+          .reduce((sum, t) => sum + (t.amount || 0), 0);
+        
+        const variance = totalExpenses - prevExpenses;
+        const trendStr = variance > 0 ? "increased" : "decreased";
+        mathCompText = ` Compare to previous cycle (${prevP}), spend total ${trendStr} by ${currency} ${Math.abs(variance).toLocaleString()}.`;
+      }
+
       const computedLocalInsights = {
         overallStatus: overallStatus,
-        summaryMessage: `Budget analysis computed locally. Expenses: ${currency} ${(totalExpenses || 0).toLocaleString()}. Budget Limit: ${currency} ${(totalBudgetLimit || 0).toLocaleString()}.`,
+        summaryMessage: `Budget analysis computed locally. Expenses for ${selectedPeriod === 'all' ? 'All-Time' : selectedPeriod}: ${currency} ${(totalExpenses || 0).toLocaleString()}. Budget Limit: ${currency} ${(totalBudgetLimit || 0).toLocaleString()}.${mathCompText}`,
         actionableInsights: [
           overspentCategories.length > 0
             ? `⚠️ Overspent Alerts: Check: ${overspentCategories.map(c => c.category).join(', ')}.`
-            : `✅ Spending control is outstanding!`,
+            : `✅ Spending control is outstanding for this period!`,
           `Your recent outflows constitute exactly ${totalBudgetLimit > 0 ? Math.round((totalExpenses / totalBudgetLimit) * 100) : 0}% of your cumulative budget allocations.`,
           `Savings progress: Currently tracking ${goals.length} target plans.`
         ],
@@ -905,17 +943,18 @@ export default function App() {
     setLoadingInsights(false);
   };
 
-  // Run dynamic advisor insights on startup or currency change with localStorage resilience
+  // Run dynamic advisor insights on startup, active period switch, or currency change
   useEffect(() => {
     if (isDataLoaded) {
-      const cacheKey = user ? `fin_tracker_ai_insights_${user.id}` : 'fin_tracker_ai_insights_demo';
+      const cacheKey = user 
+        ? `fin_tracker_ai_insights_${selectedPeriod}_${user.id}` 
+        : `fin_tracker_ai_insights_${selectedPeriod}_demo`;
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached);
           setAIInsights(parsed);
-          // If loaded from cache on startup, mark it stale relative to live database but don't force auto-fetch
-          setIsInsightsStale(true);
+          setIsInsightsStale(false);
         } catch (e) {
           console.warn("Could not parse cached insights:", e);
           fetchAIInsights();
@@ -924,7 +963,7 @@ export default function App() {
         fetchAIInsights();
       }
     }
-  }, [currency, isDataLoaded, user]);
+  }, [currency, isDataLoaded, user, selectedPeriod]);
 
   // Handler adding transactions
   const handleAddTransaction = async (newTx: Omit<Transaction, 'id'>) => {
@@ -2926,6 +2965,8 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 loadingInsights={loadingInsights}
                 userFirstName={userFirstName}
                 showPrevMonthTrend={overlayPrevMonth}
+                selectedPeriod={selectedPeriod}
+                setSelectedPeriod={setSelectedPeriod}
               />
             )}
 
