@@ -69,11 +69,61 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [excelExportSuccess, setExcelExportSuccess] = useState(false);
+  const [excelToastPosition, setExcelToastPosition] = useState<'top-right' | 'bottom-right'>(() => {
+    try {
+      const stored = localStorage.getItem('fin_tracker_excel_toast_position');
+      return (stored as 'top-right' | 'bottom-right') || 'top-right';
+    } catch {
+      return 'top-right';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fin_tracker_excel_toast_position', excelToastPosition);
+    } catch (e) {
+      console.error('Failed to save excel toast position', e);
+    }
+  }, [excelToastPosition]);
+
   const prevExportingRef = useRef(isExcelExporting);
 
   useEffect(() => {
     if (prevExportingRef.current && !isExcelExporting) {
       setExcelExportSuccess(true);
+      
+      // Play a subtle high-quality UI chime
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const playTone = (freq: number, start: number, duration: number, volume: number) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, start);
+            
+            gainNode.gain.setValueAtTime(0, start);
+            gainNode.gain.linearRampToValueAtTime(volume, start + 0.04);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+            
+            osc.start(start);
+            osc.stop(start + duration);
+          };
+          
+          const now = ctx.currentTime;
+          playTone(523.25, now, 0.4, 0.05);       // C5
+          playTone(659.25, now + 0.08, 0.5, 0.04); // E5
+          playTone(783.99, now + 0.16, 0.6, 0.03); // G5
+        }
+      } catch (err) {
+        console.warn('UI chime playback failed:', err);
+      }
+
       const timer = setTimeout(() => {
         setExcelExportSuccess(false);
       }, 3500); // feedback persists for 3.5 seconds
@@ -1869,30 +1919,90 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       {/* Excel Export Success Toast */}
       <AnimatePresence>
         {excelExportSuccess && (
-          <div id="excel-success-toast" className="fixed top-20 right-5 z-100 max-w-sm w-full pointer-events-auto">
+          <div 
+            id="excel-success-toast" 
+            className={`fixed right-5 z-100 max-w-sm w-full pointer-events-auto transition-all duration-300 ${
+              excelToastPosition === 'bottom-right' ? 'bottom-5' : 'top-20'
+            }`}
+          >
             <motion.div
               initial={{ opacity: 0, x: 200, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 200, scale: 0.9 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 120 }}
-              className="bg-slate-900 border border-emerald-500/30 text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between gap-4 backdrop-blur-md bg-opacity-95"
+              animate={{ 
+                opacity: [0, 1, 1, 0],
+                x: [200, 0, 0, 80],
+                scale: [0.9, 1, 1, 0.95]
+              }}
+              exit={{ 
+                opacity: 0, 
+                x: 100, 
+                scale: 0.95, 
+                transition: { duration: 0.35, ease: 'easeIn' }
+              }}
+              transition={{ 
+                duration: 3.5, 
+                times: [0, 0.08, 0.85, 1], 
+                ease: 'easeInOut' 
+              }}
+              onClick={() => setExcelExportSuccess(false)}
+              className={`relative overflow-hidden rounded-2xl shadow-2xl p-4 pb-5 flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer select-none border transition-colors duration-300 ${
+                excelStyleTheme === 'minimal'
+                  ? 'bg-white/95 dark:bg-slate-950/95 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                  : 'bg-slate-900/95 border-emerald-500/30 text-white'
+              }`}
             >
-              <div className="flex items-center gap-3.5 text-left">
-                <div className="p-2 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 rounded-xl border border-emerald-500/30 flex-shrink-0 animate-bounce">
+              <div className="flex items-center gap-3.5 text-left pr-6">
+                <div className={`p-2 rounded-xl border flex-shrink-0 animate-bounce transition-colors duration-300 ${
+                  excelStyleTheme === 'minimal'
+                    ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                    : 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                }`}>
                   <Check className="w-5 h-5 stroke-[3]" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-extrabold tracking-wide text-white leading-tight">Spreadsheet Exported!</h4>
-                  <p className="text-[10px] text-slate-350 mt-1 leading-normal font-sans">Your custom Excel report has been downloaded successfully.</p>
+                  <h4 className={`text-xs font-extrabold tracking-wide leading-tight transition-colors duration-300 ${
+                    excelStyleTheme === 'minimal' ? 'text-slate-900 dark:text-slate-100' : 'text-white'
+                  }`}>
+                    Spreadsheet Exported!
+                  </h4>
+                  <p className={`text-[10px] mt-1 leading-normal font-sans transition-colors duration-300 ${
+                    excelStyleTheme === 'minimal' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-350'
+                  }`}>
+                    Your custom Excel report has been downloaded successfully.
+                  </p>
                 </div>
               </div>
               <button 
                 type="button"
-                onClick={() => setExcelExportSuccess(false)}
-                className="text-slate-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors border-0 bg-transparent cursor-pointer shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExcelExportSuccess(false);
+                }}
+                className={`absolute top-2 right-2 p-1 rounded-lg transition-colors border-0 bg-transparent cursor-pointer shrink-0 z-10 ${
+                  excelStyleTheme === 'minimal'
+                    ? 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+                aria-label="Close notification"
               >
                 <X className="w-4.5 h-4.5" />
               </button>
+
+              {/* Draining Progress Bar */}
+              <motion.div
+                initial={{ width: "100%", backgroundColor: excelStyleTheme === 'minimal' ? "#475569" : "#10b981" }}
+                animate={{ 
+                  width: "0%",
+                  backgroundColor: excelStyleTheme === 'minimal'
+                    ? ["#475569", "#475569", "#f59e0b"]
+                    : ["#10b981", "#10b981", "#f59e0b"]
+                }}
+                transition={{ 
+                  duration: 3.5, 
+                  ease: "linear",
+                  times: [0, 0.857, 1]
+                }}
+                className="absolute bottom-0 left-0 h-1"
+              />
             </motion.div>
           </div>
         )}
@@ -2050,6 +2160,40 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                           ℹ️ Sandboxed Environment Fallback: Native browser popups are restricted in preview screens. Ledger's real-time visual progress gauges, badges, and warning thresholds are fully automated and active below!
                         </p>
                       )}
+                    </div>
+
+                    {/* Toast Position Configuration */}
+                    <div className="bg-slate-50/70 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-gray-800 dark:text-slate-200 text-[11px]">Excel Toast Position</p>
+                          <p className="text-[9px] text-slate-400 leading-normal">Configure screen location for download notifications</p>
+                        </div>
+                        <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-0.5 shadow-2xs shrink-0 select-none">
+                          <button
+                            type="button"
+                            onClick={() => setExcelToastPosition('top-right')}
+                            className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all cursor-pointer border-0 ${
+                              excelToastPosition === 'top-right'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-500 dark:text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            Top-Right
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExcelToastPosition('bottom-right')}
+                            className={`px-3 py-1 rounded-md text-[9px] font-bold transition-all cursor-pointer border-0 ${
+                              excelToastPosition === 'bottom-right'
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-500 dark:text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800'
+                            }`}
+                          >
+                            Bottom-Right
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Main items triggers */}
