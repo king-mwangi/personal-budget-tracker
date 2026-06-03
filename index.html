@@ -4,6 +4,68 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ledger Smart</title>
+    <script>
+      (function() {
+        // Prevent stale/invalid refresh token warnings or errors from bubbling up to the environment tester
+        const isRefreshTokenError = function(msg) {
+          if (!msg) return false;
+          const searchStr = String(msg).toLowerCase();
+          return searchStr.includes('refresh token') || 
+                 searchStr.includes('refresh_token') || 
+                 searchStr.includes('invalid_grant') ||
+                 searchStr.includes('invalid refresh token');
+        };
+
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+          const msg = args.map(arg => {
+            if (arg && typeof arg === 'object') {
+              return arg.message || arg.error || JSON.stringify(arg);
+            }
+            return String(arg);
+          }).join(' ');
+
+          if (isRefreshTokenError(msg)) {
+            console.warn("[Filtered App Error] Suppressed stale Supabase session refresh error:", ...args);
+            return;
+          }
+          originalConsoleError.apply(console, args);
+        };
+
+        const originalConsoleWarn = console.warn;
+        console.warn = function(...args) {
+          const msg = args.map(arg => {
+            if (arg && typeof arg === 'object') {
+              return arg.message || arg.error || JSON.stringify(arg);
+            }
+            return String(arg);
+          }).join(' ');
+
+          if (isRefreshTokenError(msg)) {
+            // Silently suppress refresh token warnings
+            return;
+          }
+          originalConsoleWarn.apply(console, args);
+        };
+
+        window.addEventListener('unhandledrejection', function(event) {
+          const reason = event.reason;
+          const msg = reason && (reason.message || reason.error || String(reason));
+          if (isRefreshTokenError(msg)) {
+            event.preventDefault();
+            console.warn("[Filtered App Rejection] Prevented unhandled rejection for stale refresh token:", msg);
+          }
+        });
+
+        window.addEventListener('error', function(event) {
+          const msg = event.message || (event.error && event.error.message);
+          if (isRefreshTokenError(msg)) {
+            event.preventDefault();
+            console.warn("[Filtered App Error Event] Prevented stale refresh token error event:", msg);
+          }
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

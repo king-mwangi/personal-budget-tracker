@@ -116,9 +116,10 @@ export default function App() {
           };
           
           const now = ctx.currentTime;
-          playTone(523.25, now, 0.4, 0.05);       // C5
-          playTone(659.25, now + 0.08, 0.5, 0.04); // E5
-          playTone(783.99, now + 0.16, 0.6, 0.03); // G5
+          // Distinct high-frequency confirmation crystal chime (E6 -> G6 -> C7)
+          playTone(1318.51, now, 0.25, 0.03);        // E6
+          playTone(1567.98, now + 0.06, 0.3, 0.035);  // G6
+          playTone(2093.00, now + 0.12, 0.4, 0.025);  // C7 (crisp high peak)
         }
       } catch (err) {
         console.warn('UI chime playback failed:', err);
@@ -853,7 +854,8 @@ export default function App() {
       : `fin_tracker_ai_insights_${selectedPeriod}_demo`;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+      const session = data?.session;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
@@ -1921,21 +1923,23 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         {excelExportSuccess && (
           <div 
             id="excel-success-toast" 
-            className={`fixed right-5 z-100 max-w-sm w-full pointer-events-auto transition-all duration-300 ${
+            className={`fixed right-5 z-100 max-w-sm w-full pointer-events-auto transition-all duration-300 hover:scale-[1.02] ${
               excelToastPosition === 'bottom-right' ? 'bottom-5' : 'top-20'
             }`}
           >
             <motion.div
-              initial={{ opacity: 0, x: 200, scale: 0.9 }}
+              initial={{ opacity: 0, x: 200, scale: 0.9, filter: 'blur(10px)' }}
               animate={{ 
                 opacity: [0, 1, 1, 0],
                 x: [200, 0, 0, 80],
-                scale: [0.9, 1, 1, 0.95]
+                scale: [0.9, 1, 1, 0.95],
+                filter: ['blur(10px)', 'blur(0px)', 'blur(0px)', 'blur(5px)']
               }}
               exit={{ 
                 opacity: 0, 
-                x: 100, 
+                x: 40, 
                 scale: 0.95, 
+                filter: 'blur(10px)',
                 transition: { duration: 0.35, ease: 'easeIn' }
               }}
               transition={{ 
@@ -1946,16 +1950,33 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               onClick={() => setExcelExportSuccess(false)}
               className={`relative overflow-hidden rounded-2xl shadow-2xl p-4 pb-5 flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer select-none border transition-colors duration-300 ${
                 excelStyleTheme === 'minimal'
-                  ? 'bg-white/95 dark:bg-slate-950/95 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
-                  : 'bg-slate-900/95 border-emerald-500/30 text-white'
+                  ? 'border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
+                  : 'border-emerald-500/30 text-white'
               }`}
             >
-              <div className="flex items-center gap-3.5 text-left pr-6">
-                <div className={`p-2 rounded-xl border flex-shrink-0 transition-colors duration-300 ${
+              {/* Secondary Fade-in Background */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.95 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className={`absolute inset-0 -z-10 transition-colors duration-300 ${
                   excelStyleTheme === 'minimal'
-                    ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
-                    : 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                }`}>
+                    ? 'bg-white dark:bg-slate-950'
+                    : 'bg-slate-900'
+                }`}
+              />
+
+              <div className="flex items-center gap-3.5 text-left pr-6">
+                <motion.div 
+                  initial={{ scale: 1 }}
+                  animate={{ scale: [1, 1.18, 0.98, 1.05, 1] }}
+                  transition={{ delay: 0.15, duration: 0.7, ease: "easeInOut" }}
+                  className={`p-2 rounded-xl border flex-shrink-0 transition-colors duration-300 ${
+                    excelStyleTheme === 'minimal'
+                      ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
+                      : 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                  }`}
+                >
                   <svg
                     className="w-5 h-5"
                     viewBox="0 0 24 24"
@@ -1967,12 +1988,12 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   >
                     <motion.path
                       d="M20 6L9 17l-5-5"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
+                      initial={{ pathLength: 0, strokeDashoffset: 1 }}
+                      animate={{ pathLength: 1, strokeDashoffset: 0 }}
                       transition={{ duration: 0.6, ease: "easeInOut" }}
                     />
                   </svg>
-                </div>
+                </motion.div>
                 <div>
                   <h4 className={`text-xs font-extrabold tracking-wide leading-tight transition-colors duration-300 ${
                     excelStyleTheme === 'minimal' ? 'text-slate-900 dark:text-slate-100' : 'text-white'
