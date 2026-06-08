@@ -30,7 +30,10 @@ import {
   Sparkles,
   X,
   Eye,
-  Mail
+  Mail,
+  ChevronDown,
+  ArrowUpDown,
+  Edit3
 } from 'lucide-react';
 
 interface MonthlyReportsProps {
@@ -169,6 +172,7 @@ export default function MonthlyReports({
   const [compareSnapshotId, setCompareSnapshotId] = useState<string | null>(null);
   const [snapshotSuccessMsg, setSnapshotSuccessMsg] = useState<string | null>(null);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [showExcelExportModal, setShowExcelExportModal] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState<string>("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSuccessMsg, setEmailSuccessMsg] = useState<string | null>(null);
@@ -256,6 +260,7 @@ export default function MonthlyReports({
 
   const [showCustomHeaders, setShowCustomHeaders] = useState(false);
   const [showExcelPreviewOverlay, setShowExcelPreviewOverlay] = useState(false);
+  const [isExcelExpanded, setIsExcelExpanded] = useState(false);
 
   const selectedCompareSnapshot = snapshots?.find(s => s.id === compareSnapshotId);
 
@@ -547,11 +552,11 @@ export default function MonthlyReports({
         <!-- Header Banner / Letterhead -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px;">
           <div>
-            <h1 style="font-size: 19px; font-weight: 800; color: #1e3a8a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Financial Statements</h1>
-            <p style="font-size: 10px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace; letter-spacing: 0.5px;">AUDIT DIGEST & EXECUTIVE PERFORMANCE REPORT</p>
+            <h1 style="font-size: 19px; font-weight: 800; color: #1e3a8a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Financial Report</h1>
+            <p style="font-size: 10px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace; letter-spacing: 0.5px;">MONTHLY BUDGET & CASH FLOW SUMMARY</p>
           </div>
           <div style="text-align: right;">
-            <p style="font-size: 10px; margin: 0; color: #475569; font-weight: bold;">Document ID: <span style="font-family: monospace; color: #0284c7;">LGR-RPT-${Date.now().toString().substring(5)}</span></p>
+            <p style="font-size: 10px; margin: 0; color: #475569; font-weight: bold;">Report ID: <span style="font-family: monospace; color: #0284c7;">LGR-RPT-${Date.now().toString().substring(5)}</span></p>
             <p style="font-size: 9px; margin: 2px 0 0 0; color: #64748b;">Generated: ${new Date().toLocaleString()}</p>
           </div>
         </div>
@@ -559,16 +564,16 @@ export default function MonthlyReports({
         <!-- Meta Information Grid -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px;">
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Authorized Auditor</span>
-            <span style="font-weight: bold; color: #334155;">Lincoln Mwangi</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Prepared For</span>
+            <span style="font-weight: bold; color: #334155;">Active Account Owner</span>
           </div>
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Report Scope Period</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Report Period</span>
             <span style="font-weight: bold; color: #334155;">${monthLabel}</span>
           </div>
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Unit of Account</span>
-            <span style="font-weight: bold; color: #334155;">${currencySymbol} (Base Ledger)</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Base Currency</span>
+            <span style="font-weight: bold; color: #334155;">${currencySymbol}</span>
           </div>
         </div>
 
@@ -576,15 +581,15 @@ export default function MonthlyReports({
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 25px;">
           <!-- Income Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #10b981; padding: 12px; border-radius: 8px;">
-            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Aggregated Inflows</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Total Influx (Income)</span>
             <h3 style="font-size: 16px; font-weight: 800; color: #065f46; margin: 4px 0 0 0; font-family: monospace;">${currencySymbol}${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${incomeTransactions.length} secure deposits</p>
+            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${incomeTransactions.length} items logged</p>
           </div>
           <!-- Expense Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #f43f5e; padding: 12px; border-radius: 8px;">
-            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Aggregated Outflows</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Total Outlay (Expenses)</span>
             <h3 style="font-size: 16px; font-weight: 800; color: #9f1239; margin: 4px 0 0 0; font-family: monospace;">${currencySymbol}${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${expenseTransactions.length} logs</p>
+            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${expenseTransactions.length} items logged</p>
           </div>
           <!-- Savings Rate Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 8px;">
@@ -605,9 +610,9 @@ export default function MonthlyReports({
             <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
                 <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b;">
-                  <th style="padding: 3px 0;">Channel Goal</th>
-                  <th style="padding: 3px 0; text-align: right;">Outlay Total</th>
-                  <th style="padding: 3px 0; text-align: right;">Weight</th>
+                  <th style="padding: 3px 0;">Category Name</th>
+                  <th style="padding: 3px 0; text-align: right;">Total Amount</th>
+                  <th style="padding: 3px 0; text-align: right;">Share</th>
                 </tr>
               </thead>
               <tbody>
@@ -622,9 +627,9 @@ export default function MonthlyReports({
             <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
                 <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b;">
-                  <th style="padding: 3px 0;">Billing Sector</th>
-                  <th style="padding: 3px 0; text-align: right;">Outlay Total</th>
-                  <th style="padding: 3px 0; text-align: right;">Weight</th>
+                  <th style="padding: 3px 0;">Category Name</th>
+                  <th style="padding: 3px 0; text-align: right;">Total Amount</th>
+                  <th style="padding: 3px 0; text-align: right;">Share</th>
                 </tr>
               </thead>
               <tbody>
@@ -637,16 +642,16 @@ export default function MonthlyReports({
         <!-- Ledger General Sheet -->
         <div style="border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 25px;">
           <h3 style="font-size: 10.5px; font-weight: bold; color: #1e293b; text-transform: uppercase; margin: 0 0 8px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between;">
-            <span>Audit Journal Log Entries</span>
-            <span style="font-family: monospace; font-size: 9.5px; color: #94a3b8;">${monthlyTransactions.length} Items Indexed</span>
+            <span>Transaction History Log</span>
+            <span style="font-family: monospace; font-size: 9.5px; color: #94a3b8;">${monthlyTransactions.length} Entries Listed</span>
           </h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 9.5px;">
             <thead>
               <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: bold;">
-                <th style="padding: 4px;">Billing Date</th>
-                <th style="padding: 4px;">Distribution Sector</th>
-                <th style="padding: 4px;">Description Abstract</th>
-                <th style="padding: 4px; text-align: right;">Net Volume Flow</th>
+                <th style="padding: 4px;">Date</th>
+                <th style="padding: 4px;">Category</th>
+                <th style="padding: 4px;">Description</th>
+                <th style="padding: 4px; text-align: right;">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -656,10 +661,9 @@ export default function MonthlyReports({
           </table>
         </div>
 
-        <!-- Standard Corporate Compliance Verification Footer -->
+        <!-- Watermark Footer -->
         <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: center; font-size: 9px; color: #94a3b8; font-family: monospace;">
-          <p style="margin: 0; font-weight: bold;">PREPARED SECURELY VIA PORTFOLIO CLIENT LEDGER • CODE VERIFICATION LGR-SYS-${Date.now().toString().substring(1)}</p>
-          <p style="margin: 2px 0 0 0;">Report prepared securely to fulfill snapshot download request. Authorized documentation. Copyright &copy; 2026. All rights reserved.</p>
+          <p style="margin: 0; font-weight: bold;">LEDGER REPORT • COMPILED SECURELY ON ${new Date().toLocaleDateString()}</p>
         </div>
       </div>
     `;
@@ -674,21 +678,21 @@ export default function MonthlyReports({
         scale: 2, // Double DPI sharp screen capture
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff', // Always pristine Light background for high-contrast printable compliance reports
+        backgroundColor: '#ffffff', // Always pristine Light background
         allowTaint: true,
       });
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgData = canvas.toDataURL('image/jpeg', 0.82);
       const imgWidth = canvas.width / 2;
       const imgHeight = canvas.height / 2;
       
       const pdf = new jsPDF({
         orientation: 'p',
         unit: 'px',
-        format: [imgWidth + 40, imgHeight + 40], // Custom margin paddings around standard executive statements
+        format: [imgWidth + 40, imgHeight + 40], // Custom margin paddings
       });
 
-      pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 20, 20, imgWidth, imgHeight);
       
       const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
       pdf.save(`Ledger_Financial_Statement_${fileDateLabel}.pdf`);
@@ -792,11 +796,11 @@ export default function MonthlyReports({
         <!-- Header Banner / Letterhead -->
         <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px;">
           <div>
-            <h1 style="font-size: 19px; font-weight: 800; color: #1e3a8a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Financial Statements</h1>
-            <p style="font-size: 10px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace; letter-spacing: 0.5px;">AUDIT DIGEST & EXECUTIVE PERFORMANCE REPORT</p>
+            <h1 style="font-size: 19px; font-weight: 800; color: #1e3a8a; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Financial Report</h1>
+            <p style="font-size: 10px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace; letter-spacing: 0.5px;">MONTHLY BUDGET & CASH FLOW SUMMARY</p>
           </div>
           <div style="text-align: right;">
-            <p style="font-size: 10px; margin: 0; color: #475569; font-weight: bold;">Document ID: <span style="font-family: monospace; color: #0284c7;">${reportId}</span></p>
+            <p style="font-size: 10px; margin: 0; color: #475569; font-weight: bold;">Report ID: <span style="font-family: monospace; color: #0284c7;">${reportId}</span></p>
             <p style="font-size: 9px; margin: 2px 0 0 0; color: #64748b;">Generated: ${new Date().toLocaleString()}</p>
           </div>
         </div>
@@ -804,16 +808,16 @@ export default function MonthlyReports({
         <!-- Meta Information Grid -->
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 11px;">
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Authorized Auditor</span>
-            <span style="font-weight: bold; color: #334155;">Lincoln Mwangi</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Prepared For</span>
+            <span style="font-weight: bold; color: #334155;">Active Account Owner</span>
           </div>
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Report Scope Period</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Report Period</span>
             <span style="font-weight: bold; color: #334155;">${monthLabel}</span>
           </div>
           <div>
-            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Unit of Account</span>
-            <span style="font-weight: bold; color: #334155;">${currencySymbol} (Base Ledger)</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #94a3b8; text-transform: uppercase; display: block;">Base Currency</span>
+            <span style="font-weight: bold; color: #334155;">${currencySymbol}</span>
           </div>
         </div>
 
@@ -821,15 +825,15 @@ export default function MonthlyReports({
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 25px;">
           <!-- Income Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #10b981; padding: 12px; border-radius: 8px;">
-            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Aggregated Inflows</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Total Influx (Income)</span>
             <h3 style="font-size: 16px; font-weight: 800; color: #065f46; margin: 4px 0 0 0; font-family: monospace;">${currencySymbol}${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${incomeTransactions.length} secure deposits</p>
+            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${incomeTransactions.length} items logged</p>
           </div>
           <!-- Expense Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #f43f5e; padding: 12px; border-radius: 8px;">
-            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Aggregated Outflows</span>
+            <span style="font-size: 8.5px; font-weight: bold; color: #64748b; text-transform: uppercase;">Total Outlay (Expenses)</span>
             <h3 style="font-size: 16px; font-weight: 800; color: #9f1239; margin: 4px 0 0 0; font-family: monospace;">${currencySymbol}${totalExpense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
-            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${expenseTransactions.length} logs</p>
+            <p style="font-size: 9px; color: #94a3b8; margin: 2px 0 0 0;">${expenseTransactions.length} items logged</p>
           </div>
           <!-- Savings Rate Box -->
           <div style="border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 8px;">
@@ -850,9 +854,9 @@ export default function MonthlyReports({
             <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
                 <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b;">
-                  <th style="padding: 3px 0;">Channel Goal</th>
-                  <th style="padding: 3px 0; text-align: right;">Outlay Total</th>
-                  <th style="padding: 3px 0; text-align: right;">Weight</th>
+                  <th style="padding: 3px 0;">Category Name</th>
+                  <th style="padding: 3px 0; text-align: right;">Total Amount</th>
+                  <th style="padding: 3px 0; text-align: right;">Share</th>
                 </tr>
               </thead>
               <tbody>
@@ -867,9 +871,9 @@ export default function MonthlyReports({
             <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
                 <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b;">
-                  <th style="padding: 3px 0;">Billing Sector</th>
-                  <th style="padding: 3px 0; text-align: right;">Outlay Total</th>
-                  <th style="padding: 3px 0; text-align: right;">Weight</th>
+                  <th style="padding: 3px 0;">Category Name</th>
+                  <th style="padding: 3px 0; text-align: right;">Total Amount</th>
+                  <th style="padding: 3px 0; text-align: right;">Share</th>
                 </tr>
               </thead>
               <tbody>
@@ -882,16 +886,16 @@ export default function MonthlyReports({
         <!-- Ledger General Sheet -->
         <div style="border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 25px;">
           <h3 style="font-size: 10.5px; font-weight: bold; color: #1e293b; text-transform: uppercase; margin: 0 0 8px 0; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; display: flex; justify-content: space-between;">
-            <span>Audit Journal Log Entries</span>
-            <span style="font-family: monospace; font-size: 9.5px; color: #94a3b8;">${monthlyTransactions.length} Items Indexed</span>
+            <span>Transaction History Log</span>
+            <span style="font-family: monospace; font-size: 9.5px; color: #94a3b8;">${monthlyTransactions.length} Entries Listed</span>
           </h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 9.5px;">
             <thead>
               <tr style="text-align: left; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: bold;">
-                <th style="padding: 4px;">Billing Date</th>
-                <th style="padding: 4px;">Distribution Sector</th>
-                <th style="padding: 4px;">Description Abstract</th>
-                <th style="padding: 4px; text-align: right;">Net Volume Flow</th>
+                <th style="padding: 4px;">Date</th>
+                <th style="padding: 4px;">Category</th>
+                <th style="padding: 4px;">Description</th>
+                <th style="padding: 4px; text-align: right;">Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -901,10 +905,9 @@ export default function MonthlyReports({
           </table>
         </div>
 
-        <!-- Standard Corporate Compliance Verification Footer -->
+        <!-- Watermark Footer -->
         <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: center; font-size: 9px; color: #94a3b8; font-family: monospace;">
-          <p style="margin: 0; font-weight: bold;">PREPARED SECURELY VIA PORTFOLIO CLIENT LEDGER • CODE VERIFICATION LGR-SYS-${Date.now().toString().substring(1)}</p>
-          <p style="margin: 2px 0 0 0;">Report prepared securely to fulfill snapshot download request. Authorized documentation. Copyright &copy; 2026. All rights reserved.</p>
+          <p style="margin: 0; font-weight: bold;">LEDGER REPORT • COMPILED SECURELY ON ${new Date().toLocaleDateString()}</p>
         </div>
       </div>
     `;
@@ -915,15 +918,17 @@ export default function MonthlyReports({
       // Small timeout to allow styling layouts to resolve perfectly
       await new Promise(resolve => setTimeout(resolve, 300));
 
+      const isMobile = window.innerWidth < 768;
       const canvas = await html2canvas(printContainer, {
-        scale: 2, // Double DPI sharp screen capture
+        scale: isMobile ? 1.3 : 2, // 1.3x DPI scaling on mobile, 2x on desktop to prevent payload issues / memory crashes
         useCORS: true,
         logging: false,
-        backgroundColor: '#ffffff', // Always pristine Light background for high-contrast printable compliance reports
+        backgroundColor: '#ffffff', // Always pristine Light background
         allowTaint: true,
       });
 
-      const imgData = canvas.toDataURL('image/png', 1.0);
+      // Use a compression level of 0.72 (down from 0.82) to reduce payload size by up to 60% with zero visible quality loss.
+      const imgData = canvas.toDataURL('image/jpeg', 0.72);
       const imgWidth = canvas.width / 2;
       const imgHeight = canvas.height / 2;
       
@@ -933,7 +938,7 @@ export default function MonthlyReports({
         format: [imgWidth + 40, imgHeight + 40],
       });
 
-      pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 20, 20, imgWidth, imgHeight);
       
       // Get base64 string
       const pdfDataUri = pdf.output('datauristring');
@@ -951,15 +956,29 @@ export default function MonthlyReports({
         })
       });
 
-      const result = await response.json();
+      // Verify response Content-Type to prevent 'Unexpected token T' errors on any raw server-side exceptions
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const textError = await response.text();
+        console.error("Non-JSON error response from send-report:", textError);
+        throw new Error(textError.length < 150 ? textError : `Server returned a non-JSON response (Status ${response.status}). If the statement has a very large transaction list, it may exceed server upload limits on mobile devices.`);
+      }
+
       if (response.ok && result?.success) {
-        setEmailSuccessMsg(result.message || `Financial snapshot report for ${monthLabel} compiled and dispatched successfully.`);
         if (result.isSimulated) {
-          // If SMTP is not set up, show simulated status
-          setEmailErrorMsg(result.details);
+          // If SMTP is not configured, show unconfigured warning/details and keep success message null so they are not misled.
+          setEmailErrorMsg(result.details || "SMTP offline simulation fallback activated.");
+          setEmailSuccessMsg(null);
+        } else {
+          setEmailSuccessMsg(result.message || `Financial snapshot report for ${monthLabel} compiled and dispatched successfully.`);
+          setEmailErrorMsg(null);
         }
       } else {
         setEmailErrorMsg(result?.error || "Failed to dispatch executive statement email.");
+        setEmailSuccessMsg(null);
       }
     } catch (err: any) {
       console.error("PDF mailing error:", err);
@@ -2265,534 +2284,25 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 </button>
 
                 {/* Export as Excel */}
-                <div className="border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/5 dark:bg-slate-950/20 p-3 space-y-3">
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg">
-                        <FileSpreadsheet className="w-4 h-4" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Excel Portfolio (.XLSX)</p>
-                        <p className="text-[10px] text-slate-400 font-medium">Multi-sheet master audit package</p>
-                      </div>
+                <button
+                  id="btn-export-excel-trigger"
+                  type="button"
+                  onClick={() => setShowExcelExportModal(true)}
+                  className="w-full flex items-center justify-between p-3.5 border border-slate-150 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-900 bg-slate-50/20 dark:bg-slate-950 hover:bg-emerald-50/15 dark:hover:bg-emerald-950/10 rounded-xl transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-lg group-hover:scale-110 transition-transform font-bold">
+                      <FileSpreadsheet className="w-4.5 h-4.5" />
+                    </div>
+                    <div className="text-left font-semibold">
+                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Excel Portfolio (.XLSX)</p>
+                      <p className="text-[10px] text-slate-455 dark:text-slate-400">Configure parameters & download</p>
                     </div>
                   </div>
+                  <Download className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                </button>
 
-                  {/* Excel Specific Date Range Scope Option */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-slate-450 dark:text-slate-400 shrink-0" />
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date Export Scope</span>
-                      </div>
-                      
-                      {/* Modern Toggle Switch to Enable or Disable Date Range Filtering */}
-                      <label id="excel-enable-date-filter-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={excelEnableDateFiltering}
-                          onChange={(e) => setExcelEnableDateFiltering(e.target.checked)}
-                          className="sr-only peer"
-                        />
-                        <div className="relative w-8 h-4.5 bg-slate-200 dark:bg-slate-755 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all dark:border-slate-650 peer-checked:bg-emerald-500"></div>
-                        <span className="text-[9.5px] font-extrabold text-slate-650 dark:text-slate-350 select-none">
-                          {excelEnableDateFiltering ? "Date-Range" : "All Time"}
-                        </span>
-                      </label>
-                    </div>
-
-                    {excelEnableDateFiltering ? (
-                      <>
-                        <div className="space-y-1.5">
-                          <label htmlFor="excel-date-range-preset-select" className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">
-                            Filter Time Period
-                          </label>
-                          <select
-                            id="excel-date-range-preset-select"
-                            value={excelDatePreset}
-                            onChange={(e) => handleExcelDatePresetChange(e.target.value as any)}
-                            className="w-full text-[10.5px] font-bold text-slate-750 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                          >
-                            <option value="active">Active period only ({monthLabel})</option>
-                            <option value="last-7">Last 7 Days</option>
-                            <option value="last-30">Last 30 Days</option>
-                            <option value="last-90">Last 90 Days</option>
-                            <option value="this-year">This Year</option>
-                            <option value="custom">Custom Range...</option>
-                          </select>
-                        </div>
-
-                        {filterExcelByDate ? (
-                          <div className="space-y-2 pt-0.5 border-t border-slate-100/85 dark:border-slate-800/60 mt-1">
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">Start Date</label>
-                                <input
-                                  type="date"
-                                  value={excelStartDate}
-                                  onChange={(e) => {
-                                    setExcelStartDate(e.target.value);
-                                    setExcelDatePreset('custom');
-                                  }}
-                                  className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block font-sans">End Date</label>
-                                <input
-                                  type="date"
-                                  value={excelEndDate}
-                                  onChange={(e) => {
-                                    setExcelEndDate(e.target.value);
-                                    setExcelDatePreset('custom');
-                                  }}
-                                  className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed bg-slate-50/50 dark:bg-slate-950/20 p-2 rounded-md border border-slate-100 dark:border-slate-800/40">
-                            Exporting transactions corresponding to the active period: <strong className="text-slate-700 dark:text-slate-300 font-bold">{monthLabel}</strong>.
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed bg-slate-50/50 dark:bg-slate-950/20 p-2 rounded-md border border-slate-100 dark:border-slate-800/40">
-                        Exporting <strong className="text-emerald-600 dark:text-emerald-400 font-bold">All Time</strong> database entries ({transactions.length} items) without any date constraints.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Excel Specific Sort Configuration */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sort Configuration</span>
-                      <button
-                        type="button"
-                        onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-350 transition-colors cursor-pointer"
-                        title={`Currently sorting ${excelSortDirection === 'asc' ? 'ascending' : 'descending'}. Click to toggle.`}
-                      >
-                        <ArrowLeftRight className="w-3 h-3 rotate-90 shrink-0" />
-                      </button>
-                    </div>
-
-                    {/* Sorting Preset Dropdown */}
-                    <div className="space-y-1 pb-1">
-                      <label htmlFor="excel-sort-dropdown" className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">
-                        Ordering Preset
-                      </label>
-                      <select
-                        id="excel-sort-dropdown"
-                        value={`${excelSortField}-${excelSortDirection}`}
-                        onChange={(e) => {
-                          const [field, dir] = e.target.value.split('-');
-                          setExcelSortField(field as 'date' | 'amount');
-                          setExcelSortDirection(dir as 'asc' | 'desc');
-                        }}
-                        className="w-full text-[10.5px] font-bold text-slate-750 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-                      >
-                        <option value="date-asc">📅 Chronological (Date: Oldest first)</option>
-                        <option value="date-desc">📅 Reverse-Chronological (Date: Newest first)</option>
-                        <option value="amount-asc">💰 Amount: Smallest first</option>
-                        <option value="amount-desc">💰 Amount: Largest first</option>
-                      </select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (excelSortField === 'date') {
-                            // Already Date, option to toggle direction
-                            setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setExcelSortField('date');
-                          }
-                        }}
-                        className={`py-1.5 px-2 text-[10.5px] font-bold rounded border transition-all text-center cursor-pointer ${
-                          excelSortField === 'date'
-                            ? 'bg-emerald-55 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350'
-                            : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        📅 Date {excelSortField === 'date' ? (excelSortDirection === 'asc' ? '▲' : '▼') : ''}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (excelSortField === 'amount') {
-                            // Already Amount, option to toggle direction
-                            setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setExcelSortField('amount');
-                          }
-                        }}
-                        className={`py-1.5 px-2 text-[10.5px] font-bold rounded border transition-all text-center cursor-pointer ${
-                          excelSortField === 'amount'
-                            ? 'bg-emerald-55 border-emerald-300 dark:border-emerald-850 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350'
-                            : 'bg-slate-50 dark:bg-slate-950/60 border-slate-200 dark:border-slate-850 hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        💰 Amount {excelSortField === 'amount' ? (excelSortDirection === 'asc' ? '▲' : '▼') : ''}
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2.5 mt-1 select-none">
-                      <div className="text-left">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Sort Direction</span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-medium leading-normal">
-                          {excelSortDirection === 'asc' ? 'Low-to-High / Oldest first' : 'High-to-Low / Newest first'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'asc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Asc</span>
-                        <button
-                          type="button"
-                          id="excel-sort-direction-switch"
-                          onClick={() => setExcelSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                            excelSortDirection === 'desc' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-755'
-                          }`}
-                        >
-                          <span
-                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200 ease-in-out ${
-                              excelSortDirection === 'desc' ? 'translate-x-4' : 'translate-x-0'
-                            }`}
-                          />
-                        </button>
-                        <span className={`text-[10px] font-bold transition-all ${excelSortDirection === 'desc' ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' : 'text-slate-400'}`}>Desc</span>
-                      </div>
-                    </div>
-
-                    {/* Date Chronology Quick-Toggle */}
-                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 px-0.5 mt-1 select-none">
-                      <div className="text-left">
-                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">Date Chronology</span>
-                        <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-medium leading-normal">
-                          {excelSortField === 'date'
-                            ? (excelSortDirection === 'asc' ? 'Chronological (Oldest first)' : 'Reverse (Newest first)')
-                            : 'Switch to chronological order'}
-                        </span>
-                      </div>
-                      <div className="flex bg-slate-55 dark:bg-slate-950 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800/60 shrink-0">
-                        <button
-                          type="button"
-                          id="excel-sort-date-asc"
-                          onClick={() => {
-                            setExcelSortField('date');
-                            setExcelSortDirection('asc');
-                          }}
-                          className={`px-2.5 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
-                            excelSortField === 'date' && excelSortDirection === 'asc'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : 'text-slate-650 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                          }`}
-                        >
-                          Oldest First
-                        </button>
-                        <button
-                          type="button"
-                          id="excel-sort-date-desc"
-                          onClick={() => {
-                            setExcelSortField('date');
-                            setExcelSortDirection('desc');
-                          }}
-                          className={`px-2.5 py-1 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
-                            excelSortField === 'date' && excelSortDirection === 'desc'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : 'text-slate-650 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                          }`}
-                        >
-                          Newest First
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Excel Optional Columns Configuration */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Optional Columns</span>
-                      <label id="excel-include-category-id-toggle" className="inline-flex items-center gap-1.5 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={excelIncludeCategoryId}
-                          onChange={(e) => setExcelIncludeCategoryId(e.target.checked)}
-                          className="w-3.5 h-3.5 text-emerald-600 bg-gray-150 rounded border-gray-300 dark:border-slate-700 focus:ring-emerald-500 cursor-pointer accent-emerald-500"
-                        />
-                        <span className="text-[10px] font-bold text-slate-650 dark:text-slate-350 select-none font-sans">Include Category ID</span>
-                      </label>
-                    </div>
-                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
-                      Enable to include an additional kebab-case unique Transaction Category ID column.
-                    </p>
-                  </div>
-
-                  {/* Excel Style Theme Layout */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sheet Layout Style</span>
-                      <div className="flex items-center gap-1 border border-slate-100 dark:border-slate-800 p-0.5 rounded-md bg-slate-55 dark:bg-slate-950">
-                        <button
-                          type="button"
-                          id="excel-style-theme-professional"
-                          onClick={() => setExcelStyleTheme('professional')}
-                          className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
-                            excelStyleTheme === 'professional'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                          }`}
-                        >
-                          Professional
-                        </button>
-                        <button
-                          type="button"
-                          id="excel-style-theme-minimal"
-                          onClick={() => setExcelStyleTheme('minimal')}
-                          className={`px-2 py-0.5 text-[9.5px] font-bold rounded-md transition-all cursor-pointer ${
-                            excelStyleTheme === 'minimal'
-                              ? 'bg-emerald-500 text-white shadow-xs'
-                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                          }`}
-                        >
-                          Minimalist
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-[9px] text-slate-400 dark:text-slate-500 font-medium leading-relaxed">
-                      Professional adds executive colors and border grids; Minimalist applies elegant horizontal dividers & clean spaces.
-                    </p>
-                  </div>
-
-                  {/* Excel Custom Table Headers Interface */}
-                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-100 dark:border-slate-800/80 space-y-2">
-                    <button
-                      type="button"
-                      id="excel-custom-headers-toggle"
-                      onClick={() => setShowCustomHeaders(!showCustomHeaders)}
-                      className="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider cursor-pointer"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Sliders className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Column Headers</span>
-                      </div>
-                      <span className="text-emerald-500 font-extrabold text-xs">{showCustomHeaders ? '−' : '+'}</span>
-                    </button>
-
-                    {showCustomHeaders && (
-                      <div className="pt-2 grid grid-cols-1 gap-2.5 border-t border-slate-100 dark:border-slate-800/80 mt-1">
-                        <p className="text-[9.5px] text-slate-450 dark:text-slate-500 font-medium leading-relaxed">
-                          Customize the header names of each table column in the exported worksheet.
-                        </p>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">ID Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.id}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, id: e.target.value })}
-                              placeholder="Transaction ID"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Date Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.date}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, date: e.target.value })}
-                              placeholder="Date"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Type Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.type}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, type: e.target.value })}
-                              placeholder="Type"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Category Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.category}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, category: e.target.value })}
-                              placeholder="Category"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Amount Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.amount}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, amount: e.target.value })}
-                              placeholder="Amount"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Description Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.description}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, description: e.target.value })}
-                              placeholder="Description"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Transaction Notes Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.notes}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, notes: e.target.value })}
-                              placeholder="Transaction Notes"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest block font-sans">Category ID Column</label>
-                            <input
-                              type="text"
-                              value={excelHeaders.categoryId}
-                              disabled={!excelIncludeCategoryId}
-                              onChange={(e) => setExcelHeaders({ ...excelHeaders, categoryId: e.target.value })}
-                              placeholder="Category ID"
-                              className="w-full text-[10.5px] font-semibold text-slate-700 dark:text-slate-300 bg-slate-55 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-2 py-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setExcelHeaders({
-                              id: 'Transaction ID',
-                              date: 'Date',
-                              type: 'Type',
-                              category: 'Category',
-                              amount: 'Amount',
-                              description: 'Description',
-                              notes: 'Transaction Notes',
-                              categoryId: 'Category ID'
-                            })}
-                            className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline transition-colors uppercase tracking-wider cursor-pointer"
-                          >
-                            Reset to Defaults
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div 
-                    className="relative w-full"
-                    onMouseEnter={() => setShowExcelPreviewOverlay(true)}
-                    onMouseLeave={() => setShowExcelPreviewOverlay(false)}
-                  >
-                    {/* Hover quick-view Summary Overlay */}
-                    {showExcelPreviewOverlay && (
-                      <div className="absolute bottom-[calc(100%+8px)] left-0 right-0 z-50 bg-white dark:bg-slate-900 p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none select-none">
-                        <div className="flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-1.5 mb-2.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Excel Scope Summary</span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block">Quantity</span>
-                            <span className="text-[11.5px] font-extrabold text-slate-800 dark:text-slate-200 font-mono">
-                              {excelExportPreviewCount} <span className="text-[9px] font-normal text-slate-400 font-sans">txs</span>
-                            </span>
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block text-emerald-500 dark:text-emerald-400">Total In</span>
-                            <span className="text-[11.5px] font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
-                              ${excelExportPreviewIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                          <div className="space-y-0.5">
-                            <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight block text-rose-500 dark:text-rose-450">Total Out</span>
-                            <span className="text-[11.5px] font-extrabold text-rose-600 dark:text-rose-450 font-mono">
-                              ${excelExportPreviewExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-[8px] text-slate-450 dark:text-slate-500 mt-2.5 pt-1.5 border-t border-slate-100/80 dark:border-slate-800/80 flex items-center justify-between">
-                          <span>Timeline scope:</span>
-                          <span className="font-semibold text-slate-600 dark:text-slate-400">
-                            {filterExcelByDate 
-                              ? `${formatDateFriendly(excelStartDate)} – ${formatDateFriendly(excelEndDate)}` 
-                              : monthLabel}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      id="btn-export-excel"
-                      disabled={isExportingExcel}
-                      onClick={handleExportExcel}
-                      className={`w-full overflow-hidden relative p-2.5 h-[38px] flex items-center justify-center rounded-lg border transition-all duration-300 group ${
-                        isExportingExcel 
-                          ? 'border-slate-150 dark:border-slate-800/80 opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-900 text-slate-450' 
-                          : excelSuccess
-                            ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold shadow-xs'
-                            : 'border-slate-150 dark:border-slate-800/80 hover:border-emerald-300 hover:bg-emerald-500/5 dark:hover:border-emerald-900 bg-slate-55/40 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 cursor-pointer'
-                      }`}
-                    >
-                      <AnimatePresence mode="wait">
-                        {isExportingExcel ? (
-                          <motion.div
-                            key="exporting-excel-state"
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -15 }}
-                            transition={{ duration: 0.18 }}
-                            className="flex items-center gap-2"
-                          >
-                            <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin shrink-0" />
-                            <span className="text-xs font-bold leading-none">Assembling workbook files...</span>
-                          </motion.div>
-                        ) : excelSuccess ? (
-                          <motion.div
-                            key="success-excel-state"
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -15 }}
-                            transition={{ type: 'spring', damping: 15, stiffness: 120 }}
-                            className="flex items-center gap-2"
-                          >
-                            <Check className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400 stroke-[3.5] animate-bounce" />
-                            <span className="text-xs font-bold leading-none">Workbook Exported Successfully!</span>
-                          </motion.div>
-                        ) : (
-                          <motion.div
-                            key="idle-excel-state"
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -15 }}
-                            transition={{ duration: 0.18 }}
-                            className="flex items-center gap-2"
-                          >
-                            <Download className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                            <span className="text-xs font-bold leading-none">Generate Spreadsheet (.xlsx)</span>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  </div>
-                </div>
+              </div>
 
                 {/* Export as TXT report */}
                 <button
@@ -2971,7 +2481,6 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
 
           </div>
 
-        </div>
       )}
 
       {/* PDF Document Preview Modal */}
@@ -3132,7 +2641,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   <div className="flex items-center justify-between pb-1">
                     <h4 className="text-[13px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-1.5">
                       <Eye className="w-4 h-4 text-rose-500" />
-                      <span>Audit Verification</span>
+                      <span>PDF Report Settings</span>
                     </h4>
                     <button
                       onClick={() => setShowPDFPreview(false)}
@@ -3143,13 +2652,13 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                   </div>
 
                   <p className="text-[11.5px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold text-left">
-                    Review your financial snapshot parameters before compiling. Ensure all transactions are categorized before printing.
+                    Review your monthly summary parameters and download a beautiful report.
                   </p>
 
                   {/* Static Verification Checklist */}
                   <div className="space-y-2.5 bg-slate-50 dark:bg-slate-950/60 p-4 border border-slate-150/45 dark:border-slate-800 rounded-xl text-left">
                     <h5 className="text-[9px] font-mono font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                      Snapshot Reconciliation
+                      Report Scope Details
                     </h5>
                     <ul className="space-y-2 text-[11px] text-slate-700 dark:text-slate-300">
                       <li className="flex items-center gap-2 font-semibold">
@@ -3158,15 +2667,15 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                       </li>
                       <li className="flex items-center gap-2 font-semibold">
                         <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span>Events: <strong className="font-extrabold text-slate-800 dark:text-slate-100">{monthlyTransactions.length} logs</strong></span>
+                        <span>Transactions: <strong className="font-extrabold text-slate-800 dark:text-slate-100">{monthlyTransactions.length} logs</strong></span>
                       </li>
                       <li className="flex items-center gap-2 font-semibold">
                         <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span>Surplus: <strong className="font-extrabold text-slate-800 dark:text-slate-100">{currencySymbol}{netSavings.toLocaleString()}</strong></span>
+                        <span>Net Flow: <strong className="font-extrabold text-slate-800 dark:text-slate-100">{currencySymbol}{netSavings.toLocaleString()}</strong></span>
                       </li>
                       <li className="flex items-center gap-2 font-semibold">
                         <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                        <span>Smart Advisor Active</span>
+                        <span>Gemini Advisor Active</span>
                       </li>
                     </ul>
                   </div>
@@ -3218,7 +2727,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                       {isSendingEmail ? (
                         <>
                           <span className="w-3 h-3 border-2 border-white border-t-transparent animate-spin rounded-full block" />
-                          <span>Dispatching Report...</span>
+                          <span>Sending Email...</span>
                         </>
                       ) : (
                         <>
@@ -3229,10 +2738,10 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                     </button>
                   </div>
 
-                  <div className="p-3 bg-rose-50/40 dark:bg-rose-950/10 border border-rose-150/30 dark:border-rose-900/20 rounded-xl space-y-1 text-left">
-                    <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">Document Formatting Notice</p>
-                    <p className="text-[9.5px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
-                      Compiling renders a standard double-pass high DPI offscreen paper structure to ensure corporate branding displays with absolute consistency across distinct device screens and resolutions.
+                  <div className="p-3 bg-blue-50/40 dark:bg-slate-950/20 border border-blue-150/30 dark:border-slate-800 rounded-xl space-y-1 text-left">
+                    <p className="text-[10px] font-bold text-blue-600 dark:text-blue-450 uppercase tracking-wide">Report Notice</p>
+                    <p className="text-[9.5px] text-slate-500 dark:text-slate-400 leading-relaxed font-semibold">
+                      This formal budget report renders as a beautiful, high DPI layout optimized to view easily on all desktop, tablet, and mobile screens.
                     </p>
                   </div>
                 </div>
@@ -3254,13 +2763,475 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                     ) : (
                       <>
                         <FileDown className="w-4.5 h-4.5" />
-                        <span>Download Formal PDF</span>
+                        <span>Download Statement PDF</span>
                       </>
                     )}
                   </button>
 
                   <button
                     onClick={() => setShowPDFPreview(false)}
+                    className="w-full py-2 px-4 bg-transparent border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl transition-colors font-bold text-xs cursor-pointer"
+                  >
+                    Back to Ledger Controls
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Excel Spreadsheet Export Modal */}
+      <AnimatePresence>
+        {showExcelExportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto bg-slate-950/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="relative w-full max-w-4xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row max-h-[90vh] overflow-hidden"
+            >
+              {/* Left side: Interactive Excel Spreadsheet Preview mockup */}
+              <div className="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950/40 border-r border-slate-100 dark:border-slate-850">
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-dashed border-slate-200 dark:border-slate-800">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-650 dark:text-emerald-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Spreadsheet Mockup
+                  </span>
+                  <span className="text-[9px] bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded-md font-mono">
+                    {excelStyleTheme === 'professional' ? '🌿 AUDIT CORPORATE' : '⚪ MINIMALIST GRID'}
+                  </span>
+                </div>
+
+                {/* Spreadsheet Visual Wrapper */}
+                <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm text-xs text-left overflow-x-auto select-none">
+                  {/* File Tabs Mockup */}
+                  <div className="flex items-center gap-1 border-b border-slate-150 dark:border-slate-800 pb-2 mb-3">
+                    <span className="px-2.5 py-1 bg-emerald-600 dark:bg-emerald-600 text-white font-bold text-[10px] rounded-t-md flex items-center gap-1 shadow-sm">
+                      <FileSpreadsheet className="w-3 h-3" />
+                      <span>Ledger_Transactions</span>
+                    </span>
+                    <span className="px-2.5 py-1 text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 font-bold text-[10px] rounded-t-md cursor-pointer transition-colors">
+                      Summary_Stats
+                    </span>
+                    <span className="px-2.5 py-1 text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 font-bold text-[10px] rounded-t-md cursor-pointer transition-colors">
+                      Monthly_Visuals
+                    </span>
+                  </div>
+
+                  {/* Excel Column Letters */}
+                  <div className="grid grid-cols-12 gap-px bg-slate-150 dark:bg-slate-800 text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 text-center pb-0.5">
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-1 border border-slate-200/50 dark:border-slate-850"></div>
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-2 border border-slate-200/50 dark:border-slate-850">A</div>
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-2 border border-slate-200/50 dark:border-slate-850">B</div>
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-2 border border-slate-200/50 dark:border-slate-850">C</div>
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-3 border border-slate-200/50 dark:border-slate-850">D</div>
+                    <div className="bg-slate-50 dark:bg-slate-955 p-1 col-span-2 border border-slate-200/50 dark:border-slate-850">E</div>
+                  </div>
+
+                  {/* Excel Row Headers */}
+                  <div className="grid grid-cols-12 gap-px bg-slate-150 dark:bg-slate-800 text-[11px]">
+                    {/* Header Row */}
+                    <div className="bg-slate-50 dark:bg-slate-950 font-mono text-center font-bold text-slate-400 dark:text-slate-500 p-1.5 col-span-1 border border-slate-200/50 dark:border-slate-850">1</div>
+                    <div className={`p-1.5 col-span-2 font-black tracking-wide truncate border border-slate-200/50 dark:border-slate-850 ${excelStyleTheme === 'professional' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'}`}>
+                      {excelHeaders.date || 'Date'}
+                    </div>
+                    <div className={`p-1.5 col-span-2 font-black tracking-wide truncate border border-slate-200/50 dark:border-slate-850 ${excelStyleTheme === 'professional' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'}`}>
+                      {excelHeaders.type || 'Type'}
+                    </div>
+                    <div className={`p-1.5 col-span-2 font-black tracking-wide truncate border border-slate-200/50 dark:border-slate-850 ${excelStyleTheme === 'professional' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'}`}>
+                      {excelHeaders.category || 'Category'}
+                    </div>
+                    <div className={`p-1.5 col-span-3 font-black tracking-wide truncate border border-slate-200/50 dark:border-slate-850 ${excelStyleTheme === 'professional' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'}`}>
+                      {excelHeaders.description || 'Description'}
+                    </div>
+                    <div className={`p-1.5 col-span-2 text-right font-black tracking-wide truncate border border-slate-200/50 dark:border-slate-850 ${excelStyleTheme === 'professional' ? 'bg-emerald-700 text-white border-emerald-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'}`}>
+                      {excelHeaders.amount || 'Amount'}
+                    </div>
+
+                    {/* Row 2: Deposit */}
+                    <div className="bg-slate-50 dark:bg-slate-950 font-mono text-center font-bold text-slate-400 dark:text-slate-500 p-1.5 col-span-1 border border-slate-200/50 dark:border-slate-850">2</div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 p-1.5 col-span-2 font-mono border border-slate-100 dark:border-slate-850">2026-06-08</div>
+                    <div className="bg-white dark:bg-slate-900 text-center p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">
+                      <span className="px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-extrabold text-[9px] rounded uppercase">INCOME</span>
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">Salary</div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 italic p-1.5 col-span-3 truncate border border-slate-100 dark:border-slate-850">Monthly Deposit</div>
+                    <div className="bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 font-extrabold font-mono text-right p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">+ $5,000.00</div>
+
+                    {/* Row 3: Expense */}
+                    <div className="bg-slate-50 dark:bg-slate-950 font-mono text-center font-bold text-slate-400 dark:text-slate-500 p-1.5 col-span-1 border border-slate-200/50 dark:border-slate-850">3</div>
+                    <div className="bg-slate-50/50 dark:bg-slate-955 text-slate-500 dark:text-slate-400 p-1.5 col-span-2 font-mono border border-slate-100 dark:border-slate-850">2026-06-09</div>
+                    <div className="bg-slate-50/50 dark:bg-slate-955 text-center p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">
+                      <span className="px-1.5 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-450 font-extrabold text-[9px] rounded uppercase">EXPENSE</span>
+                    </div>
+                    <div className="bg-slate-50/50 dark:bg-slate-955 text-slate-700 dark:text-slate-300 font-bold p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">Groceries</div>
+                    <div className="bg-slate-50/50 dark:bg-slate-955 text-slate-500 dark:text-slate-400 italic p-1.5 col-span-3 truncate border border-slate-100 dark:border-slate-850 font-sans">Whole Foods</div>
+                    <div className="bg-slate-50/50 dark:bg-slate-955 text-rose-600 dark:text-rose-455 font-extrabold font-mono text-right p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">- $184.50</div>
+
+                    {/* Row 4: Expense */}
+                    <div className="bg-slate-50 dark:bg-slate-950 font-mono text-center font-bold text-slate-400 dark:text-slate-500 p-1.5 col-span-1 border border-slate-200/50 dark:border-slate-850">4</div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 p-1.5 col-span-2 font-mono border border-slate-100 dark:border-slate-850">2026-06-12</div>
+                    <div className="bg-white dark:bg-slate-900 text-center p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">
+                      <span className="px-1.5 py-0.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-455 font-extrabold text-[9px] rounded uppercase">EXPENSE</span>
+                    </div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">Rent</div>
+                    <div className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 italic p-1.5 col-span-3 truncate border border-slate-100 dark:border-slate-850 font-sans">Lease payment</div>
+                    <div className="bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-455 font-extrabold font-mono text-right p-1.5 col-span-2 border border-slate-100 dark:border-slate-850">- $1,200.05</div>
+
+                    {/* Double-Border Summary Row */}
+                    <div className="bg-slate-50 dark:bg-slate-950 font-mono text-center font-bold text-slate-400 dark:text-slate-500 p-1.5 col-span-1 border border-slate-200/50 dark:border-slate-850">5</div>
+                    <div className="bg-slate-100/40 dark:bg-slate-955 p-1.5 col-span-4 font-black text-slate-700 dark:text-slate-350 tracking-wide border border-slate-100 dark:border-slate-850">TOTAL SUM SUMMARY</div>
+                    <div className="bg-slate-100/40 dark:bg-slate-955 p-1.5 col-span-5 border border-slate-100 dark:border-slate-850"></div>
+                    <div className={`p-1.5 col-span-2 font-mono font-black text-right text-[11.5px] border-t border-b-2 border-slate-300 dark:border-slate-700 ${excelStyleTheme === 'professional' ? 'bg-emerald-50 dark:bg-emerald-950/35 text-emerald-700 dark:text-emerald-400 border-b-emerald-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200'}`}>
+                      + $3,615.45
+                    </div>
+                  </div>
+
+                  {/* Summary Grid Gridline Accents */}
+                  <div className="mt-3 text-[10px] text-slate-400 dark:text-slate-500 italic flex items-center gap-1 font-sans">
+                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                    <span>Live dynamic columns auto-resize to fit contents. Sorting applied chronologically.</span>
+                  </div>
+                </div>
+
+                {/* Spreadsheet Live Stats Card */}
+                <div className="grid grid-cols-3 gap-3.5 text-left mt-5">
+                  <div className="p-3 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl">
+                    <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Quantity scope</span>
+                    <span className="text-[14px] font-black text-slate-800 dark:text-white font-mono leading-none block mt-1.5">
+                      {excelExportPreviewCount} <span className="text-xs font-normal text-slate-450">logs</span>
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-slate-905 border border-slate-150 dark:border-slate-800 rounded-xl">
+                    <span className="text-[8px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider block">Income Scope</span>
+                    <span className="text-[14px] font-black text-emerald-600 dark:text-emerald-400 font-mono leading-none block mt-1.5">
+                      ${excelExportPreviewIncome.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="p-3 bg-white dark:bg-slate-905 border border-slate-150 dark:border-slate-800 rounded-xl">
+                    <span className="text-[8px] font-bold text-rose-500 dark:text-rose-455 uppercase tracking-wider block">Expenses Scope</span>
+                    <span className="text-[14px] font-black text-rose-600 dark:text-rose-455 font-mono leading-none block mt-1.5">
+                      ${excelExportPreviewExpense.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-slate-100/50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-800/80 rounded-xl text-left mt-4 text-[10px] text-slate-455 dark:text-slate-550 leading-relaxed font-sans font-semibold">
+                  Timeline query duration is currently targeting: <strong className="font-extrabold text-slate-800 dark:text-slate-200">{filterExcelByDate ? `${formatDateFriendly(excelStartDate)} to ${formatDateFriendly(excelEndDate)}` : 'Full Historics ledger database scope'}.</strong>
+                </div>
+              </div>
+
+              {/* Right side: Detailed Settings Panel */}
+              <div className="w-full md:w-85 p-6 flex flex-col justify-between bg-white dark:bg-slate-900 border-t md:border-t-0 border-slate-100 dark:border-slate-800 overflow-y-auto">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-[13px] font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-1.5">
+                      <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>Excel Portfolio Settings</span>
+                    </h4>
+                    <button
+                      onClick={() => setShowExcelExportModal(false)}
+                      className="p-1 text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Excel Specific Date Range Scope Option */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-150 dark:border-slate-800 rounded-xl space-y-2.5 text-left animate-in fade-in duration-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Date Export Scope</span>
+                      </div>
+                      
+                      {/* Toggle Switch */}
+                      <label id="excel-enable-date-filter-toggle-modal" className="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={excelEnableDateFiltering}
+                          onChange={(e) => setExcelEnableDateFiltering(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-[32px] h-[18px] bg-slate-250 dark:bg-slate-755 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-[14px] after:w-[14px] after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500 relative"></div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight select-none">
+                          {excelEnableDateFiltering ? "Range" : "All"}
+                        </span>
+                      </label>
+                    </div>
+
+                    {excelEnableDateFiltering ? (
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-1 dur-150">
+                        <div>
+                          <label htmlFor="excel-preset-select-modal" className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block font-sans">
+                            Preset Intervals
+                          </label>
+                          <select
+                            id="excel-preset-select-modal"
+                            value={excelDatePreset}
+                            onChange={(e) => handleExcelDatePresetChange(e.target.value as any)}
+                            className="mt-1 w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-all font-sans"
+                          >
+                            <option value="active">📅 Active Report Month ({monthLabel})</option>
+                            <option value="last-7">📅 Last 7 Days</option>
+                            <option value="last-30">📅 Last 30 Days</option>
+                            <option value="last-90">📅 Last 90 Days</option>
+                            <option value="this-year">📅 This Current Year</option>
+                            <option value="custom">📅 Custom Date Boundaries</option>
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-0.5">
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight block">Start Date</span>
+                            <input
+                              type="date"
+                              value={excelStartDate}
+                              disabled={excelDatePreset !== 'custom'}
+                              onChange={(e) => {
+                                setExcelStartDate(e.target.value);
+                                setExcelDatePreset('custom');
+                              }}
+                              className="w-full px-2 py-1.5 mt-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-mono rounded-lg text-slate-850 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight block">End Date</span>
+                            <input
+                              type="date"
+                              value={excelEndDate}
+                              disabled={excelDatePreset !== 'custom'}
+                              onChange={(e) => {
+                                setExcelEndDate(e.target.value);
+                                setExcelDatePreset('custom');
+                              }}
+                              className="w-full px-2 py-1.5 mt-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-mono rounded-lg text-slate-850 dark:text-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[9.5px] text-slate-500 dark:text-slate-450 italic leading-relaxed pt-0.5 font-medium leading-tight font-sans">
+                        Date constraints bypassed. Extracts full records from day zero of transaction ledger database history.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Excel Specific Sort Fields Choice */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-955 border border-slate-150 dark:border-slate-800 rounded-xl space-y-2.5 text-left">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-slate-450 dark:text-slate-500 shrink-0" />
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Row Sorting Order</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExcelSortDirection(excelSortDirection === 'asc' ? 'desc' : 'asc');
+                        }}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 dark:text-slate-400 transition-colors"
+                      >
+                        <ArrowUpDown className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <select
+                        id="excel-sort-dropdown-modal"
+                        value={`${excelSortField}-${excelSortDirection}`}
+                        onChange={(e) => {
+                          const [field, direction] = e.target.value.split('-');
+                          setExcelSortField(field as any);
+                          setExcelSortDirection(direction as any);
+                        }}
+                        className="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-sans"
+                      >
+                        <option value="date-desc">📅 Date: Newest First (Desc)</option>
+                        <option value="date-asc">📅 Date: Oldest First (Asc)</option>
+                        <option value="amount-desc">💰 Amount: Max Large First (Desc)</option>
+                        <option value="amount-asc">💰 Amount: Min Small First (Asc)</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between px-1.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[9px] text-slate-500 font-sans font-semibold">
+                      <span className="font-semibold text-[9.5px] truncate">
+                        {excelSortDirection === 'asc' ? 'Low-to-High / Chronological' : 'High-to-Low / Reverse order'}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`text-[9px] font-bold transition-all ${excelSortDirection === 'asc' ? 'text-emerald-650 font-extrabold' : 'text-slate-400'}`}>Asc</span>
+                        <button
+                          type="button"
+                          onClick={() => setExcelSortDirection(excelSortDirection === 'asc' ? 'desc' : 'asc')}
+                          className={`w-[28px] h-[15px] rounded-full flex items-center p-0.5 transition-all cursor-pointer ${
+                            excelSortDirection === 'desc' ? 'bg-emerald-550 dark:bg-emerald-600' : 'bg-slate-200 dark:bg-slate-705'
+                          }`}
+                        >
+                          <div className={`w-2.5 h-2.5 bg-white rounded-full shadow-xs transition-all ${
+                            excelSortDirection === 'desc' ? 'translate-x-3.5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                        <span className={`text-[9px] font-bold transition-all ${excelSortDirection === 'desc' ? 'text-emerald-650 font-extrabold' : 'text-slate-400'}`}>Desc</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Extra Layout Preferences */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-150 dark:border-slate-800 rounded-xl space-y-2.5 text-left font-sans">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Layout Aesthetics Theme</span>
+                    
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <label className={`border p-2 rounded-lg flex flex-col gap-0.5 cursor-pointer select-none relative transition-all ${
+                        excelStyleTheme === 'professional'
+                          ? 'border-emerald-400 bg-emerald-50/20 dark:bg-emerald-955/25'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="excel-theme-pref-modal"
+                          className="sr-only"
+                          checked={excelStyleTheme === 'professional'}
+                          onChange={() => setExcelStyleTheme('professional')}
+                        />
+                        <span className="text-[10.5px] font-black text-slate-700 dark:text-slate-200">🌿 Audit Corp</span>
+                        <span className="text-[8px] text-slate-400 leading-tight">Emerald headers & formulas double borders</span>
+                      </label>
+                      <label className={`border p-2 rounded-lg flex flex-col gap-0.5 cursor-pointer select-none relative transition-all ${
+                        excelStyleTheme === 'minimal'
+                          ? 'border-emerald-400 bg-emerald-50/20 dark:bg-emerald-955/25'
+                          : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-950'
+                      }`}>
+                        <input
+                          type="radio"
+                          name="excel-theme-pref-modal"
+                          className="sr-only"
+                          checked={excelStyleTheme === 'minimal'}
+                          onChange={() => setExcelStyleTheme('minimal')}
+                        />
+                        <span className="text-[10.5px] font-black text-slate-700 dark:text-slate-200">⚪ Minimal</span>
+                        <span className="text-[8px] text-slate-400 leading-tight">Light simple clean list structure, no colors</span>
+                      </label>
+                    </div>
+
+                    <label id="excel-include-category-id-toggle-modal" className="inline-flex items-center gap-1.5 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={excelIncludeCategoryId}
+                        onChange={(e) => setExcelIncludeCategoryId(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-[32px] h-[18px] bg-slate-250 dark:bg-slate-755 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-[14px] after:w-[14px] after:transition-all dark:border-gray-600 peer-checked:bg-emerald-500 relative"></div>
+                      <span className="text-[10px] font-semibold text-slate-550 dark:text-slate-355 select-none text-left leading-tight">
+                        Include Database Column IDs
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Excel Specific Custom Columns Header Titles */}
+                  <div className="p-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-150 dark:border-slate-800 rounded-xl text-left space-y-1">
+                    <button
+                      type="button"
+                      id="excel-custom-headers-toggle-modal"
+                      onClick={() => setShowCustomHeaders(!showCustomHeaders)}
+                      className="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider group cursor-pointer font-sans"
+                    >
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <Edit3 className="w-3.5 h-3.5 text-slate-450 shrink-0" />
+                        <span>Customize Grid Headers</span>
+                      </div>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showCustomHeaders ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showCustomHeaders && (
+                      <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 pt-1.5 animate-in fade-in slide-in-from-top-1 px-0.5 font-sans">
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">TX ID</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.id}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, id: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">Date</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.date}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, date: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">Type</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.type}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, type: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">Category</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.category}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, category: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">Amount</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.amount}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, amount: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                        <div className="space-y-0.5">
+                          <label className="text-[8px] font-bold text-slate-400 uppercase tracking-tight block">Description</label>
+                          <input
+                            type="text"
+                            value={excelHeaders.description}
+                            onChange={(e) => setExcelHeaders({ ...excelHeaders, description: e.target.value })}
+                            className="w-full px-2 py-0.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10.5px] font-semibold rounded text-slate-755 dark:text-slate-200"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-6 space-y-2 border-t border-slate-100 dark:border-slate-850">
+                  <button
+                    disabled={isExportingExcel}
+                    onClick={async () => {
+                      await handleExportExcel();
+                    }}
+                    className="w-full py-2.5 md:py-3 px-4 bg-emerald-555 dark:bg-emerald-600 hover:bg-emerald-650 dark:hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-250/20 dark:shadow-emerald-900/10 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    {isExportingExcel ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent animate-spin rounded-full block" />
+                        <span>Compiling Spreadsheet...</span>
+                      </>
+                    ) : excelSuccess ? (
+                      <>
+                        <Check className="w-4 h-4 text-white stroke-[3px]" />
+                        <span>Workbook Saved Successfully!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="w-4.5 h-4.5" />
+                        <span>Download Spreadsheet (.xlsx)</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setShowExcelExportModal(false)}
                     className="w-full py-2 px-4 bg-transparent border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl transition-colors font-bold text-xs cursor-pointer"
                   >
                     Back to Ledger Controls

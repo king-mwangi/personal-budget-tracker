@@ -359,57 +359,73 @@ app.post("/api/send-report", async (req: any, res: any) => {
     
     const buffer = Buffer.from(cleanBase64, 'base64');
 
-    const host = process.env.SMTP_HOST;
-    const port = parseInt(process.env.SMTP_PORT || "587");
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || '"Portfolio Ledger" <no-reply@portfolioledger.com>';
+    const host = (process.env.SMTP_HOST || "").trim();
+    const portStr = (process.env.SMTP_PORT || "").trim();
+    const port = parseInt(portStr || "587");
+    const user = (process.env.SMTP_USER || "").trim();
+    const pass = (process.env.SMTP_PASS || "").trim();
+    
+    // Dynamically align the FROM address to match the authenticated user for perfect SPF/DKIM/DMARC server delivery.
+    let from = (process.env.SMTP_FROM || "").trim();
+    if (!from) {
+      if (user && user.includes("@")) {
+        from = `"Portfolio Ledger" <${user}>`;
+      } else {
+        from = '"Portfolio Ledger" <no-reply@portfolioledger.com>';
+      }
+    }
 
     const subject = `Ledger Financial Statement [Period: ${monthLabel || "Monthly Report"}]`;
     const htmlBody = `
       <div style="font-family: ui-sans-serif, system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
         <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 16px;">
-          <h2 style="color: #1e3a8a; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Statements Dispatch</h2>
-          <p style="font-size: 11px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace;">AUDIT DIGEST & EXECUTIVE REPORT</p>
+          <h2 style="color: #1e3a8a; margin: 0; font-size: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Ledger Statement Dispatch</h2>
+          <p style="font-size: 11px; color: #64748b; font-weight: bold; margin: 2px 0 0 0; font-family: monospace;">FINANCIAL SUMMARY REPORT</p>
         </div>
         
         <p style="font-size: 14px; line-height: 1.5; color: #334155;">Hello,</p>
         
-        <p style="font-size: 14px; line-height: 1.5; color: #1e293b; font-weight: 600;">Your requested high-resolution Ledger financial statement has been successfully compiled and compiled securely.</p>
+        <p style="font-size: 14px; line-height: 1.5; color: #1e293b; font-weight: 600;">Your requested Ledger financial statement has been successfully compiled and sent.</p>
         
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 13px; margin: 16px 0;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
-              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Report Scope Period:</td>
-              <td style="padding: 4px 0; text-align: right; font-weight: bold; color: #1e293b;">${monthLabel || "Standard Scope"}</td>
+              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Report Period:</td>
+              <td style="padding: 4px 0; text-align: right; font-weight: bold; color: #1e293b;">${monthLabel || "Monthly Statement"}</td>
             </tr>
             <tr>
               <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Document ID:</td>
               <td style="padding: 4px 0; text-align: right; font-family: monospace; color: #0284c7;">${reportId || "LGR-RPT-N/A"}</td>
             </tr>
             <tr>
-              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Dispatched Timestamp:</td>
+              <td style="padding: 4px 0; color: #64748b; font-weight: bold;">Sent Timestamp:</td>
               <td style="padding: 4px 0; text-align: right; color: #475569;">${new Date().toLocaleString()}</td>
             </tr>
           </table>
         </div>
         
-        <p style="font-size: 13px; line-height: 1.5; color: #475569;">The secure PDF report has been compiled and is attached directly to this email for your immediate review, offline saving, or high-fidelity physical printing.</p>
+        <p style="font-size: 13px; line-height: 1.5; color: #475569;">The secure PDF report has been compiled and is attached directly to this email for your immediate review, offline saving, or printing.</p>
         
         <div style="border-top: 1px solid #e2e8f0; margin-top: 24px; padding-top: 12px; text-align: center; font-size: 10px; color: #94a3b8; font-family: monospace;">
-          <p style="margin: 0; font-weight: bold;">SECURED VIA PORTFOLIO CLIENT LEDGER</p>
-          <p style="margin: 2px 0 0 0;">This transmission is intended solely for the recipient. If you have any inquiries, please inspect your local workspace configurations.</p>
+          <p style="margin: 0; font-weight: bold;">PORTFOLIO CLIENT LEDGER</p>
+          <p style="margin: 2px 0 0 0;">This transmission is intended solely for the recipient.</p>
         </div>
       </div>
     `;
+
+    console.log(`[SMTP INFO] Host: "${host}", Port: ${port}, User: "${user}", Pass configured: ${!!pass}, From: "${from}"`);
 
     if (host && user && pass) {
       // Use configured SMTP credentials
       const transporter = nodemailer.createTransport({
         host,
         port,
-        secure: port === 465,
-        auth: { user, pass }
+        secure: port === 465, // true for port 465, false for 587 or other ports
+        auth: { user, pass },
+        tls: {
+          // Prevent handshake failures on standard servers
+          rejectUnauthorized: false
+        }
       });
 
       await transporter.sendMail({
@@ -439,13 +455,18 @@ app.post("/api/send-report", async (req: any, res: any) => {
       console.log(`[SIMULATED EMAIL DISPATCH] PDF attached: (${buffer.length} bytes base64)`);
       
       // Simulating a real transport delivery latency
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise(resolve => setTimeout(resolve, 1550));
+
+      const missingVars = [];
+      if (!host) missingVars.push("SMTP_HOST");
+      if (!user) missingVars.push("SMTP_USER");
+      if (!pass) missingVars.push("SMTP_PASS");
 
       return res.json({
         success: true,
         isSimulated: true,
         message: `Financial snapshot report for ${monthLabel} compiled and dispatched successfully (simulated) to ${toEmail}.`,
-        details: "Notice: Since SMTP host credentials are not configured in your settings, a secure offline delivery simulation has successfully finished. Check application terminal logs."
+        details: `Notice: Offline simulation mode fallback activated because these SMTP environment variables were not defined or empty: ${missingVars.join(", ")}. Check your app variables setup.`
       });
     }
 
@@ -550,6 +571,17 @@ app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
       </html>
     `);
   }
+});
+
+// Bulletproof Express JSON error handling middleware
+// Catches custom server failures, bad parser request bodies, 413s, etc. and guarantees a valid JSON response.
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error("[EXPRESS GLOBAL ERROR HANDLER]:", err);
+  const statusCode = err.status || err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    error: err.message || "An unexpected server-side error occurred while processing your request."
+  });
 });
 
 // Setup Vite Dev Server / Static Hosting

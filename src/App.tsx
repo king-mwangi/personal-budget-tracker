@@ -15,6 +15,7 @@ const AIAssistant = React.lazy(() => import('./components/AIAssistant'));
 const BudgetTemplates = React.lazy(() => import('./components/BudgetTemplates'));
 const RecurringManager = React.lazy(() => import('./components/RecurringManager'));
 const MonthlyReports = React.lazy(() => import('./components/MonthlyReports'));
+const FinancialLabs = React.lazy(() => import('./components/FinancialLabs'));
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
@@ -44,7 +45,8 @@ import {
   Printer,
   CheckCircle,
   Check,
-  HelpCircle
+  HelpCircle,
+  Flame
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -66,7 +68,7 @@ const SEED_SAVINGS: SavingsGoal[] = [];
 
 export default function App() {
   // Current active frame tab
-  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports'>('dash');
+  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports' | 'labs'>('dash');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [excelExportSuccess, setExcelExportSuccess] = useState(false);
   const [excelToastPosition, setExcelToastPosition] = useState<'top-right' | 'bottom-right'>(() => {
@@ -2463,6 +2465,22 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               Gemini Advisor Chat
             </button>
 
+            {/* Financial Labs Link */}
+            <button
+              onClick={() => { setActiveTab('labs'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'labs'
+                  ? 'bg-purple-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Flame className="w-4.5 h-4.5 text-orange-500 shrink-0 fill-orange-500/10" />
+              Financial Labs
+              <span className="ml-auto bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-extrabold px-1.5 py-0.5 rounded text-[8.5px] font-mono tracking-wide uppercase leading-none">
+                Lab
+              </span>
+            </button>
+
             {/* Monthly Reports Link */}
             <div className="relative group/reports w-full">
               <motion.button
@@ -3299,6 +3317,14 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 loadingInsights={loadingInsights}
               />
             )}
+
+            {activeTab === 'labs' && (
+              <FinancialLabs
+                transactions={transactions}
+                recurringItems={recurringItems}
+                currencySymbol={currencySymbol}
+              />
+            )}
           </React.Suspense>
 
         </section>
@@ -3341,6 +3367,13 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         >
           <CalendarClock className="w-5 h-5" />
           <span className="text-[9px] uppercase font-bold tracking-wider">Fixed</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('labs'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'labs' ? 'text-purple-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
+        >
+          <Flame className="w-5 h-5 text-orange-500" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Labs</span>
         </button>
         <button 
           onClick={() => { setActiveTab('ai'); setEditingTx(null); }}
