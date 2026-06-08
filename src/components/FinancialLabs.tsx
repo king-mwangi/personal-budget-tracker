@@ -48,7 +48,7 @@ interface SubscriptionAuditItem {
 }
 
 export default function FinancialLabs({ transactions, recurringItems, currencySymbol }: FinancialLabsProps) {
-  const [labTab, setLabTab] = useState<'debt' | 'fire' | 'subscriptions'>('debt');
+  const [labTab, setLabTab] = useState<'debt' | 'fire' | 'subscriptions' | 'emergency'>('debt');
 
   // --- 1. DEBT PAYOFF OPTIMIZER STATE ---
   const [debts, setDebts] = useState<DebtItem[]>([
@@ -377,6 +377,76 @@ export default function FinancialLabs({ transactions, recurringItems, currencySy
     };
   }, [subscriptions, currencySymbol]);
 
+  // --- 4. EMERGENCY FUND & SHOCK SIMULATOR STATES ---
+  const [emergencyFund, setEmergencyFund] = useState(() => {
+    const totalSavingsCategory = transactions
+      .filter(t => t.type === 'expense' && t.category === 'Savings')
+      .reduce((sum, t) => sum + t.amount, 0);
+    return Math.max(8000, totalSavingsCategory + 4500);
+  });
+  const [essentialCost, setEssentialCost] = useState(() => {
+    const housing = transactions.filter(t => t.category === 'Housing').reduce((sum, t) => sum + t.amount, 0);
+    const utilities = transactions.filter(t => t.category === 'Utilities').reduce((sum, t) => sum + t.amount, 0);
+    const food = transactions.filter(t => t.category === 'Food').reduce((sum, t) => sum + t.amount, 0);
+    
+    // Dynamically query unique months present in transactions list
+    const uniqueMonths = Array.from(new Set(transactions.filter(t => t.date && t.date.length >= 7).map(t => t.date.substring(0, 7))));
+    const activeM = uniqueMonths.length || 1;
+    const computed = (housing + utilities + food) / activeM;
+    return computed > 500 ? Math.round(computed) : 1850;
+  });
+  const [incomeShockPercent, setIncomeShockPercent] = useState(100);
+  const [activeShock, setActiveShock] = useState<'none' | 'job_loss' | 'medical' | 'car_breakdown' | 'home_repair'>('none');
+
+  const SHOCKS: Record<string, { title: string; cost: number; description: string }> = {
+    none: { title: "Normal Conditions", cost: 0, description: "Standard monthly environment without sudden shocks." },
+    job_loss: { title: "Complete Job Layoff", cost: 0, description: "100% income loss simulated. Monthly burn rate applies in full." },
+    medical: { title: "Major Out-of-pocket Medical Bill", cost: 2500, description: "Emergency treatment/deductible required instantly." },
+    car_breakdown: { title: "Essential Transmission Repair", cost: 1200, description: "Urgent mechanic repair bills for daily transport." },
+    home_repair: { title: "Main Sewer Line Failure", cost: 3800, description: "Critical emergency structural repair to protect asset." }
+  };
+
+  const emergencyCalculations = useMemo(() => {
+    const shockCost = SHOCKS[activeShock]?.cost || 0;
+    const baseLiquidFund = Math.max(0, emergencyFund - shockCost);
+    const simulatedBurn = essentialCost * (incomeShockPercent / 100);
+    const divisor = simulatedBurn > 0 ? simulatedBurn : 1;
+    const monthsSurviving = baseLiquidFund / divisor;
+
+    // Generate month-by-month cash balances
+    const history: Array<{ month: number; fundLeft: number }> = [];
+    const maxMonths = 12;
+    for (let m = 0; m <= maxMonths; m++) {
+      const remaining = Math.max(0, baseLiquidFund - (m * simulatedBurn));
+      history.push({ month: m, fundLeft: Math.round(remaining) });
+    }
+
+    let rating = 'Critical Status 🚨';
+    let ratingColor = 'text-rose-500 bg-rose-500/15 border-rose-500/20';
+    let ratingDesc = 'Insolvent within 1-2 months. Deep priority required to secure liquid reserve capital reserves.';
+
+    if (monthsSurviving >= 6) {
+      rating = 'Gold Fortified Standard 🛡️';
+      ratingColor = 'text-emerald-555 bg-emerald-500/10 border-emerald-505/20';
+      ratingDesc = '6+ months cover. Exceptional protection against extended job loss or deep financial crises.';
+    } else if (monthsSurviving >= 3) {
+      rating = 'Adequate Buffer ⚠️';
+      ratingColor = 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+      ratingDesc = '3-6 months buffer. Satisfactory general standard but susceptible during prolonged job hunts.';
+    }
+
+    return {
+      shockCost,
+      actualFund: baseLiquidFund,
+      monthlyBurnRate: simulatedBurn,
+      monthsSurviving,
+      history,
+      rating,
+      ratingColor,
+      ratingDesc
+    };
+  }, [emergencyFund, essentialCost, incomeShockPercent, activeShock]);
+
   return (
     <div className="space-y-6">
       {/* Visual Header card */}
@@ -433,6 +503,17 @@ export default function FinancialLabs({ transactions, recurringItems, currencySy
           >
             <PowerOff className="w-4 h-4" />
             Subscription Audit
+          </button>
+          <button
+            onClick={() => setLabTab('emergency')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs md:text-sm font-bold rounded-xl transition-all cursor-pointer ${
+              labTab === 'emergency'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'bg-slate-800/40 hover:bg-slate-800 text-slate-300'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            Emergency Stress Test
           </button>
         </div>
       </div>
@@ -1099,6 +1180,251 @@ export default function FinancialLabs({ transactions, recurringItems, currencySy
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* =========================================================================
+            ==================== 4. EMERGENCY FUND & SHOCK TAB =====================
+            ========================================================================= */}
+        {labTab === 'emergency' && (
+          <motion.div
+            key="emergency-tab"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+          >
+            {/* Left Parameters form & Shocks pad */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800/85 p-5 rounded-2xl shadow-xs transition-colors space-y-4">
+                <span className="text-[9.5px] font-black text-purple-600 dark:text-purple-400 tracking-widest uppercase block mb-1">RESERVE SETTINGS</span>
+                
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Liquid Savings Buffer ({currencySymbol})</label>
+                  <input
+                    type="number"
+                    value={emergencyFund}
+                    onChange={e => setEmergencyFund(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-full border border-gray-200 dark:border-slate-700 bg-transparent text-slate-855 dark:text-slate-100 font-extrabold text-sm px-3 py-2 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-purple-500 font-mono"
+                  />
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">Available cash pool instantly extractable for coverage limits.</p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5">Essential Survival Cost ({currencySymbol}/mo)</label>
+                  <input
+                    type="number"
+                    value={essentialCost}
+                    onChange={e => setEssentialCost(Math.max(1, parseFloat(e.target.value) || 0))}
+                    className="w-full border border-gray-200 dark:border-slate-700 bg-transparent text-slate-855 dark:text-slate-100 font-extrabold text-sm px-3 py-2 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-purple-500 font-mono"
+                  />
+                  <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">Rent, grocers, thermal power, and basic mobility. No discretionary splurges.</p>
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex justify-between text-[10px] font-bold uppercase mb-1">
+                    <span className="text-gray-400 dark:text-slate-505">Income Shock Deficit:</span>
+                    <span className="text-rose-500 font-mono">{incomeShockPercent}% Loss</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="10"
+                    value={incomeShockPercent}
+                    onChange={e => setIncomeShockPercent(parseInt(e.target.value) || 100)}
+                    className="w-full h-1 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-red-500"
+                  />
+                  <p className="text-[9.5px] text-gray-400 dark:text-slate-500 mt-1 font-medium">100% loss equals complete loss of main source income.</p>
+                </div>
+              </div>
+
+              {/* Shocks Trigger Box */}
+              <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 p-5 rounded-2xl shadow-xs transition-colors space-y-3.5">
+                <span className="text-[9.5px] font-black text-rose-500 dark:text-rose-400 tracking-widest uppercase block mb-1">DISASTER SHOCK LOADER</span>
+                <h3 className="text-xs font-bold text-gray-900 dark:text-white leading-tight">Inject Simulated Capital Disruption</h3>
+                
+                <div className="grid grid-cols-1 gap-2">
+                  {(Object.keys(SHOCKS) as Array<keyof typeof SHOCKS>).map(key => {
+                    const info = SHOCKS[key];
+                    const active = activeShock === key;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => {
+                          setActiveShock(key);
+                          // Play warning alarm chime on disaster activation
+                          if (key !== 'none') {
+                            try {
+                              const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                              if (AudioContextClass) {
+                                const ctx = new AudioContextClass();
+                                const now = ctx.currentTime;
+                                const osc = ctx.createOscillator();
+                                const gain = ctx.createGain();
+                                osc.connect(gain);
+                                gain.connect(ctx.destination);
+                                osc.type = 'sawtooth';
+                                osc.frequency.setValueAtTime(320, now);
+                                osc.frequency.exponentialRampToValueAtTime(150, now + 0.35);
+                                gain.gain.setValueAtTime(0.015, now);
+                                gain.gain.linearRampToValueAtTime(0.001, now + 0.4);
+                                osc.start(now);
+                                osc.stop(now + 0.4);
+                              }
+                            } catch (err) {}
+                          }
+                        }}
+                        className={`w-full text-left p-2.5 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer flex justify-between items-center ${
+                          active 
+                            ? 'bg-rose-500/10 dark:bg-rose-500/15 border-rose-500 text-rose-700 dark:text-rose-400 shadow-xs' 
+                            : 'bg-slate-50/50 dark:bg-slate-950/20 border-slate-100 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                        }`}
+                      >
+                        <div className="space-y-0.5 max-w-[85%]">
+                          <span className="font-extrabold block text-xs">{info.title}</span>
+                          <span className="text-[9.5px] text-slate-400 font-medium block leading-tight">{info.description}</span>
+                        </div>
+                        {info.cost > 0 && (
+                          <span className="font-mono text-[10px] font-black text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full shrink-0">
+                            -{currencySymbol}{info.cost}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Right Results column */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 p-5 rounded-2xl shadow-xs transition-colors space-y-5 text-left">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div>
+                    <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase">STRESS ANALYZER METRICS</span>
+                    <h3 className="text-base font-extrabold text-slate-855 dark:text-white mt-1">Resilience Outlines</h3>
+                  </div>
+                  
+                  <div className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center gap-1.5 ${emergencyCalculations.ratingColor}`}>
+                    <span className="h-1.5 w-1.5 rounded-full bg-current animate-ping" />
+                    {emergencyCalculations.rating}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="border border-slate-100 dark:border-slate-800 p-4 rounded-xl bg-slate-50/30 dark:bg-slate-950/20 text-left">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Shock Adjustment Capital</span>
+                    <span className="font-mono text-slate-805 dark:text-slate-200 font-black text-lg block mt-1">
+                      {currencySymbol}{emergencyCalculations.actualFund.toLocaleString()}
+                    </span>
+                    {emergencyCalculations.shockCost > 0 && (
+                      <span className="text-[9.5px] font-medium text-rose-500 block mt-0.5">-{currencySymbol}{emergencyCalculations.shockCost.toLocaleString()} Shock Fee Applied</span>
+                    )}
+                  </div>
+
+                  <div className="border border-slate-100 dark:border-slate-800 p-4 rounded-xl bg-slate-50/30 dark:bg-slate-950/20 text-left">
+                    <span className="text-[9px] text-slate-400 uppercase font-bold block">Essential Outflow burn</span>
+                    <span className="font-mono text-slate-805 dark:text-slate-200 font-black text-lg block mt-1">
+                      {currencySymbol}{emergencyCalculations.monthlyBurnRate.toLocaleString()} /mo
+                    </span>
+                    <span className="text-[9.5px] font-medium text-slate-450 block mt-0.5">{incomeShockPercent}% Impact of Monthly Bills</span>
+                  </div>
+
+                  <div className="border border-purple-50/10 p-4 rounded-xl bg-gradient-to-br from-purple-500/5 to-indigo-500/5 text-left border-purple-500/10">
+                    <span className="text-[9px] text-purple-600 dark:text-purple-400 uppercase font-black block">Absolute Safety Margin</span>
+                    <span className="font-mono text-purple-600 dark:text-purple-300 font-black text-2xl block mt-1">
+                      {emergencyCalculations.monthsSurviving.toFixed(1)} <span className="text-xs font-bold text-slate-400 lowercase">months</span>
+                    </span>
+                    <span className="text-[9.5px] text-slate-400 block mt-0.5">Max survival capacity before default.</span>
+                  </div>
+                </div>
+
+                {/* Survival deplete dynamic SVG graph */}
+                <div className="border border-slate-100 dark:border-slate-800 p-5 rounded-2xl bg-slate-50/30 dark:bg-slate-950/20">
+                  <span className="text-[9.5px] font-black text-slate-400 uppercase block mb-3 text-left">12-Month Buffer Depletion Sandbox</span>
+                  
+                  <div className="h-44 w-full relative">
+                    <svg className="w-full h-full" viewBox="0 0 500 150" preserveAspectRatio="none">
+                      {/* Grid background lines */}
+                      <line x1="0" y1="25" x2="500" y2="25" stroke="#e2e8f0" strokeOpacity="0.25" strokeWidth="1" strokeDasharray="4 4" />
+                      <line x1="0" y1="75" x2="500" y2="75" stroke="#e2e8f0" strokeOpacity="0.25" strokeWidth="1" strokeDasharray="4 4" />
+                      <line x1="0" y1="125" x2="500" y2="125" stroke="#e2e8f0" strokeOpacity="0.25" strokeWidth="1" strokeDasharray="4 4" />
+                      
+                      {/* Depletion Curve Area */}
+                      {(() => {
+                        const maxVal = Math.max(1000, emergencyFund);
+                        const points = emergencyCalculations.history.map((h, i) => {
+                          const x = (i / 12) * 500;
+                          const y = 140 - (h.fundLeft / maxVal) * 115;
+                          return `${x},${y}`;
+                        }).join(' ');
+
+                        const areaPoints = `0,140 ${points} 500,140`;
+
+                        return (
+                          <>
+                            {/* Area Gradient */}
+                            <defs>
+                              <linearGradient id="depleteGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#ef4444" stopOpacity="0.1" />
+                                <stop offset="100%" stopColor="#ef4444" stopOpacity="0.0" />
+                              </linearGradient>
+                            </defs>
+                            <polygon points={areaPoints} fill="url(#depleteGrad)" />
+                            
+                            {/* Line Curve */}
+                            <polyline
+                              fill="none"
+                              stroke="#ef4444"
+                              strokeWidth="2.5"
+                              points={points}
+                              strokeLinecap="round"
+                            />
+
+                            {/* Data Dot Indicators */}
+                            {emergencyCalculations.history.map((h, i) => {
+                              const x = (i / 12) * 500;
+                              const y = 140 - (h.fundLeft / maxVal) * 115;
+                              const isFinished = h.fundLeft === 0;
+                              return (
+                                <g key={i} className="group cursor-help">
+                                  <circle 
+                                    cx={x} 
+                                    cy={y} 
+                                    r={4} 
+                                    fill={isFinished ? "#f43f5e" : "#3b82f6"} 
+                                    stroke="#ffffff" 
+                                    strokeWidth="1" 
+                                  />
+                                </g>
+                              );
+                            })}
+                          </>
+                        );
+                      })()}
+                    </svg>
+
+                    {/* Timeline slider ticks */}
+                    <div className="flex justify-between mt-1 text-[10px] text-slate-400 font-mono font-medium px-1">
+                      <span>Start</span>
+                      <span>Month 3</span>
+                      <span>Month 6</span>
+                      <span>Month 9</span>
+                      <span>Month 12</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50/50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl p-4 flex items-start gap-3 text-slate-655 dark:text-slate-450 text-xs leading-relaxed font-semibold">
+                  <Lightbulb className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900 dark:text-slate-205 uppercase tracking-wider mb-0.5">Auditor Stress Tips</h4>
+                    <span>{emergencyCalculations.ratingDesc} {emergencyCalculations.monthsSurviving < 6 ? `Increasing monthly savings by just ${currencySymbol}250 would extend your core survival timeline by another 2.3 months under complete stress conditions.` : ''}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>

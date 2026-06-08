@@ -242,28 +242,42 @@ export default function TransactionList({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Key Text query matching */}
           <div className="relative md:col-span-2">
-            <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3.5 top-3 w-4 h-4 text-gray-400 dark:text-slate-500" />
             <input
               type="text"
+              id="transaction-search"
               placeholder="Search description or category..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full bg-white border border-gray-200 hover:border-gray-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700/80 rounded-xl pl-9 pr-8 py-2.5 text-xs focus:outline-hidden focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-3 top-2.5 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 rounded-md transition-colors cursor-pointer"
+                title="Clear Search"
+              >
+                <span className="text-[10px] font-bold font-mono">✕</span>
+              </button>
+            )}
           </div>
 
           {/* Type trigger Select */}
           <div>
             <select
               value={typeFilter}
+              id="transaction-type-filter"
               onChange={(e) => {
                 setTypeFilter(e.target.value as any);
                 setCurrentPage(1);
               }}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-medium cursor-pointer focus:outline-hidden"
+              className="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-150 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">📊 All Records</option>
               <option value="income">💸 Income Only</option>
@@ -275,8 +289,9 @@ export default function TransactionList({
           <div>
             <select
               value={sortBy}
+              id="transaction-sort-by"
               onChange={(e) => setSortBy(e.target.value as any)}
-              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-medium cursor-pointer focus:outline-hidden"
+              className="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-150 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-xs font-semibold cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-blue-500"
             >
               <option value="date-desc">📅 Newest Date</option>
               <option value="date-asc">📅 Oldest Date</option>
@@ -347,8 +362,8 @@ export default function TransactionList({
             onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
             className={`text-[10px] font-bold py-1 px-3 rounded-full border tracking-wide transition-all cursor-pointer ${
               categoryFilter === 'all'
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                : 'bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-450 border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700'
             }`}
           >
             All Categories
@@ -359,8 +374,8 @@ export default function TransactionList({
               onClick={() => { setCategoryFilter(cat); setCurrentPage(1); }}
               className={`text-[10px] font-bold py-1 px-3 rounded-full border tracking-wide transition-all cursor-pointer ${
                 categoryFilter === cat
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-450 border-gray-200 dark:border-slate-800 hover:border-gray-300 dark:hover:border-slate-700'
               }`}
             >
               {cat}

@@ -11,6 +11,7 @@ import {
   Coins,
   CheckCircle,
   HelpCircle,
+  Clock,
   X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -48,6 +49,443 @@ const triggerSavingsConfetti = () => {
   };
   frame();
 };
+
+interface SavingsGoalCardProps {
+  key?: React.Key;
+  goal: SavingsGoal;
+  transactions: Transaction[];
+  onUpdateGoalProgress: (id: string, amount: number) => void;
+  onDeleteGoal: (id: string) => void;
+  currencySymbol: string;
+}
+
+function SavingsGoalCard({
+  goal,
+  transactions,
+  onUpdateGoalProgress,
+  onDeleteGoal,
+  currencySymbol
+}: SavingsGoalCardProps) {
+  const percent = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
+  const roundedPercent = Math.min(100, Math.round(percent));
+  const isComplete = goal.current >= goal.target;
+
+  // Local state for deposit inputs
+  const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+
+  // 1. Calculate historical stats to recommend default contribution
+  const autoMonthlyRate = React.useMemo(() => {
+    const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const totalExpense = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const netSurplus = Math.max(0, totalIncome - totalExpense);
+
+    const uniqueMonths = Array.from(new Set(
+      transactions
+        .filter(t => t.date && t.date.length >= 7)
+        .map(t => t.date.substring(0, 7))
+    ));
+    const activeMonths = uniqueMonths.length || 1;
+    const averageMonthlySurplus = netSurplus / activeMonths;
+
+    const storageKey = `fin_tracker_savings_history_${goal.id}`;
+    let recentSavingsSum = 0;
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const historyMap = JSON.parse(stored);
+        const dates: string[] = [];
+        const today = new Date();
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(today);
+          d.setDate(today.getDate() - i);
+          dates.push(d.toISOString().substring(0, 10));
+        }
+        let lastBal = 0;
+        dates.forEach((date, index) => {
+          const bal = historyMap[date] !== undefined ? historyMap[date] : lastBal;
+          if (index > 0) {
+            const prevDate = dates[index - 1];
+            const prevBal = historyMap[prevDate] !== undefined ? historyMap[prevDate] : 0;
+            const dep = Math.max(0, bal - prevBal);
+            recentSavingsSum += dep;
+          } else {
+            recentSavingsSum += Math.max(0, bal - lastBal);
+          }
+          lastBal = bal;
+        });
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+
+    if (recentSavingsSum > 5) {
+      return Math.round(recentSavingsSum);
+    } else if (averageMonthlySurplus > 20) {
+      return Math.round(averageMonthlySurplus * 0.25);
+    } else {
+      return Math.max(100, Math.round(goal.target / 12));
+    }
+  }, [goal.id, goal.target, transactions]);
+
+  const neededRateForDeadline = React.useMemo(() => {
+    if (!goal.deadline) return null;
+    const today = new Date();
+    const deadlineDate = new Date(goal.deadline);
+    const remaining = goal.target - goal.current;
+    if (remaining <= 0) return 0;
+
+    const timeDiff = deadlineDate.getTime() - today.getTime();
+    const daysDiff = timeDiff / (1000 * 3600 * 24);
+    const months = daysDiff / 30.4375;
+    if (months <= 0.1) return remaining;
+    return Math.max(1, Math.round(remaining / months));
+  }, [goal.deadline, goal.target, goal.current]);
+
+  const [monthlyContribution, setMonthlyContribution] = useState<number>(() => {
+    if (neededRateForDeadline && neededRateForDeadline > 0) {
+      return neededRateForDeadline;
+    }
+    return autoMonthlyRate;
+  });
+
+  const projection = React.useMemo(() => {
+    const remaining = Math.max(0, goal.target - goal.current);
+    if (remaining <= 0) {
+      return {
+        remaining,
+        monthsLeft: 0,
+        weeksLeft: 0,
+        targetDateText: 'Complete',
+        status: 'Achieved',
+        statusColor: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/10'
+      };
+    }
+
+    const contribution = monthlyContribution > 0 ? monthlyContribution : 1;
+    const monthsLeft = remaining / contribution;
+    const weeksLeft = monthsLeft * 4.3452425;
+
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + Math.ceil(monthsLeft * 30.4375));
+    const targetDateText = targetDate.toLocaleDateString('default', { month: 'short', year: 'numeric' });
+
+    let status = 'Accumulating';
+    let statusColor = 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/10';
+
+    if (goal.deadline) {
+      const dDate = new Date(goal.deadline);
+      const isAhead = targetDate.getTime() <= dDate.getTime() + (24 * 3600 * 1000);
+      if (isAhead) {
+        status = 'On Track';
+        statusColor = 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border-emerald-100 dark:border-emerald-900/10';
+      } else {
+        status = 'Behind Schedule';
+        statusColor = 'text-amber-600 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 border-amber-150 dark:border-amber-900/20';
+      }
+    }
+
+    return {
+      remaining,
+      monthsLeft,
+      weeksLeft,
+      targetDateText,
+      status,
+      statusColor
+    };
+  }, [goal.target, goal.current, goal.deadline, monthlyContribution]);
+
+  const handleDepositSubmit = () => {
+    const depNum = parseFloat(depositAmount);
+    if (isNaN(depNum)) return;
+    onUpdateGoalProgress(goal.id, depNum);
+
+    const todayStr = new Date().toISOString().substring(0, 10);
+    const storageKey = `fin_tracker_savings_history_${goal.id}`;
+    let historyMap: Record<string, number> = {};
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        historyMap = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+
+    const nextBalance = parseFloat((goal.current + depNum).toFixed(2));
+    if (nextBalance >= goal.target && goal.current < goal.target) {
+      triggerSavingsConfetti();
+    }
+
+    historyMap[todayStr] = nextBalance;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(historyMap));
+    } catch (e) {
+      console.error(e);
+    }
+
+    setIsDepositOpen(false);
+    setDepositAmount('');
+  };
+
+  return (
+    <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-3xs flex flex-col justify-between hover:border-gray-200 dark:hover:border-slate-700 transition-colors">
+      <div className="space-y-4">
+        {/* Top Header & Circular Progress Indicator Row */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className={`p-2 rounded-xl border shrink-0 ${
+              isComplete 
+                ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/10' 
+                : 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/10'
+            }`}>
+              <PiggyBank className="w-5 h-5" />
+            </div>
+            <div className="min-w-0 font-sans">
+              <h4 className="font-semibold text-sm text-gray-850 dark:text-slate-100 truncate" title={goal.name}>
+                {goal.name}
+              </h4>
+              {goal.deadline ? (
+                <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500 font-medium mt-0.5">
+                  <Calendar className="w-3 h-3" />
+                  Target: {goal.deadline}
+                </div>
+              ) : (
+                <div className="text-[10px] text-gray-400 dark:text-slate-500 font-medium mt-0.5">
+                  No target date
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Circular Progress Indicator */}
+          <div className="relative flex items-center justify-center w-14 h-14 shrink-0" title={`${roundedPercent}% saved`}>
+            <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 64 64">
+              <circle
+                className="text-slate-105 dark:text-slate-800"
+                stroke="currentColor"
+                strokeWidth={6}
+                fill="transparent"
+                r={24}
+                cx="32"
+                cy="32"
+              />
+              <circle
+                className={`${
+                  isComplete ? 'text-emerald-500 dark:text-emerald-400' : 'text-blue-500 dark:text-blue-450'
+                } transition-all duration-500 ease-in-out`}
+                stroke="currentColor"
+                strokeWidth={6}
+                strokeDasharray={150.8}
+                strokeDashoffset={150.8 - (Math.min(100, roundedPercent) / 100) * 150.8}
+                strokeLinecap="round"
+                fill="transparent"
+                r={24}
+                cx="32"
+                cy="32"
+              />
+            </svg>
+            <span className="text-[10px] font-mono font-extrabold text-gray-850 dark:text-slate-200">
+              {roundedPercent}%
+            </span>
+          </div>
+        </div>
+
+        {/* Horizontal Progress Bar & Milestones */}
+        <div className="space-y-1 pt-1">
+          <div className="flex justify-between text-[9px] text-gray-400 dark:text-slate-500 font-mono font-bold tracking-wider">
+            <span>PROGRESS BAR TRACK</span>
+            <span>{roundedPercent}% reached</span>
+          </div>
+          
+          <div className="relative h-2.5 w-full bg-slate-105 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-200/40 dark:border-slate-800/60 shadow-inner">
+            <div 
+              className={`h-full rounded-full transition-all duration-700 ease-out ${
+                isComplete 
+                  ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500' 
+                  : 'bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600'
+              }`}
+              style={{ width: `${roundedPercent}%` }}
+            />
+          </div>
+
+          {/* Notch Milestone Indicators */}
+          <div className="relative flex justify-between px-1 text-[8.5px] font-mono text-gray-400 dark:text-slate-500 font-semibold pt-0.5">
+            <div className="flex flex-col items-center">
+              <span className={`h-1.5 w-1.5 rounded-full mb-0.5 ${roundedPercent >= 25 ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className={roundedPercent >= 25 ? 'text-indigo-600 dark:text-indigo-400 font-black' : ''}>25%</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className={`h-1.5 w-1.5 rounded-full mb-0.5 ${roundedPercent >= 50 ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className={roundedPercent >= 50 ? 'text-indigo-600 dark:text-indigo-400 font-black' : ''}>50%</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className={`h-1.5 w-1.5 rounded-full mb-0.5 ${roundedPercent >= 75 ? 'bg-indigo-500 dark:bg-indigo-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className={roundedPercent >= 75 ? 'text-indigo-600 dark:text-indigo-400 font-black' : ''}>75%</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className={`h-1.5 w-1.5 rounded-full mb-0.5 ${roundedPercent >= 100 ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-slate-300 dark:bg-slate-700'}`} />
+              <span className={roundedPercent >= 100 ? 'text-emerald-500 dark:text-emerald-400 font-black' : ''}>Target</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Time-to-Goal Forecast Estimator Component */}
+        <div className="bg-slate-50/50 dark:bg-slate-800/30 p-3 rounded-xl border border-dashed border-slate-150 dark:border-slate-800/80 space-y-3 text-left">
+          <div className="flex justify-between items-center pb-1 border-b border-slate-100/60 dark:border-slate-800/40">
+            <div className="flex items-center gap-1.5 text-[9.5px] font-mono text-purple-600 dark:text-purple-400 font-bold uppercase tracking-wider">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Goal Forecaster</span>
+            </div>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${projection.statusColor}`}>
+              {projection.status}
+            </span>
+          </div>
+
+          {/* Core Estimates Output Grid */}
+          <div className="grid grid-cols-2 gap-2 text-left">
+            <div className="p-1.5 rounded-lg bg-white/40 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-800/40">
+              <span className="text-[8.5px] text-slate-400 uppercase font-semibold block leading-tight">Time to Target</span>
+              <span className="font-mono font-black text-[12px] text-slate-750 dark:text-slate-100 block mt-0.5">
+                {isComplete ? 'Goal met 🎉' : projection.monthsLeft <= 0.25 ? 'Within days! ⚡' : `${projection.monthsLeft.toFixed(1)} mos`}
+              </span>
+            </div>
+            <div className="p-1.5 rounded-lg bg-white/40 dark:bg-slate-900/40 border border-slate-100/50 dark:border-slate-800/40">
+              <span className="text-[8.5px] text-slate-400 uppercase font-semibold block leading-tight">Estimated Date</span>
+              <span className="font-mono font-black text-[12px] text-slate-750 dark:text-slate-100 block mt-0.5">
+                {isComplete ? 'Reached' : projection.targetDateText}
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive Calculator Slider (simulate other rates) */}
+          {!isComplete && (
+            <div className="space-y-1.5 pt-1">
+              <div className="flex justify-between text-[8.5px] font-mono text-slate-400 font-semibold uppercase tracking-wider">
+                <span>Simulate Rate:</span>
+                <span className="text-purple-600 dark:text-purple-400 font-black">
+                  {formatCurrency(monthlyContribution, currencySymbol, { minimumFractionDigits: 0 })}/mo
+                </span>
+              </div>
+              <input 
+                type="range"
+                min={Math.max(10, Math.round(goal.target / 100))}
+                max={Math.max(500, Math.round(goal.target))}
+                step={Math.max(5, Math.round(goal.target / 100))}
+                value={monthlyContribution}
+                onChange={(e) => setMonthlyContribution(Math.max(1, parseInt(e.target.value) || 120))}
+                className="w-full h-1 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+              />
+              
+              {/* Intelligent context tip */}
+              <div className="text-[8px] text-gray-400 dark:text-slate-500 font-medium italic flex items-center gap-1.5 pt-0.5">
+                <HelpCircle className="w-3 h-3 shrink-0 text-slate-400" />
+                <span>
+                  {goal.deadline && neededRateForDeadline ? (
+                    monthlyContribution >= neededRateForDeadline 
+                      ? "Your custom speed easily beats the set target date!" 
+                      : `Save ${formatCurrency(neededRateForDeadline - monthlyContribution, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}/mo more to meet the deadline.`
+                  ) : (
+                    `Change slider to forecast months needed to finish remaining balance of ${formatCurrency(projection.remaining, currencySymbol, { minimumFractionDigits: 0 })}.`
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Cash balances info */}
+        <div className="bg-slate-50/50 dark:bg-slate-800/30 p-2.5 rounded-xl space-y-1.5 text-left">
+          <div className="flex justify-between items-center text-[10px] text-gray-400 dark:text-slate-500 font-mono">
+            <span className="font-bold uppercase tracking-widest text-[9px]">Deposit Summary Ledger</span>
+            {isComplete ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
+                <CheckCircle className="w-3 h-3" /> Fully Funded
+              </span>
+            ) : (
+              <span className="text-blue-600 dark:text-blue-400 font-bold">Funding Needed</span>
+            )}
+          </div>
+          <p className="text-xs font-mono font-bold text-gray-800 dark:text-slate-200 flex justify-between">
+            <span>Currently Saved:</span>
+            <span className={isComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}>
+              {formatCurrency(goal.current, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          </p>
+          <p className="text-xs font-mono text-gray-400 dark:text-slate-500 flex justify-between border-t border-slate-100/60 dark:border-slate-800/50 pt-1">
+            <span>Overall Target:</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-350">
+              {formatCurrency(goal.target, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </span>
+          </p>
+        </div>
+
+        {/* Integrated 30-Day daily breakdown chart of consistency */}
+        <SavingsGoalProgressChart
+          goalId={goal.id}
+          current={goal.current}
+          target={goal.target}
+          currencySymbol={currencySymbol}
+        />
+      </div>
+
+      {/* Deposit transaction actions / delete */}
+      <div className="mt-4 pt-3 border-t border-gray-50 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div className="flex-1">
+          {isDepositOpen ? (
+            <div className="flex gap-1.5 items-center">
+              <div className="relative flex-1">
+                <span className="absolute left-2 top-1.5 text-xs font-bold text-gray-400 dark:text-slate-505">{currencySymbol}</span>
+                <input
+                  type="number"
+                  required
+                  placeholder="0"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full border border-gray-200 dark:border-slate-700/80 rounded-lg pl-5 pr-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-950 focus:outline-hidden font-mono text-gray-800 dark:text-slate-100"
+                />
+              </div>
+              
+              <button
+                onClick={handleDepositSubmit}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1 px-2.5 rounded-lg cursor-pointer shrink-0"
+              >
+                Add
+              </button>
+              
+              <button
+                onClick={() => setIsDepositOpen(false)}
+                className="text-gray-400 hover:text-gray-650 dark:hover:text-slate-300 rounded-lg cursor-pointer p-0.5 shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsDepositOpen(true)}
+              className="w-full text-center border border-dashed border-gray-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/10 dark:hover:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all cursor-pointer"
+            >
+              Add Outflow
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => {
+            try {
+              localStorage.removeItem(`fin_tracker_savings_history_${goal.id}`);
+            } catch (_) {}
+            onDeleteGoal(goal.id);
+          }}
+          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-900/30 rounded-lg transition-colors cursor-pointer shrink-0"
+          title="Delete Goal parameters"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface SavingsGoalsProps {
   goals: SavingsGoal[];
@@ -235,166 +673,16 @@ export default function SavingsGoals({
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {goals.map(goal => {
-                const percent = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
-                const roundedPercent = Math.min(100, Math.round(percent));
-                const isComplete = goal.current >= goal.target;
-
-                return (
-                  <div key={goal.id} className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-5 rounded-2xl shadow-3xs flex flex-col justify-between hover:border-gray-200 dark:hover:border-slate-700 transition-colors">
-                    <div className="space-y-4">
-                      {/* Top Header & Circular Progress Indicator Row */}
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                          <div className={`p-2 rounded-xl border shrink-0 ${
-                            isComplete 
-                              ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/10' 
-                              : 'bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/10'
-                          }`}>
-                            <PiggyBank className="w-5 h-5" />
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-semibold text-sm text-gray-800 dark:text-slate-100 truncate" title={goal.name}>
-                              {goal.name}
-                            </h4>
-                            {goal.deadline ? (
-                              <div className="flex items-center gap-1 text-[10px] text-gray-400 dark:text-slate-500 font-medium mt-0.5">
-                                <Calendar className="w-3 h-3" />
-                                {goal.deadline}
-                              </div>
-                            ) : (
-                              <div className="text-[10px] text-gray-400 dark:text-slate-500 font-medium mt-0.5">
-                                No target date
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Circular Progress Indicator */}
-                        <div className="relative flex items-center justify-center w-14 h-14 shrink-0" title={`${roundedPercent}% saved`}>
-                          <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 64 64">
-                            <circle
-                              className="text-slate-100 dark:text-slate-800"
-                              stroke="currentColor"
-                              strokeWidth={6}
-                              fill="transparent"
-                              r={24}
-                              cx="32"
-                              cy="32"
-                            />
-                            <circle
-                              className={`${
-                                isComplete ? 'text-emerald-500 dark:text-emerald-400' : 'text-blue-500 dark:text-blue-400'
-                              } transition-all duration-500 ease-in-out`}
-                              stroke="currentColor"
-                              strokeWidth={6}
-                              strokeDasharray={150.8}
-                              strokeDashoffset={150.8 - (Math.min(100, roundedPercent) / 100) * 150.8}
-                              strokeLinecap="round"
-                              fill="transparent"
-                              r={24}
-                              cx="32"
-                              cy="32"
-                            />
-                          </svg>
-                          <span className="text-[10px] font-mono font-extrabold text-gray-800 dark:text-slate-200">
-                            {roundedPercent}%
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Cash balances info */}
-                      <div className="bg-slate-50/50 dark:bg-slate-800/30 p-2.5 rounded-xl space-y-1.5">
-                        <div className="flex justify-between items-center text-[10px] text-gray-400 dark:text-slate-505 font-mono">
-                          <span className="font-bold uppercase tracking-widest text-[9px]">Goal Progress</span>
-                          {isComplete ? (
-                            <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-0.5">
-                              <CheckCircle className="w-3 h-3" /> Target Met
-                            </span>
-                          ) : (
-                            <span className="text-blue-600 dark:text-blue-400 font-bold">Accumulating</span>
-                          )}
-                        </div>
-                        <p className="text-xs font-mono font-bold text-gray-800 dark:text-slate-200 flex justify-between">
-                          <span>Current:</span>
-                          <span className={isComplete ? 'text-emerald-600 dark:text-emerald-450' : 'text-slate-800 dark:text-slate-200'}>
-                            {formatCurrency(goal.current, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                          </span>
-                        </p>
-                        <p className="text-xs font-mono text-gray-400 dark:text-slate-500 flex justify-between border-t border-slate-100/60 dark:border-slate-800/50 pt-1">
-                          <span>Target Limit:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-350">
-                            {formatCurrency(goal.target, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                          </span>
-                        </p>
-                      </div>
-
-                      {/* Integrated 30-Day daily breakdown chart of consistency */}
-                      <SavingsGoalProgressChart
-                        goalId={goal.id}
-                        current={goal.current}
-                        target={goal.target}
-                        currencySymbol={currencySymbol}
-                      />
-                    </div>
-
-                    {/* Deposit transaction actions / delete */}
-                    <div className="mt-4 pt-3 border-t border-gray-50 dark:border-slate-800 flex items-center justify-between gap-3">
-                      <div className="flex-1">
-                        {activeDepositId === goal.id ? (
-                          <div className="flex gap-1.5 items-center">
-                            <div className="relative flex-1">
-                              <span className="absolute left-2 top-1.5 text-xs font-bold text-gray-455 dark:text-slate-500">{currencySymbol}</span>
-                              <input
-                                type="number"
-                                required
-                                placeholder="0"
-                                value={depositAmount}
-                                onChange={(e) => setDepositAmount(e.target.value)}
-                                className="w-full border border-gray-200 dark:border-slate-700/80 rounded-lg pl-5 pr-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500 bg-white dark:bg-slate-950 focus:outline-hidden font-mono text-gray-800 dark:text-slate-100"
-                              />
-                            </div>
-                            
-                            <button
-                              onClick={() => handleDeposit(goal.id)}
-                              className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold py-1 px-2.5 rounded-lg cursor-pointer"
-                            >
-                              Add
-                            </button>
-                            
-                            <button
-                              onClick={() => setActiveDepositId(null)}
-                              className="text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 rounded-lg cursor-pointer p-0.5"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setActiveDepositId(goal.id)}
-                            className="w-full text-center border border-dashed border-gray-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50/10 dark:hover:bg-blue-900/10 text-blue-600 dark:text-blue-400 text-xs font-semibold py-1.5 px-3 rounded-lg transition-all cursor-pointer"
-                          >
-                            Add Outflow
-                          </button>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          try {
-                            localStorage.removeItem(`fin_tracker_savings_history_${goal.id}`);
-                          } catch (_) {}
-                          onDeleteGoal(goal.id);
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50/50 dark:hover:bg-red-900/30 rounded-lg transition-colors cursor-pointer shrink-0"
-                        title="Delete Goal parameters"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {goals.map(goal => (
+                <SavingsGoalCard
+                  key={goal.id}
+                  goal={goal}
+                  transactions={transactions}
+                  onUpdateGoalProgress={onUpdateGoalProgress}
+                  onDeleteGoal={onDeleteGoal}
+                  currencySymbol={currencySymbol}
+                />
+              ))}
             </div>
           )}
         </div>

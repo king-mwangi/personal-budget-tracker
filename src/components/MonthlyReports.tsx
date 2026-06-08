@@ -44,6 +44,7 @@ interface MonthlyReportsProps {
   onDeleteSnapshot: (id: string) => Promise<void>;
   isExportingExcel?: boolean;
   onExcelExportStateChange?: (exporting: boolean) => void;
+  onLastExportStored?: (blob: Blob, filename: string) => void;
   onExcelPreviewChange?: (info: { 
     count: number; 
     label: string; 
@@ -86,6 +87,7 @@ export default function MonthlyReports({
   onDeleteSnapshot,
   isExportingExcel = false,
   onExcelExportStateChange,
+  onLastExportStored,
   onExcelPreviewChange,
   excelIncludeCategoryId: propExcelIncludeCategoryId,
   onExcelIncludeCategoryIdChange,
@@ -1672,7 +1674,22 @@ export default function MonthlyReports({
           : (filterExcelByDate
             ? `${excelStartDate}_to_${excelEndDate}`
             : (reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`));
-        XLSX.writeFile(wb, `Ledger_Master_Portfolio_${fileDateLabel}.xlsx`);
+        const fileName = `Ledger_Master_Portfolio_${fileDateLabel}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        // Capture as binary blob for App.tsx caching and Re-download capabilities
+        try {
+          const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+          const buf = new ArrayBuffer(wbout.length);
+          const view = new Uint8Array(buf);
+          for (let i = 0; i < wbout.length; i++) {
+            view[i] = wbout.charCodeAt(i) & 0xFF;
+          }
+          const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          onLastExportStored?.(blob, fileName);
+        } catch (cacheErr) {
+          console.warn("Failed to capture excel blob for toast re-download cache:", cacheErr);
+        }
       } catch (err) {
         console.error("XLSX Export failure:", err);
       } finally {

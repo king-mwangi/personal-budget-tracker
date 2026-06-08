@@ -32,6 +32,7 @@ import {
   RefreshCw,
   FolderHeart,
   X,
+  Download,
   Trash2,
   AlertTriangle,
   Sun,
@@ -71,6 +72,10 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports' | 'labs'>('dash');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [excelExportSuccess, setExcelExportSuccess] = useState(false);
+  const [excelExportTimestamp, setExcelExportTimestamp] = useState<string>('');
+  const [toastAnimateIn, setToastAnimateIn] = useState(false);
+  const [lastExportBlob, setLastExportBlob] = useState<Blob | null>(null);
+  const [lastExportFilename, setLastExportFilename] = useState<string>('');
   const [excelToastPosition, setExcelToastPosition] = useState<'top-right' | 'bottom-right'>(() => {
     try {
       const stored = localStorage.getItem('fin_tracker_excel_toast_position');
@@ -93,6 +98,7 @@ export default function App() {
   useEffect(() => {
     if (prevExportingRef.current && !isExcelExporting) {
       setExcelExportSuccess(true);
+      setExcelExportTimestamp(new Date().toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' }));
       
       // Play a subtle high-quality UI chime
       try {
@@ -134,6 +140,34 @@ export default function App() {
     }
     prevExportingRef.current = isExcelExporting;
   }, [isExcelExporting]);
+
+  useEffect(() => {
+    if (excelExportSuccess) {
+      const timer = setTimeout(() => {
+        setToastAnimateIn(true);
+      }, 40);
+      return () => clearTimeout(timer);
+    } else {
+      setToastAnimateIn(false);
+    }
+  }, [excelExportSuccess]);
+
+  const handleReDownloadExcel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!lastExportBlob) return;
+    try {
+      const url = URL.createObjectURL(lastExportBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = lastExportFilename || 'Ledger_Master_Portfolio_Report.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to re-download generated excel report:', err);
+    }
+  };
 
   const [showResetModal, setShowResetModal] = useState(false);
   
@@ -1925,15 +1959,18 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         {excelExportSuccess && (
           <div 
             id="excel-success-toast" 
-            className={`fixed right-5 z-100 max-w-sm w-full pointer-events-auto transition-all duration-300 hover:scale-[1.02] ${
+            className={`fixed right-5 z-100 max-w-sm w-full pointer-events-auto transform transition-all duration-500 ease-out hover:scale-[1.02] ${
+              toastAnimateIn 
+                ? 'translate-x-0 opacity-100' 
+                : 'translate-x-[110%] opacity-0'
+            } ${
               excelToastPosition === 'bottom-right' ? 'bottom-5' : 'top-20'
             }`}
           >
             <motion.div
               initial={{ 
                 opacity: 0, 
-                x: 200, 
-                scale: 0.9, 
+                scale: 0.95, 
                 filter: 'blur(10px)',
                 boxShadow: excelStyleTheme === 'minimal'
                   ? '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)'
@@ -1941,8 +1978,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               }}
               animate={{ 
                 opacity: [0, 1, 1, 0],
-                x: [200, 0, 0, 80],
-                scale: [0.9, 1, 1, 0.95],
+                scale: [0.95, 1, 1, 0.95],
                 filter: ['blur(10px)', 'blur(0px)', 'blur(0px)', 'blur(5px)'],
                 boxShadow: excelStyleTheme === 'minimal'
                   ? [
@@ -1960,7 +1996,6 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               }}
               exit={{ 
                 opacity: 0, 
-                x: 40, 
                 scale: 0.95, 
                 filter: 'blur(10px)',
                 transition: { duration: 0.35, ease: 'easeIn' }
@@ -2023,11 +2058,37 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   }`}>
                     Spreadsheet Exported!
                   </h4>
+                  {excelExportTimestamp && (
+                    <span 
+                      id="excel-export-timestamp"
+                      className={`text-[9px] font-mono block mt-0.5 font-bold tracking-wider opacity-90 transition-colors duration-300 ${
+                        excelStyleTheme === 'minimal' ? 'text-slate-450 dark:text-slate-500' : 'text-emerald-400'
+                      }`}
+                    >
+                      Exported at: {excelExportTimestamp}
+                    </span>
+                  )}
                   <p className={`text-[10px] mt-1 leading-normal font-sans transition-colors duration-300 ${
                     excelStyleTheme === 'minimal' ? 'text-slate-500 dark:text-slate-400' : 'text-slate-350'
                   }`}>
                     Your custom Excel report has been downloaded successfully.
                   </p>
+                  {lastExportBlob && (
+                    <button
+                      type="button"
+                      id="btn-re-download-toast"
+                      onClick={handleReDownloadExcel}
+                      className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-[9px] font-mono font-bold tracking-wider transition-all uppercase cursor-pointer select-none border whitespace-nowrap active:scale-95 ${
+                        excelStyleTheme === 'minimal'
+                          ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-300 dark:border-slate-800'
+                          : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/50'
+                      }`}
+                      title="Download the generated report again instantly"
+                    >
+                      <Download className="w-3.5 h-3.5 text-current" />
+                      <span>Re-download</span>
+                    </button>
+                  )}
                 </div>
               </div>
               <button 
@@ -3296,6 +3357,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 onDeleteSnapshot={handleDeleteSnapshot}
                 isExportingExcel={isExcelExporting}
                 onExcelExportStateChange={setIsExcelExporting}
+                onLastExportStored={(blob: Blob, filename: string) => {
+                  setLastExportBlob(blob);
+                  setLastExportFilename(filename);
+                }}
                 onExcelPreviewChange={setExcelPreviewCustom}
                 excelIncludeCategoryId={excelIncludeCategoryId}
                 onExcelIncludeCategoryIdChange={setExcelIncludeCategoryId}
