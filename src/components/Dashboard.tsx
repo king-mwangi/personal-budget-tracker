@@ -124,7 +124,12 @@ export default function Dashboard({
     });
 
     const totalBalance = totalIncome - totalExpense;
-    const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
+    const savingsExpense = filteredTransactions
+      .filter(tx => tx.type === 'expense' && tx.category && tx.category.toLowerCase() === 'savings')
+      .reduce((sum, tx) => sum + tx.amount, 0);
+
+    const actualSavings = totalBalance + savingsExpense;
+    const savingsRate = totalIncome > 0 ? (actualSavings / totalIncome) * 100 : 0;
 
     return {
       totalIncome,

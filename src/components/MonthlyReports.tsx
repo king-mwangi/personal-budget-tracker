@@ -292,7 +292,11 @@ export default function MonthlyReports({
 
   const totalIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpense = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const netSavings = totalIncome - totalExpense;
+  const savingsExpense = expenseTransactions
+    .filter(t => t.category && t.category.toLowerCase() === 'savings')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const netSavings = (totalIncome - totalExpense) + savingsExpense;
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
   // Breakdown by categories for income
@@ -1052,7 +1056,11 @@ export default function MonthlyReports({
 
         const excelTotalIncome = excelIncomeTx.reduce((sum, t) => sum + t.amount, 0);
         const excelTotalExpense = excelExpenseTx.reduce((sum, t) => sum + t.amount, 0);
-        const excelNetSavings = excelTotalIncome - excelTotalExpense;
+        const excelSavingsExpense = excelExpenseTx
+          .filter(t => t.category && t.category.toLowerCase() === 'savings')
+          .reduce((sum, t) => sum + t.amount, 0);
+
+        const excelNetSavings = (excelTotalIncome - excelTotalExpense) + excelSavingsExpense;
         const excelSavingsRate = excelTotalIncome > 0 ? (excelNetSavings / excelTotalIncome) * 100 : 0;
 
         // Breakdown categories for income
