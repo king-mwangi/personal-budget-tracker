@@ -2025,33 +2025,67 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               />
 
               <div className="flex items-center gap-3.5 text-left pr-6">
-                <motion.div 
-                  initial={{ scale: 1 }}
-                  animate={{ scale: [1, 1.18, 0.98, 1.05, 1] }}
-                  transition={{ delay: 0.15, duration: 0.7, ease: "easeInOut" }}
-                  className={`p-2 rounded-xl border flex-shrink-0 transition-colors duration-300 ${
-                    excelStyleTheme === 'minimal'
-                      ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
-                      : 'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                  }`}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={3.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <motion.path
-                      d="M20 6L9 17l-5-5"
-                      initial={{ pathLength: 0, strokeDashoffset: 1 }}
-                      animate={{ pathLength: 1, strokeDashoffset: 0 }}
-                      transition={{ duration: 0.6, ease: "easeInOut" }}
+                <div className="relative w-11 h-11 flex-shrink-0 flex items-center justify-center">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 select-none pointer-events-none" viewBox="0 0 36 36">
+                    {/* Background track */}
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="16"
+                      strokeWidth={2.5}
+                      className={`fill-none transition-colors duration-300 ${
+                        excelStyleTheme === 'minimal'
+                          ? 'stroke-slate-100 dark:stroke-slate-800/60'
+                          : 'stroke-emerald-500/10 dark:stroke-emerald-500/15'
+                      }`}
+                    />
+                    {/* Draining countdown ring */}
+                    <motion.circle
+                      cx="18"
+                      cy="18"
+                      r="16"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      className={`fill-none transition-colors duration-300 ${
+                        excelStyleTheme === 'minimal'
+                          ? 'stroke-slate-500 dark:stroke-slate-400'
+                          : 'stroke-emerald-400'
+                      }`}
+                      initial={{ strokeDasharray: "100.5 100.5", strokeDashoffset: 0 }}
+                      animate={{ strokeDashoffset: 100.5 }}
+                      transition={{ duration: 3.5, ease: "linear" }}
                     />
                   </svg>
-                </motion.div>
+
+                  {/* Inner check icon */}
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: [0.8, 1.15, 0.95, 1], opacity: 1 }}
+                    transition={{ delay: 0.1, duration: 0.5, ease: "easeOut" }}
+                    className={`flex items-center justify-center rounded-full transition-colors duration-300 ${
+                      excelStyleTheme === 'minimal'
+                        ? 'text-slate-600 dark:text-slate-300'
+                        : 'text-emerald-400'
+                    }`}
+                  >
+                    <svg
+                      className="w-4.5 h-4.5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={4}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <motion.path
+                        d="M20 6L9 17l-5-5"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 0.5, ease: "easeInOut", delay: 0.2 }}
+                      />
+                    </svg>
+                  </motion.div>
+                </div>
                 <div>
                   <h4 className={`text-xs font-extrabold tracking-wide leading-tight transition-colors duration-300 ${
                     excelStyleTheme === 'minimal' ? 'text-slate-900 dark:text-slate-100' : 'text-white'
@@ -2107,22 +2141,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 <X className="w-4.5 h-4.5" />
               </button>
 
-              {/* Draining Progress Bar */}
-              <motion.div
-                initial={{ width: "100%", backgroundColor: excelStyleTheme === 'minimal' ? "#475569" : "#10b981" }}
-                animate={{ 
-                  width: "0%",
-                  backgroundColor: excelStyleTheme === 'minimal'
-                    ? ["#475569", "#475569", "#f59e0b"]
-                    : ["#10b981", "#10b981", "#f59e0b"]
-                }}
-                transition={{ 
-                  duration: 3.5, 
-                  ease: "linear",
-                  times: [0, 0.857, 1]
-                }}
-                className="absolute bottom-0 left-0 h-1"
-              />
+              {/* Progress Bar Removed. Visual countdown is handled by the circular progress ring. */}
             </motion.div>
           </div>
         )}
