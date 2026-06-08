@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SavingsGoal } from '../types';
+import { SavingsGoal, Transaction } from '../types';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { 
   Plus, 
@@ -51,6 +51,7 @@ const triggerSavingsConfetti = () => {
 
 interface SavingsGoalsProps {
   goals: SavingsGoal[];
+  transactions: Transaction[];
   onAddGoal: (goal: Omit<SavingsGoal, 'id'>) => void;
   onUpdateGoalProgress: (id: string, amount: number) => void;
   onDeleteGoal: (id: string) => void;
@@ -59,6 +60,7 @@ interface SavingsGoalsProps {
 
 export default function SavingsGoals({
   goals,
+  transactions,
   onAddGoal,
   onUpdateGoalProgress,
   onDeleteGoal,
@@ -142,66 +144,81 @@ export default function SavingsGoals({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Form to establish savings targets */}
-        <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs lg:col-span-1 h-fit transition-colors">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <PiggyBank className="w-5 h-5 text-gray-500" />
-            Establish Goal Target
-          </h3>
+        {/* Left Column: Form & Savings Rate Trend */}
+        <div className="lg:col-span-1 space-y-6 flex flex-col h-fit">
+          {/* Form to establish savings targets */}
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <PiggyBank className="w-5 h-5 text-gray-500" />
+              Establish Goal Target
+            </h3>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Goal name */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Goal Identifier</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Europe trip, Tesla purchase..."
-                className="w-full border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 block"
-              />
-            </div>
-
-            {/* Target sum */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                Target Lock sum ({currencySymbol})
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-sm font-bold text-gray-400">{currencySymbol}</span>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Goal name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Goal Identifier</label>
                 <input
-                  type="number"
-                  min="1"
-                  step="any"
+                  type="text"
                   required
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-xl pl-8 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono font-medium"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Europe trip, Tesla purchase..."
+                  className="w-full border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900/40 focus:border-blue-500 block"
                 />
               </div>
-            </div>
 
-            {/* Target Deadline */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Target Date (Optional)</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono"
-              />
-            </div>
+              {/* Target sum */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Target Lock sum ({currencySymbol})
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-sm font-bold text-gray-400">{currencySymbol}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    required
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full border border-gray-200 rounded-xl pl-8 pr-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono font-medium"
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              Lock Target Goal
-            </button>
-          </form>
+              {/* Target Deadline */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Target Date (Optional)</label>
+                <input
+                  type="date"
+                  value={deadline}
+                  onChange={(e) => setDeadline(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-100 focus:border-blue-500 font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Lock Target Goal
+              </button>
+            </form>
+          </div>
+
+          {/* 6-Month Savings Rate Trend Widget */}
+          <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-xs transition-colors">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              6-Month Savings Trend
+            </h3>
+            <p className="text-xs text-gray-505 dark:text-slate-400 mb-4 font-medium">
+              Monthly savings rate progression based on income versus net surplus cashflow.
+            </p>
+            <SavingsRateTrend transactions={transactions} currencySymbol={currencySymbol} />
+          </div>
         </div>
 
         {/* Goals interactive cards list */}
@@ -666,6 +683,216 @@ export function SavingsGoalProgressChart({
       <h5 className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-semibold uppercase tracking-wider">
         Consistency Benchmark: {history.filter(h => h.deposit > 0).length} Deposits logged this period
       </h5>
+    </div>
+  );
+}
+
+interface SavingsRateTrendProps {
+  transactions: Transaction[];
+  currencySymbol: string;
+}
+
+export function SavingsRateTrend({ transactions, currencySymbol }: SavingsRateTrendProps) {
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+
+  const trendData = React.useMemo(() => {
+    const months = [];
+    const now = new Date();
+    // Get last 6 months chronologically in ascending order
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        year: d.getFullYear(),
+        monthNum: d.getMonth(),
+        label: d.toLocaleDateString('default', { month: 'short' }),
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` // "YYYY-MM"
+      });
+    }
+
+    return months.map(m => {
+      const monthTxs = transactions.filter(tx => {
+        if (!tx.date) return false;
+        return tx.date.startsWith(m.key);
+      });
+
+      let income = 0;
+      let expense = 0;
+      let savingsExpense = 0;
+
+      monthTxs.forEach(tx => {
+        if (tx.type === 'income') {
+          income += tx.amount;
+        } else {
+          expense += tx.amount;
+          if (tx.category && tx.category.toLowerCase() === 'savings') {
+            savingsExpense += tx.amount;
+          }
+        }
+      });
+
+      const netSavings = (income - expense) + savingsExpense;
+      const rate = income > 0 ? (netSavings / income) * 100 : 0;
+
+      return {
+        ...m,
+        income,
+        expense,
+        netSavings,
+        rate: Math.max(0, parseFloat(rate.toFixed(1)))
+      };
+    });
+  }, [transactions]);
+
+  const maxRate = Math.max(...trendData.map(d => d.rate), 10);
+  const chartHeight = 85;
+  const chartWidth = 280;
+  const barWidth = 22;
+  const gap = 16;
+  const totalBarWidth = barWidth + gap;
+  const paddingLeft = (chartWidth - (6 * totalBarWidth - gap)) / 2;
+
+  return (
+    <div className="space-y-4">
+      {/* Visual Chart Graphic with SVG bars */}
+      <div className="relative bg-slate-50/40 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl p-3 select-none overflow-hidden transition-colors">
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-auto overflow-visible">
+          <defs>
+            <linearGradient id="trend-bar-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.85" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.85" />
+            </linearGradient>
+            <linearGradient id="trend-bar-hover-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.95" />
+            </linearGradient>
+          </defs>
+
+          {/* Guidelines */}
+          <line x1="0" y1={chartHeight - 16} x2={chartWidth} y2={chartHeight - 16} stroke="#e2e8f0" className="dark:stroke-slate-800" strokeWidth="1" />
+          <line x1="0" y1={(chartHeight - 16) / 2} x2={chartWidth} y2={(chartHeight - 16) / 2} stroke="#e2e8f1" className="dark:stroke-slate-800/80" strokeWidth="1" strokeDasharray="3 3" />
+
+          {trendData.map((d, idx) => {
+            const x = paddingLeft + idx * totalBarWidth;
+            const barHeight = d.rate > 0 ? (d.rate / maxRate) * (chartHeight - 34) : 2;
+            const y = chartHeight - 16 - barHeight - 1;
+            const isHovered = hoveredIdx === idx;
+
+            return (
+              <g key={d.key} className="transition-all duration-300">
+                {/* Background Shadow Bar */}
+                <rect
+                  x={x}
+                  y={4}
+                  width={barWidth}
+                  height={chartHeight - 20}
+                  rx={3.5}
+                  ry={3.5}
+                  fill="#f1f5f9"
+                  className="dark:fill-slate-900/40 opacity-50"
+                />
+
+                {/* Styled Bar */}
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={barHeight}
+                  rx={3.5}
+                  ry={3.5}
+                  fill={`url(${isHovered ? '#trend-bar-hover-gradient' : '#trend-bar-gradient'})`}
+                  className="transition-all duration-300 cursor-pointer"
+                />
+
+                {/* Value display overlay when hovered */}
+                {isHovered && (
+                  <g>
+                    <rect
+                      x={x + barWidth / 2 - 24}
+                      y={y - 18 < 1 ? 1 : y - 18}
+                      width={48}
+                      height={13}
+                      rx={3}
+                      fill="#1e293b"
+                      className="dark:fill-slate-100"
+                    />
+                    <text
+                      x={x + barWidth / 2}
+                      y={y - 18 < 1 ? 10 : y - 9}
+                      textAnchor="middle"
+                      className="fill-white dark:fill-slate-900 font-mono text-[7.5px] font-black"
+                    >
+                      {d.rate.toFixed(1)}%
+                    </text>
+                  </g>
+                )}
+
+                {/* X axis month labels */}
+                <text
+                  x={x + barWidth / 2}
+                  y={chartHeight - 4}
+                  textAnchor="middle"
+                  className={`text-[8.5px] font-mono transition-colors duration-200 ${
+                    isHovered 
+                      ? 'fill-purple-600 dark:fill-purple-400 font-black' 
+                      : 'fill-gray-400 dark:fill-slate-500 font-semibold'
+                  }`}
+                >
+                  {d.label}
+                </text>
+
+                {/* Hover hotspot */}
+                <rect
+                  x={x - gap / 2}
+                  y={0}
+                  width={barWidth + gap}
+                  height={chartHeight}
+                  fill="transparent"
+                  className="cursor-pointer"
+                  onMouseEnter={() => setHoveredIdx(idx)}
+                  onMouseLeave={() => setHoveredIdx(null)}
+                />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      {/* Historical List Rows */}
+      <div className="space-y-1.5">
+        <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-505 uppercase tracking-widest">Monthly Details</h4>
+        <div className="divide-y divide-gray-100/50 dark:divide-slate-800/40 max-h-48 overflow-y-auto pr-1">
+          {trendData.slice().reverse().map((d, index) => {
+            const hasActivity = d.income > 0 || d.expense > 0;
+            return (
+              <div 
+                key={d.key} 
+                className="py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/50 dark:hover:bg-slate-900/30 px-1 rounded-lg transition-colors"
+                onMouseEnter={() => setHoveredIdx(5 - index)}
+                onMouseLeave={() => setHoveredIdx(null)}
+              >
+                <div className="flex flex-col text-left">
+                  <span className="font-bold text-gray-800 dark:text-slate-200">{d.label} {d.year}</span>
+                  <span className="text-[10px] text-gray-450 dark:text-slate-500 font-mono font-medium">
+                    Net: {d.netSavings >= 0 ? '+' : ''}{d.netSavings.toLocaleString('en-US', { style: 'currency', currency: currencySymbol, maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="text-right flex flex-col items-end">
+                  {hasActivity ? (
+                    <>
+                      <span className="font-mono font-black text-purple-600 dark:text-purple-400 text-sm">
+                        {d.rate.toFixed(1)}%
+                      </span>
+                      <span className="text-[9px] text-gray-400 dark:text-slate-500 uppercase font-bold tracking-wider">Rate</span>
+                    </>
+                  ) : (
+                    <span className="text-[10.5px] text-gray-400 dark:text-slate-600 font-medium italic">No transactions</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1928,12 +1928,33 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             }`}
           >
             <motion.div
-              initial={{ opacity: 0, x: 200, scale: 0.9, filter: 'blur(10px)' }}
+              initial={{ 
+                opacity: 0, 
+                x: 200, 
+                scale: 0.9, 
+                filter: 'blur(10px)',
+                boxShadow: excelStyleTheme === 'minimal'
+                  ? '0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05)'
+                  : '0 10px 15px -3px rgba(16, 185, 129, 0.05), 0 4px 6px -4px rgba(16, 185, 129, 0.05)'
+              }}
               animate={{ 
                 opacity: [0, 1, 1, 0],
                 x: [200, 0, 0, 80],
                 scale: [0.9, 1, 1, 0.95],
-                filter: ['blur(10px)', 'blur(0px)', 'blur(0px)', 'blur(5px)']
+                filter: ['blur(10px)', 'blur(0px)', 'blur(0px)', 'blur(5px)'],
+                boxShadow: excelStyleTheme === 'minimal'
+                  ? [
+                      '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+                      '0 20px 25px -5px rgba(147, 51, 234, 0.35), 0 8px 10px -6px rgba(147, 51, 234, 0.35)', // Purple glow pulse
+                      '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15)', // shadow-xl solid state
+                      '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                    ]
+                  : [
+                      '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
+                      '0 20px 25px -5px rgba(16, 185, 129, 0.5), 0 8px 10px -6px rgba(16, 185, 129, 0.5)', // Emerald success glow pulse
+                      '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.15)', // shadow-xl solid state
+                      '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                    ]
               }}
               exit={{ 
                 opacity: 0, 
@@ -1948,7 +1969,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 ease: 'easeInOut' 
               }}
               onClick={() => setExcelExportSuccess(false)}
-              className={`relative overflow-hidden rounded-2xl shadow-2xl p-4 pb-5 flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer select-none border transition-colors duration-300 ${
+              className={`relative overflow-hidden rounded-2xl p-4 pb-5 flex items-center justify-between gap-4 backdrop-blur-md cursor-pointer select-none border transition-colors duration-300 ${
                 excelStyleTheme === 'minimal'
                   ? 'border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-100'
                   : 'border-emerald-500/30 text-white'
@@ -3208,6 +3229,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             {activeTab === 'savings' && (
               <SavingsGoals
                 goals={goals}
+                transactions={transactions}
                 onAddGoal={handleAddGoal}
                 onUpdateGoalProgress={handleUpdateGoalProgress}
                 onDeleteGoal={handleDeleteGoal}
