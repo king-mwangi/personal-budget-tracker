@@ -4,6 +4,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
 import { Transaction, MonthlySnapshot } from '../types';
+import { useToast } from './Toast';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -108,6 +109,7 @@ export default function MonthlyReports({
   aiInsights = null,
   loadingInsights = false
 }: MonthlyReportsProps) {
+  const { toast } = useToast();
   // Extract all available months (YYYY-MM) from transactions
   const availableMonths = Array.from(
     new Set(
@@ -442,7 +444,7 @@ export default function MonthlyReports({
 
   const handleSaveSnapshot = async () => {
     if (monthlyTransactions.length === 0) {
-      alert("No transaction entries to snapshot for this month!");
+      toast.error("No transaction entries to snapshot for this month!");
       return;
     }
 

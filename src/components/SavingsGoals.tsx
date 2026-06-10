@@ -596,6 +596,7 @@ export default function SavingsGoals({
               <div>
                 <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">Goal Identifier</label>
                 <input
+                  id="goal-identifier-input"
                   type="text"
                   required
                   value={name}
@@ -667,9 +668,23 @@ export default function SavingsGoals({
           </h3>
 
           {goals.length === 0 ? (
-            <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-12 rounded-2xl text-center shadow-xs transition-colors">
-              <PiggyBank className="w-10 h-10 text-gray-300 dark:text-slate-700 mx-auto animate-pulse" />
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-3">No savings goals created. Feed parameters on the left to activate metrics.</p>
+            <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs transition-colors">
+              <div className="p-4 bg-purple-50 dark:bg-slate-850 text-purple-600 dark:text-purple-400 rounded-3xl mb-4">
+                <PiggyBank className="w-10 h-10 animate-bounce" />
+              </div>
+              <h3 className="text-base font-bold text-slate-805 dark:text-slate-100">No savings goals configured yet</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-400 max-w-sm mt-1.5 leading-relaxed font-sans mb-5">
+                Set milestones for holidays, retirement, housing down payments, or unexpected emergency safety nets.
+              </p>
+              <button
+                onClick={() => {
+                  document.getElementById('goal-identifier-input')?.focus();
+                }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add your first savings goal
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

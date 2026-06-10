@@ -196,6 +196,7 @@ export default function BudgetManager({
                 <div className="relative">
                   <span className="absolute left-3.5 top-2.5 text-sm font-bold text-gray-400">{currencySymbol}</span>
                   <input
+                    id="budget-limit-input"
                     type="number"
                     min="0"
                     step="any"
@@ -277,8 +278,23 @@ export default function BudgetManager({
         </h3>
 
         {budgets.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-sm text-gray-400 dark:text-slate-500">No category limits have been configured yet. Set targets above to begin tracking.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-slate-100 dark:border-slate-850 rounded-2xl bg-white dark:bg-slate-900 m-2 p-8">
+            <div className="p-4 bg-rose-50 dark:bg-slate-800 text-rose-500 rounded-3xl mb-4">
+              <Scale className="w-8 h-8" />
+            </div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">No budgets configured yet</h3>
+            <p className="text-xs text-slate-400 dark:text-slate-400 max-w-sm mt-1.5 leading-relaxed font-sans mb-5">
+              Specify monthly spending limits across food, housing, entertainment, or utilities to safeguard your savings pipeline.
+            </p>
+            <button
+              onClick={() => {
+                document.getElementById('budget-limit-input')?.focus();
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add your first budget
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

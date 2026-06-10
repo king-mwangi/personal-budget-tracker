@@ -14,7 +14,9 @@ import {
   ChevronRight,
   Sparkles,
   Download,
-  Calendar
+  Calendar,
+  Receipt,
+  Plus
 } from 'lucide-react';
 
 interface TransactionListProps {
@@ -386,13 +388,47 @@ export default function TransactionList({
 
       {/* Main Ledger grid list */}
       <div className="flex-1 overflow-x-auto min-h-[350px]">
-        {paginatedTransactions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="p-3 bg-gray-50 text-gray-400 rounded-full">
+        {transactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center border-2 border-dashed border-slate-100 dark:border-slate-800/80 rounded-2xl bg-white dark:bg-slate-900 m-4 p-8">
+            <div className="p-4 bg-blue-50 dark:bg-slate-800 text-blue-500 rounded-2xl mb-4">
+              <Receipt className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 font-sans">No transactions yet</h3>
+            <p className="text-sm text-slate-400 dark:text-slate-400 max-w-sm mt-1.5 leading-relaxed font-sans mb-6">
+              Track your daily earnings, groceries, bill payments, and entertainment outlays in a fast personal database.
+            </p>
+            <button
+              onClick={() => {
+                document.getElementById('tx-description-input')?.focus();
+              }}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-750 text-white font-bold py-2.5 px-5 rounded-xl text-sm transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Add your first transaction
+            </button>
+          </div>
+        ) : paginatedTransactions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center p-8">
+            <div className="p-4 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-2xl mb-4">
               <Filter className="w-6 h-6" />
             </div>
-            <p className="text-sm font-medium text-gray-500 mt-3">No transactions found matching requirements.</p>
-            <p className="text-xs text-gray-400 mt-1">Try relaxing filters or log fresh inputs.</p>
+            <h3 className="text-base font-bold text-slate-705 dark:text-slate-200">No transactions match your search</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed mb-5">
+              We couldn't locate any records matching active queries. Try pruning search parameters or reset fields.
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setTypeFilter('all');
+                setCategoryFilter('all');
+                setDateRangePreset('all');
+                setStartDate('');
+                setEndDate('');
+              }}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-805/50 rounded-xl text-xs font-semibold text-slate-605 dark:text-slate-350 transition-colors cursor-pointer"
+            >
+              Clear all filters
+            </button>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">

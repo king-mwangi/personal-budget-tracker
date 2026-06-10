@@ -161,6 +161,7 @@ export default function RecurringManager({
                 Subscription / Expense Name
               </label>
               <input
+                id="recurring-name-input"
                 type="text"
                 required
                 value={description}
@@ -291,12 +292,23 @@ export default function RecurringManager({
           </div>
 
           {recurringItems.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 space-y-3">
-              <CalendarClock className="w-10 h-10 mx-auto text-slate-300 stroke-1" />
-              <p className="text-xs font-semibold">No fixed monthly trackers scheduled yet</p>
-              <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
-                Schedule your landlord payments, phone plans, gym memberships, software subscriptions, or recurring investment portfolios above.
+            <div className="flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-slate-900 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs transition-colors py-12">
+              <div className="p-4 bg-teal-50 dark:bg-slate-800 text-teal-600 rounded-3xl mb-4">
+                <CalendarClock className="w-10 h-10 animate-pulse" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">No recurring items yet</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-400 max-w-sm mt-1.5 leading-relaxed font-sans mb-5">
+                Schedule your landlord payments, phone plans, gym memberships, software subscriptions, or recurring investment portfolios to automatically integrate.
               </p>
+              <button
+                onClick={() => {
+                  document.getElementById('recurring-name-input')?.focus();
+                }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-all shadow-md shadow-blue-500/10 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add your first scheduled item
+              </button>
             </div>
           ) : (
             <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1">
