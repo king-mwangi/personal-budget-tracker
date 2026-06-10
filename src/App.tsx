@@ -579,6 +579,7 @@ export default function App() {
 
   // Handle popup window logic if this app is rendered inside an OAuth popup
   useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
     if (window.opener) {
       const notifyAndClose = (session: any) => {
         try {
@@ -620,6 +621,10 @@ export default function App() {
 
   // Hook subscription monitoring Supabase authentication session lifecycle
   useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setIsAuthLoading(false);
+      return;
+    }
     setIsAuthLoading(true);
 
     supabase.auth.getSession().then(({ data, error }) => {
@@ -695,6 +700,7 @@ export default function App() {
 
   // Sync state changes loading from Supabase Cloud on successful authentication transition
   useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
     if (!user) {
       setTransactions([]);
       setBudgets([]);
@@ -1505,7 +1511,7 @@ Here is the progress report on your savings plans:
 1. **Active Goals Count:** You are currently tracking **${goals.length}** goals.
 2. **Savings Pipeline:** 
 ${goals.length > 0
-  ? goals.map(g => `   - **${g.name}:** Saved **${currency} ${g.current_amount.toLocaleString()}** of **${currency} ${g.target_amount.toLocaleString()}** (${Math.round((g.current_amount / g.target_amount) * 100)}%). Target Date: ${g.deadline || "No date set"}.`).join('\n')
+  ? goals.map(g => `   - **${g.name}:** Saved **${currency} ${(g.current || 0).toLocaleString()}** of **${currency} ${(g.target || 0).toLocaleString()}** (${g.target > 0 ? Math.round(((g.current || 0) / g.target) * 100) : 0}%). Target Date: ${g.deadline || "No date set"}.`).join('\n')
   : "   - You haven't started any savings targets. Setting up an active goal raises savings frequency by up to 2.5x!"
 }
 
@@ -1899,6 +1905,24 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
     setActiveTab('ai');
     handleSendMessage("Analyze my category budgets constraints vs spent volumes, and suggest optimization strategies.");
   };
+
+  if (!isSupabaseConfigured || !supabase) {
+    return (
+      <div id="unconfigured-banner" className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white p-6">
+        <div className="bg-slate-800 border border-slate-700/65 rounded-3xl shadow-2xl p-8 max-w-md w-full text-center flex flex-col items-center gap-5 transition-all">
+          <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center border border-rose-500/20">
+            <AlertTriangle className="w-8 h-8 text-rose-500 animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold tracking-tight text-white font-sans">App not configured — contact the administrator.</h2>
+            <p className="text-sm text-slate-400 leading-relaxed font-sans">
+              The Supabase credentials are missing or set to placeholders in our environment variables. Please provide active VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to proceed securely.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isAuthLoading) {
     return (

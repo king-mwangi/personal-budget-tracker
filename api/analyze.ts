@@ -22,6 +22,35 @@ function getAIClient() {
   return aiInstance;
 }
 
+async function generateContentWithRetryAndFallback(ai: any, params: any, retries = 3) {
+  let lastError: any = null;
+  const modelsToTry = [params.model, "gemini-3.1-flash-lite"];
+  
+  for (const model of modelsToTry) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          ...params,
+          model: model
+        });
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        const errMsg = error?.message || "";
+        console.warn(`[GEMINI ATTEMPT FAIL] Model: ${model}, Attempt: ${attempt}/${retries}. Error: ${errMsg}`);
+        if (errMsg.includes("API key") || error?.status === 403 || error?.status === 400) {
+          throw error;
+        }
+        if (attempt < retries) {
+          const delay = Math.pow(2, attempt) * 500;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+  }
+  throw lastError;
+}
+
 export default async function handler(req: any, res: any) {
   // Handle CORS options
   if (req.method === 'OPTIONS') {
@@ -187,7 +216,7 @@ export default async function handler(req: any, res: any) {
       3. Cite specific numbers with the correct currency prefix (${currency}) to maintain highly credible observations. Double-check all budget ceiling limits.`;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetryAndFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {

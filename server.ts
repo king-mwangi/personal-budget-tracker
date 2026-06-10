@@ -35,6 +35,36 @@ function getAIClient() {
   return aiInstance;
 }
 
+// Durable helper for retries and fallback
+async function generateContentWithRetryAndFallback(ai: any, params: any, retries = 3) {
+  let lastError: any = null;
+  const modelsToTry = [params.model, "gemini-3.1-flash-lite"];
+  
+  for (const model of modelsToTry) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          ...params,
+          model: model
+        });
+        return response;
+      } catch (error: any) {
+        lastError = error;
+        const errMsg = error?.message || "";
+        console.warn(`[GEMINI ATTEMPT FAIL] Model: ${model}, Attempt: ${attempt}/${retries}. Error: ${errMsg}`);
+        if (errMsg.includes("API key") || error?.status === 403 || error?.status === 400) {
+          throw error;
+        }
+        if (attempt < retries) {
+          const delay = Math.pow(2, attempt) * 500;
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    }
+  }
+  throw lastError;
+}
+
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
@@ -188,7 +218,7 @@ async function handleInsightsRequest(req: any, res: any) {
       3. Cite specific numbers with the correct currency prefix (${currency}) to maintain highly credible observations. Double-check all budget ceiling limits.`;
     }
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetryAndFallback(ai, {
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
@@ -278,6 +308,32 @@ async function handleInsightsRequest(req: any, res: any) {
 app.post("/api/insights", handleInsightsRequest);
 app.post("/api/analyze", handleInsightsRequest);
 
+function summarizeFinancialData(transactions: any[], budgets: any[], goals: any[], currency: string) {
+  const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+  const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+
+  // Group expenses by category
+  const byCategory: Record<string, number> = {};
+  transactions.filter(t => t.type === 'expense').forEach(t => {
+    byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount);
+  });
+
+  return {
+    transactionCount: transactions.length,
+    totalIncome,
+    totalExpense,
+    netSavings: totalIncome - totalExpense,
+    savingsRate: totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome * 100).toFixed(1) : '0',
+    topExpenseCategories: Object.entries(byCategory)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([cat, amt]) => ({ category: cat, amount: amt })),
+    budgets,
+    goals: goals.map(g => ({ name: g.name, target: g.target, current: g.current, deadline: g.deadline })),
+    currency
+  };
+}
+
 // AI Advisor Chat Bot - Supports conversation informed by current accounts status
 app.post("/api/advisor", async (req, res) => {
   try {
@@ -289,12 +345,14 @@ app.post("/api/advisor", async (req, res) => {
 
     const ai = getAIClient();
 
+    const summary = summarizeFinancialData(transactions, budgets, savingsGoals, currency);
+    const recentTransactions = transactions.slice(-20);
+
     // Map system context instruction incorporating financial records and current currency
     const systemInstruction = `You are "Gemini Wealth Advisor", a supportive, professional, and practical personal finance chatbot assistant.
-    You have direct access to the user's monthly budgets, recent transactions logs, and savings goals:
-    - Budgets: ${JSON.stringify(budgets)}
-    - Transactions: ${JSON.stringify(transactions)}
-    - Savings Goals: ${JSON.stringify(savingsGoals)}
+    You have direct access to the user's computed financial summary and recent transactions:
+    - Financial Summary: ${JSON.stringify(summary)}
+    - Recent Transactions (Last 20): ${JSON.stringify(recentTransactions)}
     - Active Currency: ${currency}
 
     Guidance rules:
@@ -314,7 +372,7 @@ app.post("/api/advisor", async (req, res) => {
       parts: [{ text: m.text }]
     }));
 
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetryAndFallback(ai, {
       model: "gemini-3.5-flash",
       contents: contents,
       config: {
