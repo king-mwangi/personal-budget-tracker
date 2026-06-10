@@ -4,7 +4,6 @@ import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, Recurrin
 import { formatCurrency } from './utils/currencyFormatter';
 import Login from './components/Login';
 import LedgerSmartLogo from './components/Logo';
-import ErrorBoundary from './components/ErrorBoundary';
 
 // Optimally lazy loaded major performance modules to secure instantaneous loading
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -580,7 +579,6 @@ export default function App() {
 
   // Handle popup window logic if this app is rendered inside an OAuth popup
   useEffect(() => {
-    if (!supabase) return;
     if (window.opener) {
       const notifyAndClose = (session: any) => {
         try {
@@ -623,10 +621,6 @@ export default function App() {
   // Hook subscription monitoring Supabase authentication session lifecycle
   useEffect(() => {
     setIsAuthLoading(true);
-    if (!supabase) {
-      setIsAuthLoading(false);
-      return;
-    }
 
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
@@ -713,7 +707,6 @@ export default function App() {
     }
 
     const loadUserData = async () => {
-      if (!supabase) return;
       // Demo authentication bypass loading pre-filled static content
       if (user.isDemo) {
         setTransactions(SEED_TRANSACTIONS);
@@ -1934,22 +1927,6 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
   // Detect if database contains seeded dummy data to offer one-click cleanup
   const hasSeededData = transactions.some(t => t.id === '1' || t.id === '2');
-
-  if (!isSupabaseConfigured || !supabase) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-white">
-        <div className="max-w-md bg-slate-800 border border-red-500/30 p-8 rounded-2xl shadow-xl">
-          <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor font-medium">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold mb-2">App not configured</h2>
-          <p className="text-sm text-slate-300">contact the administrator.</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
@@ -3284,17 +3261,16 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           )}
 
           {/* Active rendering tabs content */}
-          <ErrorBoundary>
-            <React.Suspense fallback={
-              <div className="flex flex-col items-center justify-center p-12 min-h-[400px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs transition-colors pr-4 animate-pulsate">
-                <div className="relative w-12 h-12 flex items-center justify-center mb-4">
-                  <div className="absolute inset-0 w-full h-full rounded-full border-4 border-slate-200 dark:border-slate-800" />
-                  <div className="absolute inset-0 w-full h-full rounded-full border-4 border-t-blue-600 dark:border-t-blue-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
-                </div>
-                <p className="text-sm font-semibold text-slate-705 dark:text-slate-250">Loading application segment...</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[280px] text-center leading-relaxed">Splitting asset bundle into instant dynamic micro-chunks for performance.</p>
+          <React.Suspense fallback={
+            <div className="flex flex-col items-center justify-center p-12 min-h-[400px] bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-xs transition-colors pr-4 animate-pulsate">
+              <div className="relative w-12 h-12 flex items-center justify-center mb-4">
+                <div className="absolute inset-0 w-full h-full rounded-full border-4 border-slate-200 dark:border-slate-800" />
+                <div className="absolute inset-0 w-full h-full rounded-full border-4 border-t-blue-600 dark:border-t-blue-400 border-r-transparent border-b-transparent border-l-transparent animate-spin" />
               </div>
-            }>
+              <p className="text-sm font-semibold text-slate-705 dark:text-slate-250">Loading application segment...</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[280px] text-center leading-relaxed">Splitting asset bundle into instant dynamic micro-chunks for performance.</p>
+            </div>
+          }>
             {activeTab === 'dash' && (
               <Dashboard 
                 transactions={transactions} 
@@ -3434,7 +3410,6 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
               />
             )}
           </React.Suspense>
-          </ErrorBoundary>
 
         </section>
 
