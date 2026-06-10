@@ -98,7 +98,7 @@ export default async function handler(req: any, res: any) {
         secure: port === 465,
         auth: { user, pass },
         tls: {
-          rejectUnauthorized: false
+          minVersion: "TLSv1.2"
         }
       });
 

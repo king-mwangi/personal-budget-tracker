@@ -1,0 +1,21 @@
+{
+  "short_name": "LedgerSmart",
+  "name": "Ledger Smart Personal Finance",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/color/192/000000/wallet--v1.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://img.icons8.com/color/512/000000/wallet--v1.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0F172A",
+  "theme_color": "#1E293B",
+  "display": "standalone",
+  "orientation": "portrait"
+}

@@ -5,14 +5,54 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import { rateLimit } from "express-rate-limit";
+import { generateInsightsDirect } from "./api/insightsEngine";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "2mb" }));
+app.use(express.urlencoded({ limit: "2mb", extended: true }));
+
+// Global limiter: 100 requests per 15 minutes
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: "Too many requests from this IP, please try again after 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Advisor limiter: 5 requests per 1 minute
+const advisorLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 5,
+  message: { error: "Too many advisor queries. Please wait a minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Analyze / Insights limiter: 3 requests per 1 minute
+const analyzeLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 3,
+  message: { error: "Too many analysis queries. Please wait a minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Send-report limiter: 2 requests per 5 minutes
+const sendReportLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 2,
+  message: { error: "Too many statement delivery requests. Please wait 5 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(globalLimiter);
 
 // Helper for lazy loading Gemini API safely to prevent startup failure if key is missing
 let aiInstance: GoogleGenAI | null = null;
@@ -52,10 +92,10 @@ async function handleInsightsRequest(req: any, res: any) {
     const authHeader = req.headers?.authorization || req.headers?.Authorization;
     const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
 
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-    if (token && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY') {
+    if (token && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' && supabaseUrl !== 'your_supabase_url_here' && supabaseAnonKey !== 'your_supabase_anon_key_here') {
       try {
         const supabaseServer = createClient(supabaseUrl, supabaseAnonKey, {
           global: {
@@ -88,175 +128,17 @@ async function handleInsightsRequest(req: any, res: any) {
       });
     }
 
-    // Utility helpers for formatting periods
-    const getPeriodLabel = (period: string) => {
-      if (!period || period === 'all') return 'Combine All Periods (All-Time)';
-      const parts = period.split('-');
-      if (parts.length < 2) return period;
-      const [yearStr, monthStr] = parts;
-      const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-      ];
-      const monthIdx = parseInt(monthStr, 10) - 1;
-      if (monthIdx >= 0 && monthIdx < 12) {
-        return `${monthNames[monthIdx]} ${yearStr}`;
-      }
-      return period;
-    };
-
-    const getPreviousMonthString = (yearMonthStr: string): string => {
-      const parts = yearMonthStr.split('-');
-      if (parts.length !== 2) return yearMonthStr;
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const prevDate = new Date(year, month - 2, 1);
-      const prevYear = prevDate.getFullYear();
-      const prevMonth = prevDate.getMonth() + 1;
-      const prevMonthStr = prevMonth < 10 ? `0${prevMonth}` : `${prevMonth}`;
-      return `${prevYear}-${prevMonthStr}`;
-    };
-
-    let targetMonthTransactions = [];
-    let comparisonTransactions = [];
-    let isAllView = selectedPeriod === 'all';
-    
-    let selectedIncome = 0;
-    let selectedExpense = 0;
-    let prevIncome = 0;
-    let prevExpense = 0;
-    let prevLabel = "";
-
-    const activeLabel = getPeriodLabel(selectedPeriod);
-
-    if (!isAllView) {
-      targetMonthTransactions = transactions.filter((t: any) => t.date && t.date.substring(0, 7) === selectedPeriod);
-      const prevPeriod = getPreviousMonthString(selectedPeriod);
-      prevLabel = getPeriodLabel(prevPeriod);
-      comparisonTransactions = transactions.filter((t: any) => t.date && t.date.substring(0, 7) === prevPeriod);
-
-      targetMonthTransactions.forEach((t: any) => {
-        if (t.type === 'income') selectedIncome += Number(t.amount || 0);
-        else selectedExpense += Number(t.amount || 0);
-      });
-
-      comparisonTransactions.forEach((t: any) => {
-        if (t.type === 'income') prevIncome += Number(t.amount || 0);
-        else prevExpense += Number(t.amount || 0);
-      });
-    } else {
-      transactions.forEach((t: any) => {
-        if (t.type === 'income') selectedIncome += Number(t.amount || 0);
-        else selectedExpense += Number(t.amount || 0);
-      });
-    }
-
     const ai = getAIClient();
-    let prompt = "";
-    if (isAllView) {
-      prompt = `Analyze the following all-time combined personal finance snapshot:
-      - Budgets allocations: ${JSON.stringify(budgets)}
-      - All logged transactions count: ${transactions.length}
-      - Complete transaction history: ${JSON.stringify(transactions)}
-      - Cumulative Inflow / Income recorded historical: ${currency} ${selectedIncome.toLocaleString()}
-      - Cumulative Outflow / Expenses recorded historical: ${currency} ${selectedExpense.toLocaleString()}
-      - Savings Goals targets status: ${JSON.stringify(savingsGoals)}
-      - Active Currency: ${currency}
-
-      Provide a professional lifetime financial analysis containing overall status, high-level summary, specific actionable insights, and direct category savings goals with estimates.`;
-    } else {
-      prompt = `Analyze the following monthly personal finance snapshot comparing the selected month with the previous month:
-      - Current selected billing month of review: "${activeLabel}" (${selectedPeriod})
-        - Current Month Total Inflows (Income): ${currency} ${selectedIncome.toLocaleString()}
-        - Current Month Total Outflows (Expenses): ${currency} ${selectedExpense.toLocaleString()}
-        - Current Month Net Savings Balance flow: ${currency} ${(selectedIncome - selectedExpense).toLocaleString()}
-        - Current Month transactions feed: ${JSON.stringify(targetMonthTransactions)}
-      
-      - Comparison base cycle (The previous month): "${prevLabel}" (${getPreviousMonthString(selectedPeriod)})
-        - Previous Month Total Inflows (Income): ${currency} ${prevIncome.toLocaleString()}
-        - Previous Month Total Outflows (Expenses): ${currency} ${prevExpense.toLocaleString()}
-        - Previous Month Net Savings Balance flow: ${currency} ${(prevIncome - prevExpense).toLocaleString()}
-        - Previous Month transactions feed: ${JSON.stringify(comparisonTransactions)}
-      
-      - Configured monthly budgets ceilings: ${JSON.stringify(budgets)}
-      - Savings target plans: ${JSON.stringify(savingsGoals)}
-      - Active regional currency symbol: ${currency}
-
-      Requirements:
-      1. Deliver diagnostics tailored specifically to the Active Selected Month: ${activeLabel}.
-      2. Constructively compare the current month outflows and inflows against the previous month of ${prevLabel}. Point out precise variations in totals (did expenses increase or decrease, by what percent?), check for category priority shifts, and note if they are saving more or less of their income.
-      3. Cite specific numbers with the correct currency prefix (${currency}) to maintain highly credible observations. Double-check all budget ceiling limits.`;
-    }
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction: `You are a senior personal finance expert and budget optimization engine. Provide highly practical, personalized, and encouraging advice purely based on the real uploaded numbers. Always frame all monetary advice and estimates around the current active currency: ${currency}.`,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            overallStatus: {
-              type: Type.STRING,
-              description: "Overall status based on spending vs budgets. Use one of: 'On Track', 'Caution', 'Budget Exceeded'"
-            },
-            summaryMessage: {
-              type: Type.STRING,
-              description: "A friendly, expert 1-2 sentence overall summary of how their month is looking."
-            },
-            actionableInsights: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: `3 specific, data-contextual observations or milestones (e.g. food is of high velocity, or savings rate looks great) mentioning amounts with currency prefix: ${currency}.`
-            },
-            savingsOpportunities: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  category: { type: Type.STRING, description: "Relevant budget category (e.g. Food, Utilities)" },
-                  savingEstimate: { type: Type.NUMBER, description: `Monthly potential savings target in the active currency: ${currency}` },
-                  actionableTip: { type: Type.STRING, description: `Specific tip or substitution behavior to achieve this saving. Mention the potential saving amount using the currency symbol ${currency}.` }
-                },
-                required: ["category", "savingEstimate", "actionableTip"]
-              },
-              description: "Actionable saving ideas based on the dataset."
-            }
-          },
-          required: ["overallStatus", "summaryMessage", "actionableInsights", "savingsOpportunities"]
-        }
-      }
+    const result = await generateInsightsDirect({
+      transactions,
+      budgets,
+      savingsGoals,
+      currency,
+      selectedPeriod,
+      ai
     });
 
-    let textToShow = response.text || "";
-    // Clean up potential markdown wrapper codeblocks (```json ... ```)
-    if (textToShow.includes("```")) {
-      textToShow = textToShow.replace(/```json\s*/i, "").replace(/```\s*$/, "").trim();
-    }
-
-    try {
-      const parsedResult = JSON.parse(textToShow || "{}");
-      res.json(parsedResult);
-    } catch (parseErr) {
-      console.warn("Invalid JSON structure returned by Gemini model, sending structured fallback instead.", parseErr);
-      res.json({
-        overallStatus: "Caution",
-        summaryMessage: "Your digital advisor analysis is active, though the live AI formatting is currently misaligned. Standard advisory patterns remain fully active.",
-        actionableInsights: [
-          "Cross-examine your expense velocity in categories like Food, Bills, and Shopping.",
-          "Check that your active budget limits are configured correctly.",
-          "Ensure that newly posted transactions stay strictly within your designated monthly margins."
-        ],
-        savingsOpportunities: [
-          {
-            category: "Food",
-            savingEstimate: 15,
-            actionableTip: "Compare your daily average spending directly inside the digital budgets manager to trim unnecessary snack expenses."
-          }
-        ]
-      });
-    }
+    return res.status(200).json(result);
   } catch (error: any) {
     console.error("Gemini Insights Error:", error);
     const errMsg = error?.message || String(error || "");
@@ -275,16 +157,32 @@ async function handleInsightsRequest(req: any, res: any) {
 }
 
 // AI Insights Generator - Runs structured diagnostic on the user's budgets and logs
-app.post("/api/insights", handleInsightsRequest);
-app.post("/api/analyze", handleInsightsRequest);
+app.post("/api/insights", analyzeLimiter, (req, res, next) => {
+  const { transactions = [], budgets = [], savingsGoals = [] } = req.body || {};
+  if (!Array.isArray(transactions) || !Array.isArray(budgets) || !Array.isArray(savingsGoals)) {
+    return res.status(400).json({ error: "Invalid payload: transactions, budgets, and savingsGoals must be valid arrays." });
+  }
+  next();
+}, handleInsightsRequest);
+
+app.post("/api/analyze", analyzeLimiter, (req, res, next) => {
+  const { transactions = [], budgets = [], savingsGoals = [] } = req.body || {};
+  if (!Array.isArray(transactions) || !Array.isArray(budgets) || !Array.isArray(savingsGoals)) {
+    return res.status(400).json({ error: "Invalid payload: transactions, budgets, and savingsGoals must be valid arrays." });
+  }
+  next();
+}, handleInsightsRequest);
 
 // AI Advisor Chat Bot - Supports conversation informed by current accounts status
-app.post("/api/advisor", async (req, res) => {
+app.post("/api/advisor", advisorLimiter, async (req, res) => {
   try {
-    const { messages = [], transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body;
+    const { messages = [], transactions = [], budgets = [], savingsGoals = [], currency = "Ksh" } = req.body || {};
 
-    if (!messages || messages.length === 0) {
-      return res.status(400).json({ error: "Messages array is required" });
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: "Messages array is required and cannot be empty." });
+    }
+    if (!Array.isArray(transactions) || !Array.isArray(budgets) || !Array.isArray(savingsGoals)) {
+      return res.status(400).json({ error: "Invalid payload: transactions, budgets, and savingsGoals must be valid arrays." });
     }
 
     const ai = getAIClient();
@@ -315,7 +213,7 @@ app.post("/api/advisor", async (req, res) => {
     }));
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
@@ -341,14 +239,14 @@ app.post("/api/advisor", async (req, res) => {
 });
 
 // Dispatch Statement Email - sends PDF statement directly to recipient
-app.post("/api/send-report", async (req: any, res: any) => {
+app.post("/api/send-report", sendReportLimiter, async (req: any, res: any) => {
   try {
-    const { toEmail, pdfBase64, monthLabel, reportId } = req.body;
-    if (!toEmail) {
-      return res.status(400).json({ error: "Recipient email address is required" });
+    const { toEmail, pdfBase64, monthLabel, reportId } = req.body || {};
+    if (!toEmail || typeof toEmail !== "string" || !toEmail.includes("@")) {
+      return res.status(400).json({ error: "A valid recipient email address is required" });
     }
-    if (!pdfBase64) {
-      return res.status(400).json({ error: "PDF document data is required" });
+    if (!pdfBase64 || typeof pdfBase64 !== "string") {
+      return res.status(400).json({ error: "PDF document data is required as a string" });
     }
 
     // Attempt to convert the base64 string back into a Buffer for attaching
@@ -423,8 +321,7 @@ app.post("/api/send-report", async (req: any, res: any) => {
         secure: port === 465, // true for port 465, false for 587 or other ports
         auth: { user, pass },
         tls: {
-          // Prevent handshake failures on standard servers
-          rejectUnauthorized: false
+          minVersion: "TLSv1.2"
         }
       });
 
@@ -479,10 +376,10 @@ app.post("/api/send-report", async (req: any, res: any) => {
 // Supabase OAuth Callback Endpoint - exchanges code for token and messages opener
 app.get(['/auth/callback', '/auth/callback/'], async (req, res) => {
   const code = req.query.code as string;
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
-  if (code && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY') {
+  if (code && supabaseUrl && supabaseAnonKey && supabaseUrl !== 'YOUR_SUPABASE_URL' && supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY' && supabaseUrl !== 'your_supabase_url_here' && supabaseAnonKey !== 'your_supabase_anon_key_here') {
     try {
       const serverSupabase = createClient(supabaseUrl, supabaseAnonKey, {
         auth: {
