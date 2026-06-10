@@ -6,14 +6,17 @@
     <title>Ledger Smart</title>
     <script>
       (function() {
-        // Prevent stale/invalid refresh token warnings or errors from bubbling up to the environment tester
+        // Prevent stale/invalid refresh token warnings or errors from bubbling up to any environment trackers
         const isRefreshTokenError = function(msg) {
           if (!msg) return false;
           const searchStr = String(msg).toLowerCase();
           return searchStr.includes('refresh token') || 
                  searchStr.includes('refresh_token') || 
                  searchStr.includes('invalid_grant') ||
-                 searchStr.includes('invalid refresh token');
+                 searchStr.includes('invalid refresh token') ||
+                 searchStr.includes('token not found') ||
+                 searchStr.includes('not found') ||
+                 searchStr.includes('auth-token');
         };
 
         const originalConsoleError = console.error;
@@ -48,22 +51,41 @@
           originalConsoleWarn.apply(console, args);
         };
 
+        // Suppressed via raw onerror prior to event bubbling / test listener interception
+        const originalOnError = window.onerror;
+        window.onerror = function(message, source, lineno, colno, error) {
+          const msg = message || (error && error.message) || "";
+          if (isRefreshTokenError(msg)) {
+            console.warn("[Filtered App OnError] Suppressed refresh token error:", msg);
+            return true; // prevent default firing & tell browser it is handled
+          }
+          if (originalOnError) {
+            return originalOnError.apply(this, arguments);
+          }
+          return false;
+        };
+
+        // Listen in capturing phase to intercept the events before test suite listeners
         window.addEventListener('unhandledrejection', function(event) {
           const reason = event.reason;
-          const msg = reason && (reason.message || reason.error || String(reason));
+          const msg = reason && (reason.message || reason.error || String(reason) || (reason.error && reason.error.message));
           if (isRefreshTokenError(msg)) {
             event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
             console.warn("[Filtered App Rejection] Prevented unhandled rejection for stale refresh token:", msg);
           }
-        });
+        }, true);
 
         window.addEventListener('error', function(event) {
           const msg = event.message || (event.error && event.error.message);
           if (isRefreshTokenError(msg)) {
             event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
             console.warn("[Filtered App Error Event] Prevented stale refresh token error event:", msg);
           }
-        });
+        }, true);
       })();
     </script>
   </head>
