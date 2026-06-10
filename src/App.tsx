@@ -2354,9 +2354,20 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             <button
               onClick={() => setDarkMode(!darkMode)}
               title={darkMode ? "Switch to Light App Theme" : "Switch to Dark App Theme"}
-              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400 h-8.5 w-8.5 flex items-center justify-center"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-55 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400 h-8.5 w-8.5 flex items-center justify-center overflow-hidden relative"
             >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={darkMode ? "sun" : "moon"}
+                  initial={{ y: -15, rotate: -90, opacity: 0 }}
+                  animate={{ y: 0, rotate: 0, opacity: 1 }}
+                  exit={{ y: 15, rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: "easeInOut" }}
+                  className="flex items-center justify-center"
+                >
+                  {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+                </motion.div>
+              </AnimatePresence>
             </button>
 
             {/* Print Overview Report */}
@@ -2923,28 +2934,31 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
                                 return (
                                   <>
-                                    <line
-                                      x1={hoverX}
+                                    <motion.line
+                                      initial={{ x1: hoverX, x2: hoverX }}
+                                      animate={{ x1: hoverX, x2: hoverX }}
+                                      transition={{ type: "spring", stiffness: 300, damping: 28 }}
                                       y1={5}
-                                      x2={hoverX}
                                       y2={65}
                                       stroke="#475569"
                                       strokeWidth="1"
                                       strokeDasharray="3 3"
                                       pointerEvents="none"
                                     />
-                                    <circle
-                                      cx={hoverX}
-                                      cy={hoverYCurrent}
+                                    <motion.circle
+                                      initial={{ cx: hoverX, cy: hoverYCurrent }}
+                                      animate={{ cx: hoverX, cy: hoverYCurrent }}
+                                      transition={{ type: "spring", stiffness: 300, damping: 28 }}
                                       r="5"
                                       fill="#60a5fa"
                                       stroke="#1d4ed8"
                                       strokeWidth="1.5"
                                       pointerEvents="none"
                                     />
-                                    <circle
-                                      cx={hoverX}
-                                      cy={hoverYCurrent}
+                                    <motion.circle
+                                      initial={{ cx: hoverX, cy: hoverYCurrent }}
+                                      animate={{ cx: hoverX, cy: hoverYCurrent }}
+                                      transition={{ type: "spring", stiffness: 300, damping: 28 }}
                                       r="2"
                                       fill="#ffffff"
                                       pointerEvents="none"
@@ -2952,18 +2966,20 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
                                     {trendsB[hoveredTrendIdx] !== undefined && (
                                       <>
-                                        <circle
-                                          cx={hoverX}
-                                          cy={hoverYPrev}
+                                        <motion.circle
+                                          initial={{ cx: hoverX, cy: hoverYPrev }}
+                                          animate={{ cx: hoverX, cy: hoverYPrev }}
+                                          transition={{ type: "spring", stiffness: 300, damping: 28 }}
                                           r="5"
                                           fill="#fbbf24"
                                           stroke="#b45309"
                                           strokeWidth="1.5"
                                           pointerEvents="none"
                                         />
-                                        <circle
-                                          cx={hoverX}
-                                          cy={hoverYPrev}
+                                        <motion.circle
+                                          initial={{ cx: hoverX, cy: hoverYPrev }}
+                                          animate={{ cx: hoverX, cy: hoverYPrev }}
+                                          transition={{ type: "spring", stiffness: 300, damping: 28 }}
                                           r="2"
                                           fill="#ffffff"
                                           pointerEvents="none"
@@ -3016,6 +3032,129 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                                         </text>
                                       )}
                                     </g>
+
+                                    {/* Floating customized tooltip overlay for daily transaction exact expense */}
+                                    {(() => {
+                                      const hasCompare = trendsB[hoveredTrendIdx] !== undefined;
+                                      const tooltipWidth = 85;
+                                      const tooltipHeight = hasCompare ? 32 : 22;
+                                      
+                                      // Prefer right, unless overflow, then go left
+                                      let targetX = hoverX + 8;
+                                      if (targetX + tooltipWidth > 236) {
+                                        targetX = hoverX - tooltipWidth - 8;
+                                      }
+                                      // Clamp beautifully within safe boundaries of the SVG bounds (4 to 236-width)
+                                      const tooltipX = Math.max(4, Math.min(236 - tooltipWidth, targetX));
+                                      const tooltipY = Math.max(18, Math.min(70 - tooltipHeight - 3, hoverYCurrent - tooltipHeight / 2));
+                                      
+                                      return (
+                                        <motion.g
+                                          initial={{ x: tooltipX, y: tooltipY, opacity: 0, scale: 0.95 }}
+                                          animate={{ x: tooltipX, y: tooltipY, opacity: 1, scale: 1 }}
+                                          transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                                          pointerEvents="none"
+                                        >
+                                          <rect
+                                            width={tooltipWidth}
+                                            height={tooltipHeight}
+                                            rx="4"
+                                            fill="#1e293b"
+                                            fillOpacity="0.95"
+                                            stroke="#475569"
+                                            strokeWidth="0.75"
+                                          />
+                                          {/* Title: Day X */}
+                                          <text
+                                            x="5"
+                                            y="7"
+                                            fill="#94a3b8"
+                                            fontSize="5.5"
+                                            fontWeight="black"
+                                            fontFamily="sans-serif"
+                                          >
+                                            DAY {hoveredTrendIdx + 1} OUTFLOW
+                                          </text>
+
+                                          {/* Daily Expense details */}
+                                          <text
+                                            x="5"
+                                            y="14"
+                                            fill="#60a5fa"
+                                            fontSize="5"
+                                            fontWeight="bold"
+                                            fontFamily="sans-serif"
+                                          >
+                                            {comparisonTrends.labelA}:
+                                          </text>
+                                          <text
+                                            x="35"
+                                            y="14"
+                                            fill="#ffffff"
+                                            fontSize="5.5"
+                                            fontWeight="extrabold"
+                                            fontFamily="monospace"
+                                          >
+                                            {formatCurrency(daySpendCurrent, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                          </text>
+                                          <text
+                                            x="62"
+                                            y="14"
+                                            fill="#94a3b8"
+                                            fontSize="4.5"
+                                            fontFamily="sans-serif"
+                                          >
+                                            (cum)
+                                          </text>
+
+                                          {hasCompare && (
+                                            <>
+                                              <text
+                                                x="5"
+                                                y="21"
+                                                fill="#fbbf24"
+                                                fontSize="5"
+                                                fontWeight="bold"
+                                                fontFamily="sans-serif"
+                                              >
+                                                {comparisonTrends.labelB}:
+                                              </text>
+                                              <text
+                                                x="35"
+                                                y="21"
+                                                fill="#ffffff"
+                                                fontSize="5.5"
+                                                fontWeight="extrabold"
+                                                fontFamily="monospace"
+                                              >
+                                                {formatCurrency(daySpendPrev, currencySymbol, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                              </text>
+                                              <text
+                                                x="62"
+                                                y="21"
+                                                fill="#94a3b8"
+                                                fontSize="4.5"
+                                                fontFamily="sans-serif"
+                                              >
+                                                (cum)
+                                              </text>
+                                            </>
+                                          )}
+                                          
+                                          {/* Legend or subtle helper */}
+                                          <text
+                                            x="5"
+                                            y={tooltipHeight - 3}
+                                            fill="#64748b"
+                                            fontSize="4"
+                                            fontWeight="normal"
+                                            fontFamily="sans-serif"
+                                          >
+                                            Hover to scan active ledger
+                                          </text>
+                                        </motion.g>
+                                      );
+                                    })()}
                                   </>
                                 );
                               })()}
