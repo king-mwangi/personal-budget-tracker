@@ -2340,7 +2340,11 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 </a>
                 <button
                   onClick={async () => {
-                    await supabase.auth.signOut();
+                    try {
+                      if (supabase) {
+                        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+                      }
+                    } catch (err) {}
                     setAIInsights(null);
                   }}
                   title="Sign Out of Ledger Smart"

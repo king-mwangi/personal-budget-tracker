@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Transaction, Budget } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -45,6 +45,27 @@ interface DashboardProps {
   setSelectedPeriod: (period: string) => void;
 }
 
+const addDays = (dateStr: string, days: number) => {
+  const parts = dateStr.split('-');
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const getSundayForDate = (dateStr: string) => {
+  const parts = dateStr.split('-');
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  const dayOfWeek = d.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+  d.setDate(d.getDate() - dayOfWeek);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export default function Dashboard({ 
   transactions, 
   budgets, 
@@ -56,12 +77,51 @@ export default function Dashboard({
   selectedPeriod,
   setSelectedPeriod
 }: DashboardProps) {
+  const [selectedWeekKey, setSelectedWeekKey] = useState<string>('all');
   const [hoveredSlice, setHoveredSlice] = useState<string | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
 
   // Dashboard Sub-view Toggles for Multi-View Visualizer Dashboard
   const [trendView, setTrendView] = useState<'velocity' | 'monthly'>('velocity');
   const [allocationView, setAllocationView] = useState<'split' | 'recharts_donut'>('recharts_donut');
+
+  useEffect(() => {
+    setSelectedWeekKey('all');
+  }, [selectedPeriod]);
+
+  // Compute the weeks of the selected period if not 'all'
+  const dashboardWeeks = useMemo(() => {
+    if (selectedPeriod === 'all') {
+      return [];
+    }
+    const parts = selectedPeriod.split('-');
+    const year = parseInt(parts[0], 10) || 2026;
+    const monthIndex = (parseInt(parts[1], 10) || 6) - 1; // 0-indexed month
+    
+    const firstDay = new Date(year, monthIndex, 1);
+    const lastDay = new Date(year, monthIndex + 1, 0);
+    
+    const firstDayStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+    const lastDayStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+    
+    const startSunday = getSundayForDate(firstDayStr);
+    let currentSunday = startSunday;
+    let weeksList: { start: string; end: string; label: string; key: string }[] = [];
+    let counter = 1;
+    
+    while (currentSunday <= lastDayStr) {
+      const currentSaturday = addDays(currentSunday, 6);
+      weeksList.push({
+        start: currentSunday,
+        end: currentSaturday,
+        label: `Week ${counter}`,
+        key: `week-${counter}`
+      });
+      currentSunday = addDays(currentSunday, 7);
+      counter++;
+    }
+    return weeksList;
+  }, [selectedPeriod]);
 
   // System month automatically defaults to June 2026 i.e. "2026-06"
   const currentSystemMonth = useMemo(() => {
@@ -102,13 +162,21 @@ export default function Dashboard({
     return period;
   };
 
-  // Dynamically filter transactions based on selected tracking period
+  // Dynamically filter transactions based on selected tracking period and toggled week
   const filteredTransactions = useMemo(() => {
-    if (selectedPeriod === 'all') {
-      return transactions;
+    let txs = transactions;
+    if (selectedPeriod !== 'all') {
+      txs = transactions.filter(t => t.date && t.date.startsWith(selectedPeriod));
     }
-    return transactions.filter(t => t.date && t.date.startsWith(selectedPeriod));
-  }, [transactions, selectedPeriod]);
+    
+    if (selectedWeekKey !== 'all' && selectedPeriod !== 'all') {
+      const week = dashboardWeeks.find(w => w.key === selectedWeekKey);
+      if (week) {
+        txs = txs.filter(t => t.date && t.date >= week.start && t.date <= week.end);
+      }
+    }
+    return txs;
+  }, [transactions, selectedPeriod, selectedWeekKey, dashboardWeeks]);
 
   // Core Financial Compilations mapped on the active tracking period selection
   const stats = useMemo(() => {
@@ -188,7 +256,7 @@ export default function Dashboard({
     const dayTotals = Array(daysInMonth).fill(0);
     const cumulativeTotals = Array(daysInMonth).fill(0);
 
-    transactions.forEach(tx => {
+    filteredTransactions.forEach(tx => {
       if (tx.type === 'expense' && tx.date && tx.date.startsWith(trendMonth)) {
         const day = parseInt(tx.date.substring(8, 10));
         const index = Math.min(daysInMonth - 1, Math.max(0, (isNaN(day) ? 1 : day) - 1));
@@ -207,7 +275,7 @@ export default function Dashboard({
       amount: val,
       dailySpend: parseFloat(dayTotals[idx].toFixed(2))
     }));
-  }, [transactions, trendMonth]);
+  }, [filteredTransactions, trendMonth]);
 
   // Spend over days trend compilation for previous selected month
   const dailyBreakdownPrev = useMemo(() => {
@@ -519,6 +587,55 @@ export default function Dashboard({
         </div>
       </motion.div>
 
+      {/* Weekly Cycle Navigation Rails */}
+      {selectedPeriod !== 'all' && dashboardWeeks.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.02 }}
+          className="bg-white dark:bg-slate-900 border border-slate-150/60 dark:border-slate-800 p-2 rounded-2xl shadow-xs flex flex-wrap items-center gap-1.5 transition-colors select-none"
+        >
+          <div className="px-3.5 py-1.5 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest font-mono shrink-0">
+            Active Cycle:
+          </div>
+          
+          <button
+            onClick={() => setSelectedWeekKey('all')}
+            className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+              selectedWeekKey === 'all'
+                ? 'bg-blue-600 text-white shadow-3xs font-black'
+                : 'text-gray-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            All Weeks
+          </button>
+
+          {dashboardWeeks.map((week) => {
+            const isSelected = selectedWeekKey === week.key;
+            return (
+              <button
+                key={week.key}
+                onClick={() => setSelectedWeekKey(week.key)}
+                className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-3xs font-black'
+                    : 'text-gray-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span>{week.label}</span>
+                <span className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded ${
+                  isSelected 
+                    ? 'bg-blue-700/60 text-blue-105' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-450 dark:text-slate-500'
+                }`}>
+                  {week.start.substring(5)} to {week.end.substring(5)}
+                </span>
+              </button>
+            );
+          })}
+        </motion.div>
+      )}
+
       <motion.div 
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
@@ -639,7 +756,9 @@ export default function Dashboard({
             <h3 className="text-2xl font-bold font-mono text-gray-900 dark:text-white">
               {formatCurrency(stats.totalBalance, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Total revenue minus logged expenditure</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              {selectedWeekKey === 'all' ? 'Total revenue minus logged expenditure' : 'Week revenue minus logged expenditure'}
+            </p>
           </div>
         </motion.div>
 
@@ -660,7 +779,9 @@ export default function Dashboard({
             <h3 className="text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
               {formatCurrency(stats.totalIncome, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'income').length} active income stream logs</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              {filteredTransactions.filter(t => t.type === 'income').length} active income stream {selectedWeekKey === 'all' ? 'logs' : 'logs this week'}
+            </p>
           </div>
         </motion.div>
 
@@ -681,7 +802,9 @@ export default function Dashboard({
             <h3 className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-450">
               {formatCurrency(stats.totalExpense, currencySymbol, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h3>
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">{transactions.filter(t => t.type === 'expense').length} active expenditure lines</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+              {filteredTransactions.filter(t => t.type === 'expense').length} active expenditure {selectedWeekKey === 'all' ? 'lines' : 'lines logged this week'}
+            </p>
           </div>
         </motion.div>
 

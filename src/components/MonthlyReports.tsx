@@ -145,8 +145,8 @@ export default function MonthlyReports({
     }
   };
 
-  // Mode selection state: standard monthly or custom date range
-  const [reportMode, setReportMode] = useState<'month' | 'range'>('month');
+  // Mode selection state: standard monthly, custom date range, or weekly breakdown
+  const [reportMode, setReportMode] = useState<'month' | 'range' | 'weekly'>('month');
   
   // Custom date range inputs
   const [startDateStr, setStartDateStr] = useState<string>(() => {
@@ -271,7 +271,7 @@ export default function MonthlyReports({
   // Filter transactions dynamically depending on selectedMonth or custom range
   const monthlyTransactions = transactions.filter(t => {
     if (!t.date) return false;
-    if (reportMode === 'month') {
+    if (reportMode === 'month' || reportMode === 'weekly') {
       return t.date.startsWith(selectedMonth);
     } else {
       return t.date >= startDateStr && t.date <= endDateStr;
@@ -352,7 +352,7 @@ export default function MonthlyReports({
 
   const monthLabel = reportMode === 'month'
     ? formatMonthName(selectedMonth)
-    : `${formatDateFriendly(startDateStr)} – ${formatDateFriendly(endDateStr)}`;
+    : (reportMode === 'weekly' ? `Weekly: ${formatMonthName(selectedMonth)}` : `${formatDateFriendly(startDateStr)} – ${formatDateFriendly(endDateStr)}`);
 
   React.useEffect(() => {
     if (onExcelPreviewChange) {
@@ -441,6 +441,138 @@ export default function MonthlyReports({
     selectedMonth,
     onExcelPreviewChange
   ]);
+
+  // Selected expanded week row for inside the Weekly breakdown accordion
+  const [expandedWeekKey, setExpandedWeekKey] = useState<string | null>(null);
+
+  // Timezone-safe date utility helpers for weekly aggregations starting on Sunday and ending on Saturday
+  const addDays = (dateStr: string, days: number) => {
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    d.setDate(d.getDate() + days);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const getSundayForDate = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const dayOfWeek = d.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+    d.setDate(d.getDate() - dayOfWeek);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const weeklyData = React.useMemo(() => {
+    let weeksList: { start: string; end: string; label: string; key: string }[] = [];
+    
+    if (reportMode === 'weekly') {
+      const parts = selectedMonth.split('-');
+      const year = parseInt(parts[0], 10) || 2026;
+      const monthIndex = (parseInt(parts[1], 10) || 6) - 1; // 0-indexed month
+      
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+      
+      const firstDayStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+      const lastDayStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(lastDay.getDate()).padStart(2, '0')}`;
+      
+      const startSunday = getSundayForDate(firstDayStr);
+      let currentSunday = startSunday;
+      let counter = 1;
+      
+      while (currentSunday <= lastDayStr) {
+        const currentSaturday = addDays(currentSunday, 6);
+        
+        weeksList.push({
+          start: currentSunday,
+          end: currentSaturday,
+          label: `Week ${counter}`,
+          key: `${currentSunday}_${currentSaturday}`
+        });
+        
+        currentSunday = addDays(currentSunday, 7);
+        counter++;
+      }
+    } else if (reportMode === 'range') {
+      const startSunday = getSundayForDate(startDateStr);
+      let currentSunday = startSunday;
+      let counter = 1;
+      
+      while (currentSunday <= endDateStr) {
+        const currentSaturday = addDays(currentSunday, 6);
+        weeksList.push({
+          start: currentSunday,
+          end: currentSaturday,
+          label: `Week ${counter}`,
+          key: `${currentSunday}_${currentSaturday}`
+        });
+        currentSunday = addDays(currentSunday, 7);
+        counter++;
+      }
+    }
+
+    return weeksList.map(week => {
+      // Find all transactions matching this week
+      const weekTransactions = transactions.filter(t => t.date && t.date >= week.start && t.date <= week.end);
+      
+      const inflows = weekTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const outflows = weekTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const savingsCategorySum = weekTransactions
+        .filter(t => t.type === 'expense' && t.category && t.category.toLowerCase() === 'savings')
+        .reduce((sum, t) => sum + t.amount, 0);
+        
+      const netSavings = (inflows - outflows) + savingsCategorySum;
+      const savingsRate = inflows > 0 ? (netSavings / inflows) * 100 : 0;
+      
+      // Categorizations within the week
+      const categories: Record<string, number> = {};
+      weekTransactions.forEach(t => {
+        const cat = t.category || 'Uncategorized';
+        categories[cat] = (categories[cat] || 0) + t.amount;
+      });
+
+      // Day of week balances starting on Sunday (index 0) to Saturday (6)
+      const dailyBalances = Array(7).fill(null).map((_, idx) => ({ 
+        dayIdx: idx,
+        dayName: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][idx],
+        income: 0, 
+        expense: 0 
+      }));
+      weekTransactions.forEach(t => {
+        if (!t.date) return;
+        const p = t.date.split('-');
+        const d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+        const idx = d.getDay(); // 0 to 6
+        if (t.type === 'income') {
+          dailyBalances[idx].income += t.amount;
+        } else {
+          dailyBalances[idx].expense += t.amount;
+        }
+      });
+
+      return {
+        ...week,
+        transactions: weekTransactions,
+        inflows,
+        outflows,
+        netSavings,
+        savingsRate,
+        categories: Object.entries(categories).map(([cat, amt]) => ({ category: cat, amount: amt })),
+        dailyBalances
+      };
+    });
+  }, [transactions, selectedMonth, reportMode, startDateStr, endDateStr]);
 
   const handleSaveSnapshot = async () => {
     if (monthlyTransactions.length === 0) {
@@ -698,7 +830,7 @@ export default function MonthlyReports({
 
       pdf.addImage(imgData, 'JPEG', 20, 20, imgWidth, imgHeight);
       
-      const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
+      const fileDateLabel = (reportMode === 'month' || reportMode === 'weekly') ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
       pdf.save(`Ledger_Financial_Statement_${fileDateLabel}.pdf`);
       setSnapshotSuccessMsg(`Primacy PDF Report for ${monthLabel} compiled and saved successfully!`);
     } catch (err) {
@@ -1017,7 +1149,7 @@ export default function MonthlyReports({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
+    const fileDateLabel = (reportMode === 'month' || reportMode === 'weekly') ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
     link.setAttribute('download', `Ledger_Transactions_Report_${fileDateLabel}.csv`);
     document.body.appendChild(link);
     link.click();
@@ -1675,7 +1807,7 @@ export default function MonthlyReports({
           ? "All_Time"
           : (filterExcelByDate
             ? `${excelStartDate}_to_${excelEndDate}`
-            : (reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`));
+            : ((reportMode === 'month' || reportMode === 'weekly') ? selectedMonth : `${startDateStr}_to_${endDateStr}`));
         const fileName = `Ledger_Master_Portfolio_${fileDateLabel}.xlsx`;
         XLSX.writeFile(wb, fileName);
 
@@ -1702,7 +1834,7 @@ export default function MonthlyReports({
 
   // Export to formatted txt summary
   const handleExportTXT = () => {
-    const fileDateLabel = reportMode === 'month' ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
+    const fileDateLabel = (reportMode === 'month' || reportMode === 'weekly') ? selectedMonth : `${startDateStr}_to_${endDateStr}`;
     const txtReport = `==================================================
               LEDGER FINANCIAL SUMMARY REPORT
 ==================================================
@@ -1805,6 +1937,17 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
               Single Month
             </button>
             <button
+              id="toggle-mode-weekly"
+              onClick={() => setReportMode('weekly')}
+              className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                reportMode === 'weekly'
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              Weekly Breakdown
+            </button>
+            <button
               id="toggle-mode-range"
               onClick={() => setReportMode('range')}
               className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
@@ -1821,7 +1964,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
         {/* Dynamic selector controls inside elegant input frame */}
         <div data-html2canvas-ignore="true" className="flex flex-wrap items-center gap-3 w-full xl:w-auto font-sans">
           
-          {reportMode === 'month' ? (
+          {reportMode === 'month' || reportMode === 'weekly' ? (
             <div className="relative flex-1 sm:flex-initial">
               <Calendar className="w-4 h-4 p-0 text-slate-400 dark:text-slate-500 absolute left-3 top-3" />
               <select
@@ -1925,6 +2068,278 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
 
           {/* Left panel: Core numerical dashboard & breakdown categories */}
           <div className="lg:col-span-2 space-y-6">
+
+            {reportMode === 'weekly' && (
+              <div className="space-y-6 animate-in fade-in duration-300">
+                {/* 1. Header quick analysis cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Avg weekly inflows */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 p-5 rounded-2xl shadow-3xs text-left">
+                    <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Avg Weekly Deposit</span>
+                    <p className="text-xl font-mono font-black text-emerald-600 dark:text-emerald-450 font-sans">
+                      {currencySymbol}{(weeklyData.length > 0 ? (weeklyData.reduce((sum, w) => sum + w.inflows, 0) / weeklyData.length) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <span className="text-[9px] font-bold text-slate-400">Calculated over {weeklyData.length} active cycles</span>
+                  </div>
+
+                  {/* Avg weekly outflows */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 p-5 rounded-2xl shadow-3xs text-left">
+                    <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Avg Weekly Outflow</span>
+                    <p className="text-xl font-mono font-black text-rose-600 dark:text-rose-455 font-sans">
+                      {currencySymbol}{(weeklyData.length > 0 ? (weeklyData.reduce((sum, w) => sum + w.outflows, 0) / weeklyData.length) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <span className="text-[9px] font-bold text-slate-400">Total bills grouped per week</span>
+                  </div>
+
+                  {/* Net change savings */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800/85 p-5 rounded-2xl shadow-3xs text-left">
+                    <span className="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest block mb-1">Net Weekly Delta</span>
+                    <p className={`text-xl font-mono font-black ${(weeklyData.reduce((sum, w) => sum + w.netSavings, 0) >= 0) ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600'} font-sans`}>
+                      {currencySymbol}{(weeklyData.length > 0 ? (weeklyData.reduce((sum, w) => sum + w.netSavings, 0) / weeklyData.length) : 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <span className="text-[9px] font-bold text-slate-400">Average cash accretion per week</span>
+                  </div>
+                </div>
+
+                {/* 2. Custom SVG Double Bar Chart */}
+                <div className="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 p-6 rounded-2xl shadow-3xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-gray-50 dark:border-slate-800 pb-3">
+                    <div className="space-y-0.5 text-left">
+                      <h3 className="text-xs font-bold text-gray-805 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                        <BarChart3 className="w-4 h-4 text-emerald-500" />
+                        Weekly Capital Flow Comparison
+                      </h3>
+                      <p className="text-[10px] text-gray-400">Visualizing inflows vs outflows starting Sunday through Saturday</p>
+                    </div>
+                    <div className="flex gap-4 text-[10px] uppercase font-bold font-mono text-gray-450">
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-xs" /> Inflow</span>
+                      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 bg-rose-500 rounded-xs" /> Outflow</span>
+                    </div>
+                  </div>
+
+                  {weeklyData.length === 0 ? (
+                    <div className="text-center py-8 text-xs text-slate-400 font-medium">No cycles available in chosen interval.</div>
+                  ) : (
+                    <div className="h-48 w-full flex items-end justify-between px-2 pt-6 select-none relative">
+                      {/* Grid lines */}
+                      <div className="absolute inset-x-0 top-1/4 border-t border-slate-100 dark:border-slate-800/40 pointer-events-none" />
+                      <div className="absolute inset-x-0 top-2/4 border-t border-slate-100 dark:border-slate-800/40 pointer-events-none" />
+                      <div className="absolute inset-x-0 top-3/4 border-t border-slate-100 dark:border-slate-800/40 pointer-events-none" />
+                      
+                      {weeklyData.map((week, index) => {
+                        const maxVal = Math.max(...weeklyData.map(w => Math.max(w.inflows, w.outflows, 100)));
+                        const inH = (week.inflows / maxVal) * 110;
+                        const outH = (week.outflows / maxVal) * 110;
+                        
+                        return (
+                          <div key={week.key} className="flex-1 flex flex-col items-center group relative cursor-pointer z-10 mx-1">
+                            {/* Peak values tooltip on hover */}
+                            <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 transition-all pointer-events-none bg-slate-900 dark:bg-black text-white text-[9px] font-mono p-2 rounded-lg shadow-lg z-50 text-center whitespace-nowrap leading-tight border border-slate-850">
+                              <p className="text-gray-300 font-bold mb-0.5">{week.label}</p>
+                              <p className="text-emerald-400 font-sans">Deposit: +{currencySymbol}{week.inflows.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                              <p className="text-rose-400 font-bold font-sans">Outflow: -{currencySymbol}{week.outflows.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                              <p className="text-blue-450 font-extrabold border-t border-slate-800/80 pt-0.5 mt-0.5 font-sans">Net: {currencySymbol}{(week.inflows - week.outflows).toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
+                            </div>
+
+                            <div className="flex items-end gap-1.5 justify-center h-28 w-full">
+                              {/* Inflow bar */}
+                              <div 
+                                style={{ height: `${Math.max(3, inH)}px` }}
+                                className="bg-emerald-500 dark:bg-emerald-600 w-4 sm:w-6 rounded-t-xs transition-all duration-350 hover:brightness-105 shadow-3xs"
+                              />
+                              {/* Outflow bar */}
+                              <div 
+                                style={{ height: `${Math.max(3, outH)}px` }}
+                                className="bg-rose-500 dark:bg-rose-600 w-4 sm:w-6 rounded-t-xs transition-all duration-350 hover:brightness-105 shadow-3xs"
+                              />
+                            </div>
+                            
+                            <span className="text-[10px] font-mono font-bold mt-2 text-slate-500 dark:text-slate-400">
+                              W{index + 1}
+                            </span>
+                            <span className="text-[8px] font-mono text-slate-450 dark:text-slate-500 shrink-0 hidden sm:block">
+                              {week.start.substring(5)} to {week.end.substring(5)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Week-by-week Expandable Workspace (Accordion) */}
+                <div className="space-y-4 text-left">
+                  <h3 className="text-xs font-bold text-gray-805 dark:text-slate-200 uppercase tracking-widest pl-1 font-sans">
+                    Structured Weekly Audit Logs
+                  </h3>
+                  
+                  {weeklyData.map((week, index) => {
+                    const isExpanded = expandedWeekKey === week.key;
+                    const netFlow = week.inflows - week.outflows;
+
+                    return (
+                      <div 
+                        key={week.key}
+                        className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl shadow-3xs overflow-hidden transition-all duration-300"
+                      >
+                        {/* Summary Header of Week */}
+                        <div 
+                          onClick={() => setExpandedWeekKey(isExpanded ? null : week.key)}
+                          className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 dark:hover:bg-slate-950/40 select-none transition-colors"
+                        >
+                          <div className="space-y-1.5 flex-1 text-left">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-slate-455 dark:text-slate-500" />
+                              <h4 className="text-sm font-bold text-gray-900 dark:text-white">
+                                Week {index + 1}
+                              </h4>
+                              <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 font-mono font-black px-2 py-0.5 rounded-md">
+                                {week.start} to {week.end}
+                              </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-450">
+                              <span className="text-emerald-700 dark:text-emerald-450">Inflow: <b className="font-mono text-emerald-800 dark:text-emerald-300">{currencySymbol}{week.inflows.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b></span>
+                              <span className="text-slate-300 dark:text-slate-705 font-extrabold">|</span>
+                              <span className="text-rose-700 dark:text-rose-400 font-medium">Outflow: <b className="font-mono text-rose-800 dark:text-rose-300">{currencySymbol}{week.outflows.toLocaleString(undefined, { minimumFractionDigits: 2 })}</b></span>
+                              {week.inflows > 0 && (
+                                <>
+                                  <span className="text-slate-300 dark:text-slate-750 font-extrabold">|</span>
+                                  <span className="text-blue-500 font-medium">Savings Rate: <b className="font-mono bg-blue-50 dark:bg-blue-950/40 border border-blue-100/50 dark:border-blue-900/30 px-1.5 py-0.5 rounded-md">{week.savingsRate.toFixed(0)}%</b></span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3 self-end md:self-auto">
+                            <span className="px-3 py-1 rounded-full text-xs font-mono font-extrabold flex items-center gap-1 font-sans"
+                            style={{
+                              backgroundColor: netFlow >= 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(244, 63, 94, 0.1)",
+                              color: netFlow >= 0 ? "rgb(16, 185, 129)" : "rgb(244, 63, 94)"
+                            }}>
+                              {netFlow >= 0 ? '+' : ''}{currencySymbol}{netFlow.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                            <div className={`p-1 rounded-full bg-slate-50 dark:bg-slate-850 text-slate-450 dark:text-slate-500 transition-all ${isExpanded ? 'rotate-180 text-blue-600 dark:text-blue-400' : ''}`}>
+                              <ChevronDown className="w-4.5 h-4.5" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded details */}
+                        <AnimatePresence initial={false}>
+                          {isExpanded && (
+                            <motion.div 
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.25 }}
+                              className="border-t border-slate-50 dark:border-slate-800"
+                            >
+                              <div className="p-5 bg-slate-50/20 dark:bg-slate-950/20 space-y-5">
+                                
+                                {/* 3.1. Daily patterns - Sunday to Saturday */}
+                                <div className="space-y-2.5">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 font-mono">
+                                    Day-by-Day (Sunday to Saturday) Balance Outlays
+                                  </h5>
+                                  
+                                  <div className="grid grid-cols-7 gap-1 bg-slate-50 dark:bg-slate-950 p-2 text-center rounded-xl border border-slate-100 dark:border-slate-850">
+                                    {week.dailyBalances.map((day) => {
+                                      const dailyMax = Math.max(...week.dailyBalances.map(d => Math.max(d.income, d.expense, 10)));
+                                      const incBar = (day.income / dailyMax) * 26;
+                                      const expBar = (day.expense / dailyMax) * 26;
+
+                                      return (
+                                        <div key={day.dayName} className="flex flex-col items-center space-y-1.5 p-1 group/day relative">
+                                          {/* Daily details popup */}
+                                          <div className="absolute bottom-full mb-1 opacity-0 group-hover\/day:opacity-100 pointer-events-none bg-slate-950 dark:bg-black text-white text-[8px] font-mono px-2 py-1 rounded-md shadow-md z-40 text-center whitespace-nowrap">
+                                            <p className="text-emerald-400 font-bold mb-0.5">+{currencySymbol}{day.income.toFixed(0)}</p>
+                                            <p className="text-rose-400 font-bold font-sans">-{currencySymbol}{day.expense.toFixed(0)}</p>
+                                          </div>
+
+                                          <span className="text-[9px] font-black font-mono text-slate-400 uppercase">
+                                            {day.dayName}
+                                          </span>
+                                          
+                                          {/* Mini dual bars visual */}
+                                          <div className="h-8 flex items-end gap-0.5 justify-center w-full">
+                                            <div 
+                                              style={{ height: `${Math.max(1, incBar)}px` }}
+                                              className="bg-emerald-500 w-1.5 rounded-t-xs"
+                                              title={`Income: ${currencySymbol}${day.income.toFixed(2)}`}
+                                            />
+                                            <div 
+                                              style={{ height: `${Math.max(1, expBar)}px` }}
+                                              className="bg-rose-500 w-1.5 rounded-t-xs"
+                                              title={`Expense: ${currencySymbol}${day.expense.toFixed(2)}`}
+                                            />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* 3.2. Detailed list of transactions in this week */}
+                                <div className="space-y-2">
+                                  <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider pl-1 font-mono">
+                                    Ledger Entries for this Week
+                                  </h5>
+
+                                  {week.transactions.length === 0 ? (
+                                    <p className="text-[11px] text-gray-450 py-4 text-center font-semibold bg-white dark:bg-slate-950 rounded-xl border border-dashed border-slate-200 font-sans">No ledger transactions logged for this week.</p>
+                                  ) : (
+                                    <div className="bg-white dark:bg-slate-950 rounded-xl border border-slate-150/40 dark:border-slate-800 overflow-hidden shadow-2xs">
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-xs text-left font-sans">
+                                          <thead>
+                                            <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200/50 dark:border-slate-800 text-[10px] uppercase font-black text-slate-450 tracking-wider font-mono">
+                                              <th className="p-3.5 pl-4">Date</th>
+                                              <th className="p-3.5">Category</th>
+                                              <th className="p-3.5">Description</th>
+                                              <th className="p-3.5 text-right pr-4 font-sans">Amount</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-105 dark:divide-slate-800">
+                                            {week.transactions.map((t) => (
+                                              <tr key={t.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/30 transition-colors">
+                                                <td className="p-3 pl-4 font-mono text-[11px] text-slate-450">
+                                                  {t.date}
+                                                </td>
+                                                <td className="p-3">
+                                                  <span className="font-bold text-slate-850 dark:text-slate-200 bg-slate-50 dark:bg-slate-900 border border-slate-150/40 dark:border-slate-800/80 px-2 py-0.5 rounded-md text-[10px]">
+                                                    {t.category}
+                                                  </span>
+                                                </td>
+                                                <td className="p-3 text-slate-600 dark:text-slate-350 truncate max-w-xs font-semibold">
+                                                  {t.description || t.category}
+                                                </td>
+                                                <td className={`p-3 text-right pr-4 font-mono font-black text-[11.5px] ${
+                                                  t.type === 'income' ? 'text-emerald-600 dark:text-emerald-450' : 'text-slate-700 dark:text-slate-300'
+                                                }`}>
+                                                  {t.type === 'income' ? '+' : '-'}{currencySymbol}{t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className={reportMode === 'weekly' ? 'hidden' : 'space-y-6'}>
 
             {/* Comparison Dashboard (Selected archived snapshot vs Current Live selector) */}
             {selectedCompareSnapshot && (
@@ -2270,6 +2685,7 @@ ${expenseCategories.map(c => `| ${c.category} | ${currencySymbol}${c.amount.toFi
                 )}
               </div>
 
+            </div>
             </div>
 
           </div>
