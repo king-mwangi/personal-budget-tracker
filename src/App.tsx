@@ -2060,7 +2060,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
   if (!user) {
     return (
-      <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950' : 'bg-slate-50'} transition-colors duration-250`}>
+      <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950' : 'bg-slate-50'} transition-colors duration-500 ease-in`}>
         <Login onDemoBypass={(mockUser) => setUser(mockUser)} />
       </div>
     );
@@ -2076,7 +2076,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
   const hasSeededData = transactions.some(t => t.id === '1' || t.id === '2');
 
   return (
-    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-200 antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
+    <div className={`min-h-screen w-full max-w-full overflow-x-hidden ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50/70 text-gray-800'} transition-colors duration-500 ease-in antialiased flex flex-col font-sans pb-16 lg:pb-6`}>
       
       {/* Toast Alert Banner for Login Success */}
       {loginNotification && (
@@ -2295,7 +2295,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
       </AnimatePresence>
       
       {/* Top Elegant bar */}
-      <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors">
+      <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors duration-500 ease-in">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
           <div className="flex items-center gap-2.5 self-start md:self-auto w-full md:w-auto">
             <LedgerSmartLogo showText={false} iconSize="w-9 h-9" className="hover:scale-105 transition-transform duration-200" />
@@ -2358,18 +2358,18 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             <button
               onClick={() => setDarkMode(!darkMode)}
               title={darkMode ? "Switch to Light App Theme" : "Switch to Dark App Theme"}
-              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-55 dark:hover:bg-slate-900 transition-all cursor-pointer text-slate-500 dark:text-slate-400 h-8.5 w-8.5 flex items-center justify-center overflow-hidden relative"
+              className="p-2 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-900/40 hover:bg-slate-55 dark:hover:bg-slate-900 transition-all duration-500 ease-in cursor-pointer text-slate-500 dark:text-slate-400 h-8.5 w-8.5 flex items-center justify-center overflow-hidden relative"
             >
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence initial={false}>
                 <motion.div
                   key={darkMode ? "sun" : "moon"}
-                  initial={{ y: -15, rotate: -90, opacity: 0 }}
-                  animate={{ y: 0, rotate: 0, opacity: 1 }}
-                  exit={{ y: 15, rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.25, ease: "easeInOut" }}
-                  className="flex items-center justify-center"
+                  initial={{ opacity: 0, rotate: -45, scale: 0.7 }}
+                  animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                  exit={{ opacity: 0, rotate: 45, scale: 0.7 }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                  className="absolute flex items-center justify-center"
                 >
-                  {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+                  {darkMode ? <Sun className="w-4 h-4 text-amber-500 animate-pulse" /> : <Moon className="w-4 h-4 text-indigo-500" />}
                 </motion.div>
               </AnimatePresence>
             </button>

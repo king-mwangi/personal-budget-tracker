@@ -135,3 +135,21 @@ html, body {
   }
 }
 
+/* Transition background colors of all main containers with a gentle ease-in effect */
+.bg-white,
+.bg-slate-50,
+.bg-slate-50\/70,
+.bg-slate-900,
+.bg-slate-950,
+.dark\:bg-slate-900,
+.dark\:bg-slate-950,
+aside,
+main,
+footer,
+header {
+  transition-property: background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1); /* ease-in */
+  transition-duration: 500ms;
+}
+
+

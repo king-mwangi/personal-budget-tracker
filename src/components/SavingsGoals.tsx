@@ -12,9 +12,45 @@ import {
   CheckCircle,
   HelpCircle,
   Clock,
-  X
+  X,
+  Trophy,
+  Sparkles
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { motion, AnimatePresence } from 'motion/react';
+
+export interface MilestoneLog {
+  milestone: number;
+  date: string;
+  amount: number;
+}
+
+export const getMilestoneLogs = (goalId: string): MilestoneLog[] => {
+  try {
+    const key = `fin_tracker_savings_milestone_log_${goalId}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+};
+
+export const saveMilestoneLog = (goalId: string, log: MilestoneLog) => {
+  try {
+    const key = `fin_tracker_savings_milestone_log_${goalId}`;
+    const existing = getMilestoneLogs(goalId);
+    if (!existing.some(e => e.milestone === log.milestone)) {
+      const updated = [...existing, log].sort((a, b) => a.milestone - b.milestone);
+      localStorage.setItem(key, JSON.stringify(updated));
+      return updated;
+    }
+    return existing;
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+};
 
 const triggerSavingsConfetti = () => {
   // Main energetic burst
@@ -69,6 +105,11 @@ function SavingsGoalCard({
   const percent = goal.target > 0 ? (goal.current / goal.target) * 100 : 0;
   const roundedPercent = Math.min(100, Math.round(percent));
   const isComplete = goal.current >= goal.target;
+
+  // Load milestone logs from local storage reactively
+  const milestoneLogs = React.useMemo(() => {
+    return getMilestoneLogs(goal.id);
+  }, [goal.id, goal.current]);
 
   // Local state for deposit inputs
   const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -427,6 +468,68 @@ function SavingsGoalCard({
           target={goal.target}
           currencySymbol={currencySymbol}
         />
+
+        {/* Milestone History Log */}
+        <div id={`milestone-history-log-${goal.id}`} className="bg-slate-50/40 dark:bg-slate-800/20 border border-slate-100/80 dark:border-slate-800/50 rounded-xl p-3 space-y-2 text-left mt-3">
+          <div className="flex justify-between items-center pb-1 border-b border-slate-100/60 dark:border-slate-800/40">
+            <span className="text-[9.5px] font-mono text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              <Trophy className="w-3.5 h-3.5" />
+              Milestone History
+            </span>
+            <span className="text-[8px] font-mono text-gray-400 dark:text-slate-500 font-semibold uppercase">
+              {milestoneLogs.filter(l => l.milestone === 50 || l.milestone === 75).length} unlocked
+            </span>
+          </div>
+
+          {milestoneLogs.filter(l => l.milestone === 50 || l.milestone === 75).length === 0 ? (
+            <div className="text-center py-2.5 text-[10px] text-gray-400 dark:text-slate-500 font-medium">
+              No milestones reached yet. Deposit to cross 50%! 🎯
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[140px] overflow-y-auto pr-1">
+              {milestoneLogs
+                .filter(l => l.milestone === 50 || l.milestone === 75)
+                .map((log, index, filteredArray) => {
+                  const milestoneColor = log.milestone === 75 
+                    ? 'border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/20 text-purple-600 dark:text-purple-400' 
+                    : 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400';
+                  
+                  const dotBg = log.milestone === 75 
+                    ? 'bg-purple-500' 
+                    : 'bg-blue-500';
+
+                  return (
+                    <div key={index} className="flex items-start gap-2.5 relative">
+                      {/* Vertical connector line */}
+                      {index < filteredArray.length - 1 && (
+                        <div className="absolute left-1.5 top-3.5 bottom-0 w-0.5 bg-slate-100 dark:bg-slate-800" />
+                      )}
+
+                      {/* Milestone indicator dot */}
+                      <span className={`w-3 h-3 rounded-full border border-white dark:border-slate-900 ${dotBg} shrink-0 mt-1`} />
+
+                      <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[8.5px] font-bold border ${milestoneColor}`}>
+                            {log.milestone}% Goal
+                          </span>
+                          <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400 block mt-0.5">
+                            Crossed on {log.date}
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-bold text-xs text-gray-800 dark:text-slate-200 block">
+                            {formatCurrency(log.amount, currencySymbol)}
+                          </span>
+                          <span className="text-[8px] text-gray-400 dark:text-slate-500 block leading-none">cumulative</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Deposit transaction actions / delete */}
@@ -474,6 +577,7 @@ function SavingsGoalCard({
           onClick={() => {
             try {
               localStorage.removeItem(`fin_tracker_savings_history_${goal.id}`);
+              localStorage.removeItem(`fin_tracker_savings_milestone_log_${goal.id}`);
             } catch (_) {}
             onDeleteGoal(goal.id);
           }}
@@ -504,6 +608,69 @@ export default function SavingsGoals({
   onDeleteGoal,
   currencySymbol = "$"
 }: SavingsGoalsProps) {
+  // Celebration state for milestone achievements (50%, 75%, 100%)
+  const [celebration, setCelebration] = useState<{
+    goalName: string;
+    milestone: 50 | 75 | 100;
+    targetAmount: number;
+    currentAmount: number;
+  } | null>(null);
+
+  // Auto-dismiss celebration overlay after 6 seconds
+  React.useEffect(() => {
+    if (celebration) {
+      const timer = setTimeout(() => {
+        setCelebration(null);
+      }, 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [celebration]);
+
+  // Intercept goal updates to check if a user crosses 50%, 75%, or 100% savings thresholds
+  const handleUpdateProgressWithCelebration = (id: string, amount: number) => {
+    const goal = goals.find(g => g.id === id);
+    if (goal) {
+      const oldCurrent = goal.current;
+      const target = goal.target;
+      const nextCurrent = parseFloat((oldCurrent + amount).toFixed(2));
+      
+      const oldPercent = target > 0 ? (oldCurrent / target) * 100 : 0;
+      const nextPercent = target > 0 ? (nextCurrent / target) * 100 : 0;
+      
+      let finalMilestone: 50 | 75 | 100 | null = null;
+      if (oldPercent < 100 && nextPercent >= 100) {
+        finalMilestone = 100;
+      } else if (oldPercent < 75 && nextPercent >= 75) {
+        finalMilestone = 75;
+      } else if (oldPercent < 50 && nextPercent >= 50) {
+        finalMilestone = 50;
+      }
+
+      if (finalMilestone) {
+        setCelebration({
+          goalName: goal.name,
+          milestone: finalMilestone,
+          targetAmount: target,
+          currentAmount: nextCurrent
+        });
+        triggerSavingsConfetti();
+      }
+
+      // Log Milestone History crossings
+      const todayStr = new Date().toISOString().substring(0, 10);
+      if (oldPercent < 50 && nextPercent >= 50) {
+        saveMilestoneLog(id, { milestone: 50, date: todayStr, amount: nextCurrent });
+      }
+      if (oldPercent < 75 && nextPercent >= 75) {
+        saveMilestoneLog(id, { milestone: 75, date: todayStr, amount: nextCurrent });
+      }
+      if (oldPercent < 100 && nextPercent >= 100) {
+        saveMilestoneLog(id, { milestone: 100, date: todayStr, amount: nextCurrent });
+      }
+    }
+    onUpdateGoalProgress(id, amount);
+  };
+
   // New Goal Form Parameters
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
@@ -533,7 +700,7 @@ export default function SavingsGoals({
   const handleDeposit = (id: string) => {
     const depNum = parseFloat(depositAmount);
     if (isNaN(depNum)) return;
-    onUpdateGoalProgress(id, depNum);
+    handleUpdateProgressWithCelebration(id, depNum);
     
     // Save immediate balance update to localStorage for progress chart
     const currentGoal = goals.find(g => g.id === id);
@@ -693,7 +860,7 @@ export default function SavingsGoals({
                   key={goal.id}
                   goal={goal}
                   transactions={transactions}
-                  onUpdateGoalProgress={onUpdateGoalProgress}
+                  onUpdateGoalProgress={handleUpdateProgressWithCelebration}
                   onDeleteGoal={onDeleteGoal}
                   currencySymbol={currencySymbol}
                 />
@@ -703,6 +870,188 @@ export default function SavingsGoals({
         </div>
 
       </div>
+
+      {/* Celebration Modal Overlay for Savings Goal milestones (using motion/react) */}
+      <AnimatePresence>
+        {celebration && (
+          <div id="celebration-portal-wrapper" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              id="celebration-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCelebration(null)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              id="celebration-modal-card"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+              className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-6 text-center shadow-2xl z-10 overflow-hidden font-sans"
+            >
+              {/* Background abstract visual gradient glow */}
+              <div className={`absolute -top-16 -left-16 w-32 h-32 rounded-full blur-2xl opacity-10 ${
+                celebration.milestone === 100 
+                  ? 'bg-amber-400' 
+                  : celebration.milestone === 75 
+                    ? 'bg-purple-500' 
+                    : 'bg-blue-500'
+              }`} />
+              <div className={`absolute -bottom-16 -right-16 w-32 h-32 rounded-full blur-2xl opacity-10 ${
+                celebration.milestone === 100 
+                  ? 'bg-emerald-400' 
+                  : celebration.milestone === 75 
+                    ? 'bg-indigo-500' 
+                    : 'bg-sky-500'
+              }`} />
+
+              {/* Dismiss button */}
+              <button
+                id="celebration-close-button"
+                onClick={() => setCelebration(null)}
+                className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-850 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Animated Icon Ring */}
+              <div className="flex justify-center mb-5">
+                <div className="relative">
+                  {/* Outer pulsating ring */}
+                  <motion.div
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                    className={`absolute -inset-2.5 rounded-full ${
+                      celebration.milestone === 100 
+                        ? 'bg-emerald-500/10 dark:bg-emerald-400/5' 
+                        : celebration.milestone === 75 
+                          ? 'bg-purple-500/10 dark:bg-purple-400/5' 
+                          : 'bg-blue-500/10 dark:bg-blue-400/5'
+                    }`}
+                  />
+                  
+                  {/* Inner Icon Container */}
+                  <div className={`relative p-4 rounded-full border shadow-sm ${
+                    celebration.milestone === 100 
+                      ? 'bg-emerald-50 dark:bg-emerald-950/35 border-emerald-100 dark:border-emerald-900/20 text-emerald-600 dark:text-emerald-400' 
+                      : celebration.milestone === 75 
+                        ? 'bg-purple-50 dark:bg-purple-950/35 border-purple-100 dark:border-purple-900/20 text-purple-600 dark:text-purple-400' 
+                        : 'bg-blue-50 dark:bg-blue-950/35 border-blue-100 dark:border-blue-900/20 text-blue-600 dark:text-blue-400'
+                  }`}>
+                    {celebration.milestone === 100 ? (
+                      <Trophy className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                    ) : celebration.milestone === 75 ? (
+                      <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                    ) : (
+                      <PiggyBank className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Header Texts */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="space-y-1.5"
+              >
+                <span className={`text-[10px] font-bold tracking-widest uppercase block ${
+                  celebration.milestone === 100 
+                    ? 'text-emerald-600 dark:text-emerald-400 font-extrabold' 
+                    : celebration.milestone === 75 
+                      ? 'text-purple-600 dark:text-purple-400 font-extrabold' 
+                      : 'text-blue-600 dark:text-blue-400 font-extrabold'
+                }`}>
+                  Milestone Unlocked! 🎉
+                </span>
+                <h4 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight font-sans">
+                  {celebration.milestone === 100 
+                    ? '100% Fully Funded!' 
+                    : celebration.milestone === 75 
+                      ? '75% Savings Milestone!' 
+                      : '50% Savings Milestone!'}
+                </h4>
+              </motion.div>
+
+              {/* Body details */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 text-sm text-gray-600 dark:text-slate-300 space-y-3 leading-relaxed"
+              >
+                <p>
+                  You have successfully saved{' '}
+                  <span className="font-mono font-black text-gray-900 dark:text-white bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-100 dark:border-slate-800/80">
+                    {formatCurrency(celebration.currentAmount, currencySymbol)}
+                  </span>{' '}
+                  towards your goal: <strong className="text-gray-900 dark:text-white font-bold">"{celebration.goalName}"</strong>.
+                </p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 italic font-medium">
+                  {celebration.milestone === 100 
+                    ? 'Absolutely amazing! You have reached your ultimate goal. Your financial discipline and consistency have paid off!' 
+                    : celebration.milestone === 75 
+                      ? 'Three-quarters of the way! You are extremely close to the finish line. Keep going, your target is well within reach!' 
+                      : 'Halfway there! You have built incredible momentum. Consistency is key, and you are doing a phenomenal job!'}
+                </p>
+              </motion.div>
+
+              {/* Progress visual in modal */}
+              <div className="mt-5 space-y-1">
+                <div className="flex justify-between text-[9px] text-gray-400 dark:text-slate-500 font-mono font-bold uppercase tracking-wider">
+                  <span>Goal Status</span>
+                  <span>{celebration.milestone}% achieved</span>
+                </div>
+                <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-850 rounded-full overflow-hidden border border-slate-100/50 dark:border-slate-800/40">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${celebration.milestone}%` }}
+                    transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+                    className={`h-full rounded-full ${
+                      celebration.milestone === 100 
+                        ? 'bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500' 
+                        : celebration.milestone === 75 
+                          ? 'bg-gradient-to-r from-purple-400 via-indigo-500 to-blue-600' 
+                          : 'bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Primary action */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-6"
+              >
+                <motion.button
+                  id="celebration-confirm-button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setCelebration(null)}
+                  className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white shadow-sm transition-colors cursor-pointer ${
+                    celebration.milestone === 100 
+                      ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10' 
+                      : celebration.milestone === 75 
+                        ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/10' 
+                        : 'bg-blue-600 hover:bg-blue-700 shadow-blue-500/10'
+                  }`}
+                >
+                  {celebration.milestone === 100 ? 'Wonderful! 💖' : 'Awesome, Keep Saving! 🚀'}
+                </motion.button>
+              </motion.div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
