@@ -47,7 +47,8 @@ import {
   CheckCircle,
   Check,
   HelpCircle,
-  Flame
+  Flame,
+  UserX
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
@@ -293,6 +294,9 @@ export default function App() {
   };
 
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   
   // Profile Update States
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -1854,6 +1858,110 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
     setIsInsightsStale(true);
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setDeleteAccountError(null);
+    try {
+      if (user && !user.isDemo) {
+        // Authenticated real user deletion on server
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) {
+          throw new Error("Missing active authentication session credentials.");
+        }
+
+        const response = await fetch('/api/delete-account', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const resData = await response.json();
+        if (!response.ok) {
+          throw new Error(resData.error || "Failed to communicate account deletion to the server.");
+        }
+
+        // Successfully deleted backend data. Sign out locally.
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      }
+
+      // 1. Purge all Local Storage records
+      const keysToPurge = [
+        'fin_tracker_snapshots',
+        'fin_tracker_custom_templates',
+        'fin_tracker_read_budget_alerts',
+        'fin_tracker_currency',
+        'fin_tracker_dark_mode',
+        'fin_tracker_browser_notifications',
+        'fin_tracker_mock_users'
+      ];
+      keysToPurge.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (_) {}
+      });
+
+      // Erase milestone logs, notified category alerts, and auth tokens
+      try {
+        Object.keys(localStorage).forEach(key => {
+          if (
+            key.startsWith('fin_tracker_savings_milestone_log_') || 
+            key.startsWith('fin_tracker_notified_categories_') ||
+            key.startsWith('sb-')
+          ) {
+            localStorage.removeItem(key);
+          }
+        });
+      } catch (_) {}
+
+      // 2. Clear all active React states
+      setTransactions([]);
+      setBudgets([]);
+      setGoals([]);
+      setChatMessages([]);
+      setCustomTemplates([]);
+      setRecurringItems([]);
+      setSnapshots([]);
+      setUser(null);
+      setActiveTab('dash');
+      setShowDeleteAccountModal(false);
+      setShowProfileModal(false);
+
+      // Play elegant confirmation audio chime (crystal descending triad)
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const ctx = new AudioContextClass();
+          const playTone = (freq: number, start: number, duration: number, volume: number) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            osc.frequency.setValueAtTime(freq, start);
+            gainNode.gain.setValueAtTime(volume, start);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+            osc.start(start);
+            osc.stop(start + duration);
+          };
+          const now = ctx.currentTime;
+          playTone(523.25, now, 0.4, 0.04); // C5
+          playTone(440.00, now + 0.1, 0.4, 0.04); // A4
+          playTone(349.23, now + 0.2, 0.5, 0.03); // F4
+        }
+      } catch (_) {}
+
+      alert("Your account and all associated personal records have been permanently deleted.");
+
+    } catch (err: any) {
+      console.error("Account termination error:", err);
+      setDeleteAccountError(err.message || "An unexpected error occurred while deleting your account.");
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   const handleSaveTemplate = async (newTemplate: BudgetTemplate) => {
     setCustomTemplates(prev => {
       const idx = prev.findIndex(t => t.id === newTemplate.id);
@@ -3328,10 +3436,18 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             
             <button
               onClick={() => setShowResetModal(true)}
-              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
+              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-650 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
             >
               <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
               Reset App Data
+            </button>
+
+            <button
+              onClick={() => setShowDeleteAccountModal(true)}
+              className="w-full flex items-center gap-3 py-2 px-3.5 rounded-xl text-xs font-semibold text-red-650 dark:text-red-400 hover:text-red-750 dark:hover:text-red-300 hover:bg-red-50/50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100/30 dark:hover:border-red-900/30 transition-all cursor-pointer"
+            >
+              <UserX className="w-4 h-4 text-red-500 dark:text-red-400" />
+              Terminate My Account
             </button>
           </div>
 
@@ -3929,6 +4045,96 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                 </button>
               </div>
             </form>
+
+            {/* Danger Zone */}
+            <div className="border-t border-red-200/40 dark:border-red-950/40 pt-4 mt-6">
+              <h4 className="text-[10px] font-bold text-red-650 dark:text-red-400 uppercase tracking-wider font-mono mb-2">Danger Zone</h4>
+              <p className="text-[10.5px] text-gray-500 dark:text-slate-400 leading-normal mb-3">
+                Permanently terminate your Ledger Smart account and erase all transaction logs, budget targets, savings goals, and local system configurations.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileModal(false);
+                  setShowDeleteAccountModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl text-xs font-bold text-red-650 bg-red-50/50 hover:bg-red-50 dark:text-red-400 dark:bg-red-950/15 dark:hover:bg-red-950/30 border border-red-200/50 dark:border-red-900/35 transition-all cursor-pointer"
+              >
+                <UserX className="w-4 h-4 text-red-500 dark:text-red-400" />
+                Terminate Account & Purge Data
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account / Terminate Account Modal */}
+      {showDeleteAccountModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowDeleteAccountModal(false)}
+              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
+              disabled={isDeletingAccount}
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl mt-0.5">
+                <UserX className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Permanently Terminate Account</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
+                  You are about to permanently terminate your account and erase all of your data from both local storage and database servers.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50/55 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-750 dark:text-red-300 space-y-2">
+              <p className="font-bold uppercase tracking-wider text-[9px] text-red-600 dark:text-red-400 font-mono">CRITICAL WARNING: DELETION IS ABSOLUTELY PERMANENT</p>
+              <ul className="list-disc pl-4 space-y-1 font-medium">
+                <li>Permanently purges all ledger transaction records on the cloud database.</li>
+                <li>Erases all of your active and archived category budgets.</li>
+                <li>Wipes out all milestones, logs, and targets of savings goals.</li>
+                <li>Deletes your chatbot logs and secure system settings forever.</li>
+                <li>Clears browser tracking preferences and token credentials.</li>
+              </ul>
+              <p className="mt-2 text-red-700/80 dark:text-red-300/80 font-semibold font-sans">
+                Once executed, there is absolutely no recovery.
+              </p>
+            </div>
+
+            {deleteAccountError && (
+              <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2">
+                <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
+                  ⚠️ {deleteAccountError}
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <button
+                onClick={() => setShowDeleteAccountModal(false)}
+                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-350 text-xs font-bold rounded-xl transition-colors cursor-pointer border-0"
+                disabled={isDeletingAccount}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                className="py-2.5 px-5 bg-red-650 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 border-0"
+              >
+                {isDeletingAccount ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
+                ) : (
+                  <UserX className="w-3.5 h-3.5" />
+                )}
+                <span>{isDeletingAccount ? 'Purging Account Data...' : 'Terminate Account'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
