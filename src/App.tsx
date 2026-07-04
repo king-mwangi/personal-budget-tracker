@@ -757,11 +757,13 @@ export default function App() {
     supabase.auth.getSession().then(({ data, error }) => {
       if (error) {
         // Log less aggressively or check for known auth refresh token problems to avoid blocking the app
+        const errMsg = error.message || (typeof error === 'string' ? error : '') || '';
         const isRefreshTokenError = 
-          error.message?.includes('Refresh Token') || 
-          error.message?.includes('refresh_token') || 
-          error.message?.includes('invalid_grant') ||
-          error.message?.includes('Not Found') ||
+          errMsg.toLowerCase().includes('refresh token') || 
+          errMsg.toLowerCase().includes('refresh_token') || 
+          errMsg.toLowerCase().includes('invalid_grant') ||
+          errMsg.toLowerCase().includes('not found') ||
+          errMsg.toLowerCase().includes('invalid refresh token') ||
           error.status === 400 ||
           error.status === 401;
 

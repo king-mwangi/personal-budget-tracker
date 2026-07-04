@@ -29,24 +29,56 @@
         const isRefreshTokenError = function(arg) {
           if (!arg) return false;
           try {
-            // Convert to lowercase string representation of properties
-            const message = arg.message || arg.error || arg.reason || arg.error_description || arg.description || "";
-            const strObj = String(message || arg).toLowerCase();
-            if (strObj.includes('refresh token') || 
-                strObj.includes('refresh_token') || 
-                strObj.includes('invalid_grant') ||
-                strObj.includes('token not found') ||
-                strObj.includes('not found') ||
-                strObj.includes('auth-token') ||
-                strObj.includes('invalid refresh token')) {
-              return true;
+            const checkString = function(str) {
+              if (typeof str !== 'string') return false;
+              const lower = str.toLowerCase();
+              return lower.includes('refresh token') || 
+                     lower.includes('refresh_token') || 
+                     lower.includes('invalid_grant') ||
+                     lower.includes('token not found') ||
+                     lower.includes('auth-token') ||
+                     lower.includes('invalid refresh token') ||
+                     lower.includes('not found');
+            };
+
+            // 1. Direct string check
+            if (typeof arg === 'string' && checkString(arg)) return true;
+
+            // 2. Error message and properties check
+            if (arg instanceof Error) {
+              if (checkString(arg.message) || checkString(arg.stack) || checkString(arg.name)) return true;
             }
-            // Fallback into full JSON inspection
-            const jsonStr = JSON.stringify(arg).toLowerCase();
-            if (jsonStr.includes('refresh') || 
-                jsonStr.includes('invalid_grant') || 
-                jsonStr.includes('token not found')) {
-              return true;
+
+            // 3. Object property traversal (including message, error, reason, error_description, etc.)
+            if (typeof arg === 'object') {
+              if (checkString(arg.message)) return true;
+              if (checkString(arg.error)) return true;
+              if (checkString(arg.reason)) return true;
+              if (checkString(arg.error_description)) return true;
+              if (checkString(arg.description)) return true;
+              if (checkString(arg.msg)) return true;
+
+              // Nested error object check
+              if (arg.error && typeof arg.error === 'object') {
+                if (checkString(arg.error.message) || checkString(arg.error.error_description) || checkString(arg.error.error)) return true;
+              }
+
+              // Custom toString
+              if (typeof arg.toString === 'function') {
+                const strRep = arg.toString();
+                if (strRep !== '[object Object]' && checkString(strRep)) return true;
+              }
+
+              // Shallow key search
+              for (const key in arg) {
+                if (Object.prototype.hasOwnProperty.call(arg, key)) {
+                  const val = arg[key];
+                  if (typeof val === 'string' && checkString(val)) return true;
+                  if (val && typeof val === 'object') {
+                    if (checkString(val.message) || checkString(val.error_description) || checkString(val.error)) return true;
+                  }
+                }
+              }
             }
           } catch (e) {}
           return false;
