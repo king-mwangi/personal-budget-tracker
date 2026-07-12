@@ -1258,6 +1258,25 @@ export default function App() {
     }
   };
 
+  const handleBulkUpdateCategory = async (ids: string[], newCategory: string) => {
+    // 1. Update local state
+    setTransactions(prev => prev.map(t => ids.includes(t.id) ? { ...t, category: newCategory } : t));
+
+    // 2. Update database (supabase)
+    if (user && !user.isDemo) {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ category: newCategory })
+        .in('id', ids);
+      if (error) {
+        console.error("Failed to bulk update categories in Supabase", error);
+        throw error;
+      }
+    }
+
+    setIsInsightsStale(true);
+  };
+
   // Handler modifying limits
   const handleUpdateBudget = async (category: string, limit: number) => {
     setBudgets(prev => {
@@ -3698,6 +3717,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                        setActiveTab('ai');
                        handleSendMessage(q);
                      }}
+                     onBulkUpdateCategory={handleBulkUpdateCategory}
                   />
                 </div>
                 <div className="lg:col-span-1">

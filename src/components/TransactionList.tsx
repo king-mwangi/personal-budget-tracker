@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Transaction } from '../types';
 import { CATEGORIES } from '../data/categories';
@@ -25,6 +25,7 @@ interface TransactionListProps {
   onEditTransaction: (tx: Transaction) => void;
   currencySymbol?: string;
   onAskAIAboutTrends?: (question: string) => void;
+  onBulkUpdateCategory?: (ids: string[], category: string) => Promise<void>;
 }
 
 export default function TransactionList({
@@ -32,7 +33,8 @@ export default function TransactionList({
   onDeleteTransaction,
   onEditTransaction,
   currencySymbol = "$",
-  onAskAIAboutTrends
+  onAskAIAboutTrends,
+  onBulkUpdateCategory
 }: TransactionListProps) {
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +45,17 @@ export default function TransactionList({
   const [dateRangePreset, setDateRangePreset] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Bulk category selection state
+  const [selectedTxIds, setSelectedTxIds] = useState<string[]>([]);
+  const [bulkCategory, setBulkCategory] = useState<string>('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  // Synchronize selection with transactions to drop any deleted ones
+  useEffect(() => {
+    const validIds = new Set(transactions.map(t => t.id));
+    setSelectedTxIds(prev => prev.filter(id => validIds.has(id)));
+  }, [transactions]);
 
   const handlePresetChange = (preset: string) => {
     setDateRangePreset(preset);
@@ -203,6 +216,20 @@ export default function TransactionList({
       .map(t => `${t.category} (${currencySymbol}${t.amount})`)
       .join(', ');
     onAskAIAboutTrends(`Can you analyze my recent financial entries? My logged purchases are: ${topCategorySpent}`);
+  };
+
+  const handleApplyBulkUpdate = async () => {
+    if (!bulkCategory || selectedTxIds.length === 0 || !onBulkUpdateCategory) return;
+    setIsBulkUpdating(true);
+    try {
+      await onBulkUpdateCategory(selectedTxIds, bulkCategory);
+      setSelectedTxIds([]);
+      setBulkCategory('');
+    } catch (err) {
+      console.error("Bulk update failed", err);
+    } finally {
+      setIsBulkUpdating(false);
+    }
   };
 
   return (
@@ -386,6 +413,60 @@ export default function TransactionList({
         </div>
       </div>
 
+      {/* Bulk Update Categories Action Bar */}
+      {selectedTxIds.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mx-5 mb-4 bg-blue-50/80 dark:bg-blue-950/35 border border-blue-100 dark:border-blue-900/40 p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-blue-800 dark:text-blue-300">
+              {selectedTxIds.length} transaction{selectedTxIds.length > 1 ? 's' : ''} selected
+            </span>
+            <button
+              onClick={() => setSelectedTxIds([])}
+              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 underline font-semibold cursor-pointer"
+            >
+              Deselect all
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-gray-750 dark:text-slate-300 font-semibold">Change category to:</span>
+            <select
+              value={bulkCategory}
+              onChange={(e) => setBulkCategory(e.target.value)}
+              className="bg-white border border-gray-200 rounded-lg py-1 px-2 text-xs font-semibold cursor-pointer dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 focus:outline-hidden"
+            >
+              <option value="">-- Choose Category --</option>
+              {Object.keys(CATEGORIES).map(catKey => (
+                <option key={catKey} value={catKey}>{catKey}</option>
+              ))}
+            </select>
+            
+            <button
+              onClick={handleApplyBulkUpdate}
+              disabled={!bulkCategory || isBulkUpdating}
+              className="bg-blue-600 hover:bg-blue-750 disabled:bg-blue-400 disabled:opacity-55 disabled:cursor-not-allowed text-white font-bold py-1 px-3 rounded-lg text-xs transition-colors cursor-pointer flex items-center gap-1.5 shadow-xs"
+            >
+              {isBulkUpdating ? (
+                <>
+                  <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Updating...
+                </>
+              ) : (
+                'Apply'
+              )}
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Main Ledger grid list */}
       <div className="flex-1 overflow-x-auto min-h-[350px]">
         {transactions.length === 0 ? (
@@ -434,6 +515,22 @@ export default function TransactionList({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-400 bg-gray-50/30">
+                <th className="py-3 px-5 text-center w-12" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-blue-600 border-gray-305 dark:border-slate-700 bg-white dark:bg-slate-950 rounded focus:ring-blue-500 cursor-pointer"
+                    checked={paginatedTransactions.length > 0 && paginatedTransactions.every(tx => selectedTxIds.includes(tx.id))}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const toAdd = paginatedTransactions.filter(tx => !selectedTxIds.includes(tx.id)).map(tx => tx.id);
+                        setSelectedTxIds(prev => [...prev, ...toAdd]);
+                      } else {
+                        const pageIds = paginatedTransactions.map(tx => tx.id);
+                        setSelectedTxIds(prev => prev.filter(id => !pageIds.includes(id)));
+                      }
+                    }}
+                  />
+                </th>
                 <th className="py-3 px-5">Details</th>
                 <th className="py-3 px-5">Category</th>
                 <th className="py-3 px-5">Date</th>
@@ -454,8 +551,24 @@ export default function TransactionList({
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.45), ease: "easeOut" }}
                       onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
-                      className="transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-800/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40"
+                      className={`transaction-row hover:bg-gray-100/60 dark:hover:bg-slate-800/60 group transition-all duration-150 cursor-pointer border-b border-gray-100/50 dark:border-slate-800/40 ${selectedTxIds.includes(tx.id) ? 'bg-blue-50/20 dark:bg-blue-950/20' : ''}`}
                     >
+                      {/* Selection Checkbox */}
+                      <td className="py-3.5 px-5 text-center w-12" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 border-gray-305 dark:border-slate-700 bg-white dark:bg-slate-950 rounded focus:ring-blue-500 cursor-pointer"
+                          checked={selectedTxIds.includes(tx.id)}
+                          onChange={() => {
+                            setSelectedTxIds(prev => 
+                              prev.includes(tx.id) 
+                                ? prev.filter(id => id !== tx.id) 
+                                : [...prev, tx.id]
+                            );
+                          }}
+                        />
+                      </td>
+
                       {/* Primary notes label */}
                       <td className="py-3.5 px-5">
                         <div className="flex items-center gap-2">
@@ -519,7 +632,7 @@ export default function TransactionList({
                         transition={{ duration: 0.2 }}
                         className="bg-slate-50/50 dark:bg-slate-950/30"
                       >
-                        <td colSpan={5} className="px-5 py-4 border-b border-gray-150 dark:border-slate-800/80">
+                        <td colSpan={6} className="px-5 py-4 border-b border-gray-150 dark:border-slate-800/80">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                             <div className="space-y-1 p-3 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl shadow-xs">
                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono tracking-wider block">ID Reference</span>
