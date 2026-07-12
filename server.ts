@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import deleteAccountHandler from "./api/delete-account";
+import healthHandler from "./api/health";
 
 dotenv.config();
 
@@ -67,9 +68,7 @@ async function generateContentWithRetryAndFallback(ai: any, params: any, retries
 }
 
 // Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
-});
+app.get("/api/health", healthHandler);
 
 async function handleInsightsRequest(req: any, res: any) {
   try {
