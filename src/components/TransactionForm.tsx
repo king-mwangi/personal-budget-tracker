@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Transaction, TransactionType } from '../types';
+import { Account, Transaction, TransactionType } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { 
   Plus, 
@@ -10,8 +10,8 @@ import {
   Check,
   Tag,
   Calendar,
-  DollarSign,
-  FileText
+  FileText,
+  Wallet
 } from 'lucide-react';
 
 interface TransactionFormProps {
@@ -20,6 +20,7 @@ interface TransactionFormProps {
   editingTransaction?: Transaction | null;
   onCancelEdit?: () => void;
   currencySymbol?: string;
+  accounts?: Account[];
 }
 
 export default function TransactionForm({
@@ -27,13 +28,15 @@ export default function TransactionForm({
   onUpdateTransaction,
   editingTransaction,
   onCancelEdit,
-  currencySymbol = "$"
+  currencySymbol = "$",
+  accounts = []
 }: TransactionFormProps) {
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('Food');
   const [date, setDate] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [accountId, setAccountId] = useState<string>(accounts[0]?.id || '');
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
 
   // Set default current date on startup
@@ -41,8 +44,11 @@ export default function TransactionForm({
     if (!editingTransaction) {
       const today = new Date().toISOString().split('T')[0];
       setDate(today);
+      if (!accountId && accounts[0]?.id) {
+        setAccountId(accounts[0].id);
+      }
     }
-  }, [editingTransaction]);
+  }, [editingTransaction, accounts, accountId]);
 
   // Load editing transaction if provided
   useEffect(() => {
@@ -52,6 +58,9 @@ export default function TransactionForm({
       setCategory(editingTransaction.category);
       setDate(editingTransaction.date);
       setDescription(editingTransaction.description);
+      if (editingTransaction.accountId) {
+        setAccountId(editingTransaction.accountId);
+      }
     } else {
       setAmount('');
       setDescription('');
@@ -73,12 +82,13 @@ export default function TransactionForm({
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0 || !category || !date) return;
 
-    const payload = {
+    const payload: Omit<Transaction, 'id'> = {
       type,
       amount: amountNum,
       category,
       date,
-      description: description.trim() || `${category} log`
+      description: description.trim() || `${category} log`,
+      accountId: accountId || accounts[0]?.id || undefined,
     };
 
     if (editingTransaction && onUpdateTransaction) {
@@ -216,6 +226,31 @@ export default function TransactionForm({
             </div>
 
           </div>
+
+          {/* Account / Wallet Selector */}
+          {accounts.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">
+                Account / Wallet
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-3.5 text-gray-400 dark:text-gray-500">
+                  <Wallet className="w-4 h-4" />
+                </span>
+                <select
+                  value={accountId || accounts[0]?.id || ''}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="w-full border border-gray-300 dark:border-slate-700 hover:border-gray-400 dark:hover:border-slate-500 rounded-xl pl-9 pr-3.5 py-3 min-h-[44px] text-sm bg-white dark:bg-slate-950 text-gray-900 dark:text-gray-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           {/* Optional notes or tags */}
           <div>

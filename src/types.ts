@@ -1,5 +1,17 @@
 export type TransactionType = 'income' | 'expense';
 
+export type AccountType = 'checking' | 'savings' | 'credit' | 'cash' | 'mobile_money' | 'crypto' | 'investment';
+
+export interface Account {
+  id: string;
+  name: string;
+  type: AccountType;
+  initialBalance: number;
+  institution?: string;
+  color: string;
+  accountNumberLast4?: string;
+}
+
 export interface Transaction {
   id: string;
   type: TransactionType;
@@ -7,7 +19,62 @@ export interface Transaction {
   category: string;
   date: string; // YYYY-MM-DD
   description: string;
+  accountId?: string;
+  tags?: string[];
 }
+
+export interface AssetItem {
+  id: string;
+  name: string;
+  category: 'real_estate' | 'vehicle' | 'equity' | 'crypto' | 'valuables' | 'other';
+  value: number;
+  notes?: string;
+  lastUpdated: string;
+}
+
+export interface LiabilityItem {
+  id: string;
+  name: string;
+  category: 'credit_card' | 'student_loan' | 'mortgage' | 'auto_loan' | 'personal_loan';
+  balance: number;
+  apr: number;
+  minimumPayment: number;
+  dueDate?: number; // Day of month (1-31)
+}
+
+export interface ScannedReceipt {
+  merchant: string;
+  date: string;
+  totalAmount: number;
+  taxAmount?: number;
+  category: string;
+  items: Array<{ name: string; price: number }>;
+  confidence: string;
+  summaryNote?: string;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  entity: 'transactions' | 'budgets' | 'savings_goals' | 'recurring_transactions' | 'snapshots' | 'budget_templates';
+  action: 'insert' | 'update' | 'delete' | 'upsert';
+  payload: any;
+  timestamp: string;
+  retryCount: number;
+}
+
+export type ActiveTab =
+  | 'dash'
+  | 'ledger'
+  | 'accounts'
+  | 'import'
+  | 'finance'
+  | 'savings'
+  | 'recurring'
+  | 'templates'
+  | 'networth'
+  | 'labs'
+  | 'ai'
+  | 'reports';
 
 export interface Budget {
   category: string;
@@ -77,4 +144,5 @@ export interface MonthlySnapshot {
   expense_categories: Array<{ category: string; amount: number; percentage: number }>;
   transaction_count: number;
 }
+
 

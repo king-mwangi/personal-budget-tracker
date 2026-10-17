@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot } from './types';
+import { Transaction, Budget, SavingsGoal, ChatMessage, BudgetTemplate, RecurringTransaction, MonthlySnapshot, Account, AssetItem, LiabilityItem, ActiveTab } from './types';
 import { formatCurrency } from './utils/currencyFormatter';
 import Login from './components/Login';
 import LedgerSmartLogo from './components/Logo';
+import { useUIModal } from './context/UIModalContext';
+import { useOfflineSync } from './hooks/useOfflineSync';
+import CommandPalette from './components/CommandPalette';
+import SidebarReportItem from './components/SidebarReportItem';
+import AppModals from './components/AppModals';
 
 // Optimally lazy loaded major performance modules to secure instantaneous loading
 const Dashboard = React.lazy(() => import('./components/Dashboard'));
@@ -16,6 +21,9 @@ const BudgetTemplates = React.lazy(() => import('./components/BudgetTemplates'))
 const RecurringManager = React.lazy(() => import('./components/RecurringManager'));
 const MonthlyReports = React.lazy(() => import('./components/MonthlyReports'));
 const FinancialLabs = React.lazy(() => import('./components/FinancialLabs'));
+const AccountsManager = React.lazy(() => import('./components/AccountsManager'));
+const NetWorthAndDebtPlanner = React.lazy(() => import('./components/NetWorthAndDebtPlanner'));
+const SmartImporter = React.lazy(() => import('./components/SmartImporter'));
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
@@ -48,20 +56,46 @@ import {
   Check,
   HelpCircle,
   Flame,
-  UserX
+  UserX,
+  Command,
+  Camera,
+  FileSpreadsheet,
+  TrendingDown,
+  TrendingUp,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Cloud,
+  CloudOff,
+  Search
 } from 'lucide-react';
 
 const SEED_TRANSACTIONS: Transaction[] = [
-  { id: '1', type: 'income', amount: 4800, category: 'Income', date: '2026-05-01', description: 'Tech Corp Salary Payday' },
-  { id: '2', type: 'expense', amount: 1350, category: 'Housing', date: '2026-05-02', description: 'Monthly Apartment Rent payment' },
-  { id: '3', type: 'expense', amount: 124.50, category: 'Food', date: '2026-05-05', description: 'Whole Foods grocery haul' },
-  { id: '4', type: 'expense', amount: 84, category: 'Utilities', date: '2026-05-08', description: 'District Heat & Power billing' },
-  { id: '5', type: 'expense', amount: 65, category: 'Transport', date: '2026-05-10', description: 'Weekly Metro commuter transit card' },
-  { id: '6', type: 'expense', amount: 120, category: 'Shopping', date: '2026-05-14', description: 'Nike sneaker purchase' },
-  { id: '7', type: 'expense', amount: 45, category: 'Entertainment', date: '2026-05-16', description: 'Cinematography tickets & popcorn' },
-  { id: '8', type: 'expense', amount: 180, category: 'Food', date: '2026-05-18', description: 'Michelin Star dinners splurge' },
-  { id: '9', type: 'expense', amount: 50, category: 'Utilities', date: '2026-05-20', description: 'Broadband Fiber Internet connection' },
-  { id: '10', type: 'expense', amount: 200, category: 'Savings', date: '2026-05-22', description: 'Locked monthly emergency reserve outflow' }
+  { id: '1', type: 'income', amount: 4800, category: 'Income', date: '2026-05-01', description: 'Tech Corp Salary Payday', accountId: 'acc-1' },
+  { id: '2', type: 'expense', amount: 1350, category: 'Housing', date: '2026-05-02', description: 'Monthly Apartment Rent payment', accountId: 'acc-1' },
+  { id: '3', type: 'expense', amount: 124.50, category: 'Food', date: '2026-05-05', description: 'Whole Foods grocery haul', accountId: 'acc-1' },
+  { id: '4', type: 'expense', amount: 84, category: 'Utilities', date: '2026-05-08', description: 'District Heat & Power billing', accountId: 'acc-1' },
+  { id: '5', type: 'expense', amount: 65, category: 'Transport', date: '2026-05-10', description: 'Weekly Metro commuter transit card', accountId: 'acc-3' },
+  { id: '6', type: 'expense', amount: 120, category: 'Shopping', date: '2026-05-14', description: 'Nike sneaker purchase', accountId: 'acc-1' },
+  { id: '7', type: 'expense', amount: 45, category: 'Entertainment', date: '2026-05-16', description: 'Cinematography tickets & popcorn', accountId: 'acc-3' },
+  { id: '8', type: 'expense', amount: 180, category: 'Food', date: '2026-05-18', description: 'Michelin Star dinners splurge', accountId: 'acc-1' },
+  { id: '9', type: 'expense', amount: 50, category: 'Utilities', date: '2026-05-20', description: 'Broadband Fiber Internet connection', accountId: 'acc-1' },
+  { id: '10', type: 'expense', amount: 200, category: 'Savings', date: '2026-05-22', description: 'Locked monthly emergency reserve outflow', accountId: 'acc-2' }
+];
+
+const SEED_ACCOUNTS: Account[] = [
+  { id: 'acc-1', name: 'Primary Checking', type: 'checking', initialBalance: 3200, color: '#2563EB', institution: 'Main Bank' },
+  { id: 'acc-2', name: 'High-Yield Reserve', type: 'savings', initialBalance: 8500, color: '#16A34A', institution: 'Wealth Vault' },
+  { id: 'acc-3', name: 'M-Pesa / Cash Wallet', type: 'mobile_money', initialBalance: 450, color: '#059669', institution: 'Mobile Money' }
+];
+
+const SEED_ASSETS: AssetItem[] = [
+  { id: 'ast-1', name: 'Index ETF Portfolio', category: 'equity', value: 14500, notes: 'S&P 500 & Global Tech ETF', lastUpdated: '2026-05-15' },
+  { id: 'ast-2', name: 'Commuter Vehicle', category: 'vehicle', value: 9800, notes: 'Estimated private market resale value', lastUpdated: '2026-05-01' }
+];
+
+const SEED_LIABILITIES: LiabilityItem[] = [
+  { id: 'debt-1', name: 'Platinum Rewards Visa', category: 'credit_card', balance: 2400, apr: 21.9, minimumPayment: 85 },
+  { id: 'debt-2', name: 'Auto Financing Note', category: 'auto_loan', balance: 5600, apr: 6.5, minimumPayment: 210 }
 ];
 
 const SEED_BUDGETS: Budget[] = [];
@@ -192,8 +226,26 @@ function TabSkeleton({ activeTab }: { activeTab: string }) {
 }
 
 export default function App() {
+  const { confirmAction, showToast, setIsCommandPaletteOpen } = useUIModal();
+
   // Current active frame tab
-  const [activeTab, setActiveTab] = useState<'dash' | 'finance' | 'ledger' | 'savings' | 'ai' | 'templates' | 'recurring' | 'reports' | 'labs'>('dash');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('dash');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('fin_tracker_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [selectedAccountFilter, setSelectedAccountFilter] = useState<string | null>(null);
+  const [importerInitialMode, setImporterInitialMode] = useState<'receipt' | 'csv'>('receipt');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fin_tracker_sidebar_collapsed', String(isSidebarCollapsed));
+    } catch (_) {}
+  }, [isSidebarCollapsed]);
+
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [excelExportSuccess, setExcelExportSuccess] = useState(false);
   const [excelExportTimestamp, setExcelExportTimestamp] = useState<string>('');
@@ -372,14 +424,38 @@ export default function App() {
 
   const currencySymbol = currency === 'Ksh' ? 'Ksh ' : currency === 'EUR' ? '€' : '$';
 
-  // State Stores loaded from Supabase
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  // Offline Sync Queue & Connectivity Manager
+  const { isOnline, isSyncing, pendingCount, lastSyncedAt, enqueueSync, flushQueue } = useOfflineSync(user);
+
+  // State Stores loaded from Supabase + Local Offline Cache
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_cached_transactions');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const currentSystemMonth = React.useMemo(() => {
     return new Date().toISOString().substring(0, 7);
   }, []);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(() => currentSystemMonth);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_cached_budgets');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [goals, setGoals] = useState<SavingsGoal[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_cached_goals');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [customTemplates, setCustomTemplates] = useState<BudgetTemplate[]>([]);
   const [recurringItems, setRecurringItems] = useState<RecurringTransaction[]>([]);
@@ -391,6 +467,61 @@ export default function App() {
       return [];
     }
   });
+
+  // New Wealth & Multi-Account State Stores (persisted offline-first)
+  const [accounts, setAccounts] = useState<Account[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_accounts');
+      return cached ? JSON.parse(cached) : SEED_ACCOUNTS;
+    } catch {
+      return SEED_ACCOUNTS;
+    }
+  });
+  const [assets, setAssets] = useState<AssetItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_assets');
+      return cached ? JSON.parse(cached) : SEED_ASSETS;
+    } catch {
+      return SEED_ASSETS;
+    }
+  });
+  const [liabilities, setLiabilities] = useState<LiabilityItem[]>(() => {
+    try {
+      const cached = localStorage.getItem('fin_tracker_liabilities');
+      return cached ? JSON.parse(cached) : SEED_LIABILITIES;
+    } catch {
+      return SEED_LIABILITIES;
+    }
+  });
+
+  // Persist Offline-First Caches
+  useEffect(() => {
+    try {
+      localStorage.setItem('fin_tracker_accounts', JSON.stringify(accounts));
+    } catch (_) {}
+  }, [accounts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fin_tracker_assets', JSON.stringify(assets));
+    } catch (_) {}
+  }, [assets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fin_tracker_liabilities', JSON.stringify(liabilities));
+    } catch (_) {}
+  }, [liabilities]);
+
+  useEffect(() => {
+    if (isDataLoaded) {
+      try {
+        localStorage.setItem('fin_tracker_cached_transactions', JSON.stringify(transactions));
+        localStorage.setItem('fin_tracker_cached_budgets', JSON.stringify(budgets));
+        localStorage.setItem('fin_tracker_cached_goals', JSON.stringify(goals));
+      } catch (_) {}
+    }
+  }, [transactions, budgets, goals, isDataLoaded]);
 
   const [excelPreviewCustom, setExcelPreviewCustom] = useState<{
     count: number;
@@ -1213,7 +1344,7 @@ export default function App() {
     setTransactions(prev => [fresh, ...prev]);
 
     if (user && !user.isDemo) {
-      await supabase.from('transactions').insert({
+      const payload = {
         id: fresh.id,
         user_id: user.id,
         type: fresh.type,
@@ -1221,11 +1352,117 @@ export default function App() {
         category: fresh.category,
         date: fresh.date,
         description: fresh.description
-      });
+      };
+      if (!navigator.onLine) {
+        enqueueSync('transactions', 'insert', payload);
+      } else {
+        const { error } = await supabase.from('transactions').insert(payload);
+        if (error) enqueueSync('transactions', 'insert', payload);
+      }
     }
 
     // Mark insights stale to recommend on-demand compilation
     setIsInsightsStale(true);
+  };
+
+  // Batch Import Handler for Receipt Scanner & CSV Importer
+  const handleBatchImportTransactions = async (newTxs: Omit<Transaction, 'id'>[]) => {
+    const created: Transaction[] = newTxs.map(tx => ({
+      ...tx,
+      id: 'imp-' + Math.random().toString(36).substring(2, 9) + '-' + Math.random().toString(36).substring(2, 5)
+    }));
+
+    setTransactions(prev => [...created, ...prev]);
+
+    if (user && !user.isDemo) {
+      for (const fresh of created) {
+        const payload = {
+          id: fresh.id,
+          user_id: user.id,
+          type: fresh.type,
+          amount: fresh.amount,
+          category: fresh.category,
+          date: fresh.date,
+          description: fresh.description
+        };
+        if (!navigator.onLine) {
+          enqueueSync('transactions', 'insert', payload);
+        } else {
+          const { error } = await supabase.from('transactions').insert(payload);
+          if (error) enqueueSync('transactions', 'insert', payload);
+        }
+      }
+    }
+
+    setIsInsightsStale(true);
+  };
+
+  // Multi-Account & Wallet Handlers
+  const handleAddAccount = (acc: Omit<Account, 'id'>) => {
+    const fresh: Account = {
+      ...acc,
+      id: 'acc-' + Math.random().toString(36).substring(2, 9)
+    };
+    setAccounts(prev => [...prev, fresh]);
+  };
+
+  const handleUpdateAccount = (id: string, updated: Partial<Account>) => {
+    setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updated } : a));
+  };
+
+  const handleDeleteAccountItem = (id: string) => {
+    setAccounts(prev => prev.filter(a => a.id !== id));
+    setTransactions(prev => prev.map(t => t.accountId === id ? { ...t, accountId: undefined } : t));
+  };
+
+  const handleTransferBetweenAccounts = async (fromId: string, toId: string, amount: number, date: string, note: string) => {
+    const fromAcc = accounts.find(a => a.id === fromId);
+    const toAcc = accounts.find(a => a.id === toId);
+    if (!fromAcc || !toAcc) return;
+
+    const outTx: Omit<Transaction, 'id'> = {
+      type: 'expense',
+      amount,
+      category: 'Savings',
+      date,
+      description: `${note} (To ${toAcc.name})`,
+      accountId: fromId
+    };
+    const inTx: Omit<Transaction, 'id'> = {
+      type: 'income',
+      amount,
+      category: 'Income',
+      date,
+      description: `${note} (From ${fromAcc.name})`,
+      accountId: toId
+    };
+
+    await handleBatchImportTransactions([outTx, inTx]);
+  };
+
+  // Net Worth Assets & Liabilities Handlers
+  const handleAddAsset = (asset: Omit<AssetItem, 'id'>) => {
+    setAssets(prev => [...prev, { ...asset, id: 'ast-' + Math.random().toString(36).substring(2, 9) }]);
+  };
+
+  const handleUpdateAsset = (id: string, updated: Partial<AssetItem>) => {
+    setAssets(prev => prev.map(a => a.id === id ? { ...a, ...updated } : a));
+  };
+
+  const handleDeleteAsset = (id: string) => {
+    setAssets(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleAddLiability = (item: Omit<LiabilityItem, 'id'>) => {
+    setLiabilities(prev => [...prev, { ...item, id: 'debt-' + Math.random().toString(36).substring(2, 9) }]);
+  };
+
+  const handleUpdateLiability = (id: string, updated: Partial<LiabilityItem>) => {
+    setLiabilities(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l));
+  };
+
+  const handleDeleteLiability = (id: string) => {
+    setLiabilities(prev => prev.filter(l => l.id !== id));
   };
 
   // Handler editing transactions
@@ -1234,27 +1471,52 @@ export default function App() {
     setEditingTx(null);
 
     if (user && !user.isDemo) {
-      await supabase.from('transactions').update({
+      const payload = {
+        id,
         type: updated.type,
         amount: updated.amount,
         category: updated.category,
         date: updated.date,
         description: updated.description
-      }).eq('id', id);
+      };
+      if (!navigator.onLine) {
+        enqueueSync('transactions', 'update', payload);
+      } else {
+        const { error } = await supabase.from('transactions').update({
+          type: updated.type,
+          amount: updated.amount,
+          category: updated.category,
+          date: updated.date,
+          description: updated.description
+        }).eq('id', id);
+        if (error) enqueueSync('transactions', 'update', payload);
+      }
     }
 
     setIsInsightsStale(true);
   };
 
   const handleDeleteTransaction = async (id: string) => {
-    if (confirm("Are you sure you want to delete this log entry?")) {
+    const confirmed = await confirmAction({
+      title: 'Delete Transaction Record',
+      message: 'Are you sure you want to permanently remove this transaction from your ledger?',
+      confirmLabel: 'Delete Entry',
+      variant: 'danger'
+    });
+    if (confirmed) {
       setTransactions(prev => prev.filter(t => t.id !== id));
 
       if (user && !user.isDemo) {
-        await supabase.from('transactions').delete().eq('id', id);
+        if (!navigator.onLine) {
+          enqueueSync('transactions', 'delete', { id });
+        } else {
+          const { error } = await supabase.from('transactions').delete().eq('id', id);
+          if (error) enqueueSync('transactions', 'delete', { id });
+        }
       }
 
       setIsInsightsStale(true);
+      showToast('Transaction deleted.', 'info');
     }
   };
 
@@ -1352,7 +1614,13 @@ export default function App() {
   };
 
   const handleDeleteSnapshot = async (id: string) => {
-    if (confirm("Are you sure you want to delete this historical monthly snapshot?")) {
+    const confirmed = await confirmAction({
+      title: 'Delete Monthly Snapshot',
+      message: 'Are you sure you want to delete this historical monthly snapshot?',
+      confirmLabel: 'Delete Snapshot',
+      variant: 'danger'
+    });
+    if (confirmed) {
       setSnapshots(prev => {
         const next = prev.filter(s => s.id !== id);
         localStorage.setItem('fin_tracker_snapshots', JSON.stringify(next));
@@ -1366,6 +1634,7 @@ export default function App() {
           console.error("Failed to delete snapshot from Supabase:", err);
         }
       }
+      showToast('Monthly snapshot deleted.', 'info');
     }
   };
 
@@ -1404,12 +1673,19 @@ export default function App() {
   };
 
   const handleDeleteGoal = async (id: string) => {
-    if (confirm("Are you sure you want to delete this savings target?")) {
+    const confirmed = await confirmAction({
+      title: 'Delete Savings Target',
+      message: 'Are you sure you want to delete this savings target and its tracked progress?',
+      confirmLabel: 'Delete Goal',
+      variant: 'danger'
+    });
+    if (confirmed) {
       setGoals(prev => prev.filter(g => g.id !== id));
 
       if (user && !user.isDemo) {
         await supabase.from('savings_goals').delete().eq('id', id);
       }
+      showToast('Savings goal removed.', 'info');
     }
   };
 
@@ -1437,12 +1713,19 @@ export default function App() {
   };
 
   const handleDeleteRecurring = async (id: string) => {
-    if (confirm("Are you sure you want to remove this recurring schedule template?")) {
+    const confirmed = await confirmAction({
+      title: 'Remove Recurring Schedule',
+      message: 'Are you sure you want to remove this recurring schedule template?',
+      confirmLabel: 'Remove Schedule',
+      variant: 'danger'
+    });
+    if (confirmed) {
       setRecurringItems(prev => prev.filter(r => r.id !== id));
 
       if (user && !user.isDemo) {
         await supabase.from('recurring_transactions').delete().eq('id', id);
       }
+      showToast('Recurring item removed.', 'info');
     }
   };
 
@@ -1848,11 +2131,18 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
   };
 
   const handleClearHistory = async () => {
-    if (confirm("Confirm erasing chatbot conversational memory?")) {
+    const confirmed = await confirmAction({
+      title: 'Clear Advisor Chat History',
+      message: 'Confirm erasing all conversational memory with the Gemini Financial Advisor?',
+      confirmLabel: 'Clear History',
+      variant: 'warning'
+    });
+    if (confirmed) {
       setChatMessages([]);
       if (user && !user.isDemo) {
         await supabase.from('chat_messages').delete().eq('user_id', user.id);
       }
+      showToast('Advisor chat history cleared.', 'info');
     }
   };
 
@@ -1863,7 +2153,13 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
     setChatMessages([]);
     setRecurringItems([]);
     setSnapshots([]);
+    setAccounts([]);
+    setAssets([]);
+    setLiabilities([]);
     localStorage.removeItem('fin_tracker_snapshots');
+    localStorage.removeItem('fin_tracker_accounts');
+    localStorage.removeItem('fin_tracker_assets');
+    localStorage.removeItem('fin_tracker_liabilities');
 
     if (user && !user.isDemo) {
       await supabase.from('transactions').delete().eq('user_id', user.id);
@@ -1875,8 +2171,8 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
     }
     
     setShowResetModal(false);
-    
     setIsInsightsStale(true);
+    showToast('Workspace data reset to a clean slate.', 'success');
   };
 
   const handleDeleteAccount = async () => {
@@ -1916,7 +2212,10 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         'fin_tracker_currency',
         'fin_tracker_dark_mode',
         'fin_tracker_browser_notifications',
-        'fin_tracker_mock_users'
+        'fin_tracker_mock_users',
+        'fin_tracker_accounts',
+        'fin_tracker_assets',
+        'fin_tracker_liabilities'
       ];
       keysToPurge.forEach(key => {
         try {
@@ -1973,7 +2272,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         }
       } catch (_) {}
 
-      alert("Your account and all associated personal records have been permanently deleted.");
+      showToast("Your account and all associated personal records have been permanently deleted.", "info");
 
     } catch (err: any) {
       console.error("Account termination error:", err);
@@ -2005,12 +2304,19 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (confirm("Are you sure you want to delete this blueprint?")) {
+    const confirmed = await confirmAction({
+      title: 'Delete Budget Blueprint',
+      message: 'Are you sure you want to delete this custom budget blueprint?',
+      confirmLabel: 'Delete Blueprint',
+      variant: 'danger'
+    });
+    if (confirmed) {
       setCustomTemplates(prev => prev.filter(t => t.id !== id));
 
       if (user && !user.isDemo) {
         await supabase.from('budget_templates').delete().eq('id', id);
       }
+      showToast('Budget blueprint deleted.', 'info');
     }
   };
 
@@ -2423,10 +2729,18 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         )}
       </AnimatePresence>
       
-      {/* Top Elegant bar */}
-      <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-4 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors duration-500 ease-in">
+      {/* Top Elegant bar with Quick-Action & Command Bar */}
+      <header className="bg-white dark:bg-slate-900 border-b border-gray-150 dark:border-slate-800 py-3 sm:py-3.5 px-4 sm:px-6 sticky top-0 z-40 shadow-xs transition-colors duration-500 ease-in">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-between w-full">
           <div className="flex items-center gap-2.5 self-start md:self-auto w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(prev => !prev)}
+              title={isSidebarCollapsed ? "Expand Sidebar Navigation" : "Collapse Sidebar Navigation"}
+              className="hidden lg:flex items-center justify-center p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
             <LedgerSmartLogo showText={false} iconSize="w-9 h-9" className="hover:scale-105 transition-transform duration-200" />
             <div className="min-w-0">
               <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
@@ -2440,11 +2754,102 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                   Welcome, {userFirstName}!
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono tracking-wider font-semibold">PERSONAL FINANCE COMPANION</p>
+              <p className="text-[10px] text-gray-400 dark:text-slate-500 font-mono tracking-wider font-semibold">PERSONAL WEALTH & LEDGER SUITE</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-3 w-full md:w-auto">
+          {/* Global Command Trigger & Quick Actions */}
+          <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-center">
+            <button
+              type="button"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs transition-all cursor-pointer flex-1 md:w-56 shadow-2xs"
+              title="Open Command Palette (Cmd+K / Ctrl+K)"
+            >
+              <span className="flex items-center gap-2 truncate">
+                <Search className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                <span className="truncate font-medium">Search or jump to...</span>
+              </span>
+              <kbd className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shrink-0">
+                ⌘K
+              </kbd>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setImporterInitialMode('receipt');
+                setActiveTab('importer');
+              }}
+              title="Scan Receipt with AI Vision"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200/70 dark:border-blue-800/60 text-xs font-bold transition-colors cursor-pointer shrink-0"
+            >
+              <Camera className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="hidden sm:inline">Scan Receipt</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setImporterInitialMode('csv');
+                setActiveTab('importer');
+              }}
+              title="Bulk Import Bank CSV or Excel Statement"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60 text-xs font-bold transition-colors cursor-pointer shrink-0"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden xl:inline">Import CSV</span>
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-start md:justify-end gap-2 sm:gap-2.5 w-full md:w-auto">
+            {/* Offline Cache & Cloud Sync Badge */}
+            <button
+              type="button"
+              onClick={() => {
+                if (pendingCount > 0 && isOnline) {
+                  flushQueue();
+                  showToast('Syncing queued changes to cloud...', 'info');
+                } else {
+                  showToast(
+                    isOnline
+                      ? `Offline-first cache active. ${pendingCount > 0 ? `${pendingCount} pending sync.` : 'All records synced.'}`
+                      : 'Offline mode active — changes are saved locally and queued for sync.',
+                    'info'
+                  );
+                }
+              }}
+              title={lastSyncedAt ? `Last synced at ${lastSyncedAt}` : 'Offline-first local cache active'}
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-mono font-bold transition-colors cursor-pointer ${
+                !isOnline
+                  ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+                  : pendingCount > 0 || isSyncing
+                    ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+                    : 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200/70 dark:border-emerald-900/50 text-emerald-700 dark:text-emerald-400'
+              }`}
+            >
+              {!isOnline ? (
+                <>
+                  <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Offline ({pendingCount})</span>
+                </>
+              ) : isSyncing ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                  <span>Syncing...</span>
+                </>
+              ) : pendingCount > 0 ? (
+                <>
+                  <Cloud className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Queue ({pendingCount})</span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Synced</span>
+                </>
+              )}
+            </button>
             {/* Supabase Authentication Status & Sign Out */}
             {user && (
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mr-0 sm:mr-1">
@@ -3512,7 +3917,13 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                    </div>
                    <button
                      onClick={async () => {
-                       if (window.confirm("Are you sure you want to delete all initial transactions, budgets, and savings goals? This clears your ledger of all custom files and records.")) {
+                       const confirmed = await confirmAction({
+                         title: 'Clear Initial Portfolio Data',
+                         message: 'Are you sure you want to delete all initial transactions, budgets, and savings goals? This clears your ledger of all default records so you can start fresh.',
+                         confirmLabel: 'Clear & Start Fresh',
+                         variant: 'danger'
+                       });
+                       if (confirmed) {
                          await handleResetAllData();
                        }
                      }}
@@ -3718,6 +4129,9 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                        handleSendMessage(q);
                      }}
                      onBulkUpdateCategory={handleBulkUpdateCategory}
+                     accounts={accounts}
+                     selectedAccountFilter={selectedAccountFilter}
+                     onClearAccountFilter={() => setSelectedAccountFilter(null)}
                   />
                 </div>
                 <div className="lg:col-span-1">
@@ -3727,9 +4141,53 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
                     editingTransaction={editingTx}
                     onCancelEdit={() => setEditingTx(null)}
                     currencySymbol={currencySymbol}
+                    accounts={accounts}
                   />
                 </div>
               </div>
+            )}
+
+            {activeTab === 'accounts' && (
+              <AccountsManager
+                accounts={accounts}
+                transactions={transactions}
+                currencySymbol={currencySymbol}
+                onAddAccount={handleAddAccount}
+                onUpdateAccount={handleUpdateAccount}
+                onDeleteAccount={handleDeleteAccountItem}
+                onTransferBetweenAccounts={handleTransferBetweenAccounts}
+                onSelectAccountForLedger={(accountId) => {
+                  setSelectedAccountFilter(accountId);
+                  setActiveTab('ledger');
+                }}
+              />
+            )}
+
+            {activeTab === 'importer' && (
+              <SmartImporter
+                accounts={accounts}
+                existingTransactions={transactions}
+                currencySymbol={currencySymbol}
+                onBatchImportTransactions={handleBatchImportTransactions}
+                initialMode={importerInitialMode}
+              />
+            )}
+
+            {(activeTab === 'networth' || activeTab === 'debt') && (
+              <NetWorthAndDebtPlanner
+                accounts={accounts}
+                transactions={transactions}
+                assets={assets}
+                liabilities={liabilities}
+                currencySymbol={currencySymbol}
+                initialSubTab={activeTab === 'debt' ? 'debt' : 'networth'}
+                onAddAsset={handleAddAsset}
+                onUpdateAsset={handleUpdateAsset}
+                onDeleteAsset={handleDeleteAsset}
+                onAddLiability={handleAddLiability}
+                onUpdateLiability={handleUpdateLiability}
+                onDeleteLiability={handleDeleteLiability}
+              />
             )}
 
             {activeTab === 'finance' && (
@@ -3834,7 +4292,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
 
       </main>
 
-      {/* Mobile Bottom Navigation Bar styled cleanly with dynamic indicators */}
+      {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-150 dark:border-slate-800 flex items-center justify-around py-2 px-1 lg:hidden shadow-lg transition-colors duration-150">
         <button 
           onClick={() => { setActiveTab('dash'); setEditingTx(null); }}
@@ -3851,6 +4309,27 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           <span className="text-[9px] uppercase font-bold tracking-wider">Ledger</span>
         </button>
         <button 
+          onClick={() => { setActiveTab('accounts'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'accounts' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
+        >
+          <WalletCards className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Wallets</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('importer'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'importer' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
+        >
+          <Camera className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Scan</span>
+        </button>
+        <button 
+          onClick={() => { setActiveTab('networth'); setEditingTx(null); }}
+          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${(activeTab === 'networth' || activeTab === 'debt') ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
+        >
+          <TrendingUp className="w-5 h-5" />
+          <span className="text-[9px] uppercase font-bold tracking-wider">Wealth</span>
+        </button>
+        <button 
           onClick={() => { setActiveTab('finance'); setEditingTx(null); }}
           className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'finance' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
@@ -3858,32 +4337,11 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           <span className="text-[9px] uppercase font-bold tracking-wider">Budgets</span>
         </button>
         <button 
-          onClick={() => { setActiveTab('reports'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'reports' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
-        >
-          <BarChart3 className="w-5 h-5" />
-          <span className="text-[9px] uppercase font-bold tracking-wider">Reports</span>
-        </button>
-        <button 
-          onClick={() => { setActiveTab('recurring'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'recurring' ? 'text-blue-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
-        >
-          <CalendarClock className="w-5 h-5" />
-          <span className="text-[9px] uppercase font-bold tracking-wider">Fixed</span>
-        </button>
-        <button 
-          onClick={() => { setActiveTab('labs'); setEditingTx(null); }}
-          className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'labs' ? 'text-purple-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
-        >
-          <Flame className="w-5 h-5 text-orange-500" />
-          <span className="text-[9px] uppercase font-bold tracking-wider">Labs</span>
-        </button>
-        <button 
           onClick={() => { setActiveTab('ai'); setEditingTx(null); }}
           className={`flex flex-col items-center gap-1 flex-1 py-1 cursor-pointer transition-all ${activeTab === 'ai' ? 'text-purple-600 dark:text-[#FFFFFF] font-extrabold scale-105' : 'text-slate-500 dark:text-[#CBD5E1] hover:text-slate-700 dark:hover:text-[#FFFFFF]'}`}
         >
           <Sparkles className={`w-5 h-5 animate-pulse ${activeTab === 'ai' ? 'text-purple-600 dark:text-purple-400' : 'text-purple-500 dark:text-purple-300'}`} />
-          <span className="text-[9px] uppercase font-bold tracking-wider">Gemini</span>
+          <span className="text-[9px] uppercase font-bold tracking-wider">Advisor</span>
         </button>
       </nav>
 
@@ -3892,274 +4350,52 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
         Ledger Smart Tracker Portfolio Corporation © 2026. All statistics are encrypted securely client-side.
       </footer>
 
-      {/* Reset Confirmation Drawer / Modal */}
-      {showResetModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowResetModal(false)}
-              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      {/* Global Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandPalette
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setEditingTx(null);
+        }}
+        transactions={transactions}
+        currencySymbol={currencySymbol}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(!darkMode)}
+        onRefreshInsights={fetchAIInsights}
+      />
 
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl mt-0.5">
-                <Trash2 className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Reset Application Data</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                  You are about to wipe out all seed placeholder transactions, category budgets, and savings goals. This allows you to start tracking your real funds and statistics on a completely clean canvas.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-red-50/55 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-700 dark:text-red-300 space-y-2">
-              <p className="font-bold uppercase tracking-wider text-[9px] text-red-600 dark:text-red-400">Warning: Irreversible Operation</p>
-              <ul className="list-disc pl-4 space-y-1 font-medium">
-                <li>Permanently deletes the {transactions.length} pre-filled placeholder transactions inside your Ledger ledger.</li>
-                <li>Clears your {budgets.length} budget limit constraints entirely.</li>
-                <li>Wipes out {goals.length} active savings Goals and their accrued progressions.</li>
-                <li>Purges historical conversational chatbot logs.</li>
-              </ul>
-              <p className="mt-2 text-red-700/80 dark:text-red-300/80">
-                Your selected currency settings (<span className="font-bold underline">{currency}</span>) will be retained.
-              </p>
-            </div>
-
-            {/* Checkbox option to also erase custom templates */}
-            <div className="flex items-center gap-2 pt-1 font-sans">
-              <input
-                type="checkbox"
-                id="delete-templates-chk"
-                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-md focus:ring-blue-500 cursor-pointer"
-                defaultChecked={false}
-              />
-              <label htmlFor="delete-templates-chk" className="text-xs text-gray-600 dark:text-slate-300 font-medium select-none cursor-pointer">
-                Also remove my {customTemplates.length} custom saved budget templates/blueprints
-              </label>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
-              <button
-                onClick={() => setShowResetModal(false)}
-                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-300 text-xs font-bold rounded-xl transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const checkEl = document.getElementById('delete-templates-chk') as HTMLInputElement;
-                  if (checkEl && checkEl.checked) {
-                    setCustomTemplates([]);
-                    localStorage.removeItem('fin_tracker_custom_templates');
-                  }
-                  handleResetAllData();
-                }}
-                className="py-2.5 px-5 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                Clean App Slate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Profile Modification Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowProfileModal(false)}
-              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/45 text-blue-600 dark:text-blue-400 rounded-2xl mt-0.5">
-                <User className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Edit Profile Name</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Update your identity details below. Your new first name will display on your workspace and reports.
-                </p>
-              </div>
-            </div>
-
-            <form onSubmit={handleUpdateProfile} className="space-y-4 pt-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
-                  Registered Email Address
-                </label>
-                <div className="py-2 px-3.5 border border-slate-150 dark:border-slate-800 rounded-xl bg-slate-50/60 dark:bg-slate-950 text-xs font-mono font-medium text-slate-500 dark:text-slate-400 select-all truncate">
-                  {user?.email}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label htmlFor="editFirstName" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
-                    First Name
-                  </label>
-                  <input
-                    id="editFirstName"
-                    type="text"
-                    required
-                    value={editFirstName}
-                    onChange={(e) => setEditFirstName(e.target.value)}
-                    placeholder="e.g. John"
-                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label htmlFor="editLastName" className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
-                    Last Name
-                  </label>
-                  <input
-                    id="editLastName"
-                    type="text"
-                    required
-                    value={editLastName}
-                    onChange={(e) => setEditLastName(e.target.value)}
-                    placeholder="e.g. Doe"
-                    className="block w-full px-3.5 py-2.5 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/40 dark:bg-slate-950 text-xs font-semibold focus:outline-hidden focus:ring-1 focus:ring-blue-500 dark:text-white transition-all shadow-xs"
-                  />
-                </div>
-              </div>
-
-              {profileError && (
-                <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2">
-                  <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
-                    ⚠️ {profileError}
-                  </p>
-                </div>
-              )}
-
-              {profileSuccess && (
-                <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100/50 dark:border-emerald-950 p-2.5 flex gap-2">
-                  <p className="text-[10px] text-emerald-800 dark:text-emerald-400 font-medium leading-relaxed">
-                    ✓ {profileSuccess}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-150 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowProfileModal(false)}
-                  className="py-2 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-305 text-xs font-bold rounded-xl transition-colors cursor-pointer border-0"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isProfileUpdating}
-                  className="py-2.5 px-5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 border-0"
-                >
-                  {isProfileUpdating ? (
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
-                  ) : null}
-                  <span>Save Changes</span>
-                </button>
-              </div>
-            </form>
-
-            {/* Danger Zone */}
-            <div className="border-t border-red-200/40 dark:border-red-950/40 pt-4 mt-6">
-              <h4 className="text-[10px] font-bold text-red-650 dark:text-red-400 uppercase tracking-wider font-mono mb-2">Danger Zone</h4>
-              <p className="text-[10.5px] text-gray-500 dark:text-slate-400 leading-normal mb-3">
-                Permanently terminate your Ledger Smart account and erase all transaction logs, budget targets, savings goals, and local system configurations.
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfileModal(false);
-                  setShowDeleteAccountModal(true);
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3.5 rounded-xl text-xs font-bold text-red-650 bg-red-50/50 hover:bg-red-50 dark:text-red-400 dark:bg-red-950/15 dark:hover:bg-red-950/30 border border-red-200/50 dark:border-red-900/35 transition-all cursor-pointer"
-              >
-                <UserX className="w-4 h-4 text-red-500 dark:text-red-400" />
-                Terminate Account & Purge Data
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Account / Terminate Account Modal */}
-      {showDeleteAccountModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 transition-all">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-150 dark:border-slate-800 relative space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setShowDeleteAccountModal(false)}
-              className="absolute right-4 top-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer border-0 bg-transparent"
-              disabled={isDeletingAccount}
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-2xl mt-0.5">
-                <UserX className="w-6 h-6 animate-pulse" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Permanently Terminate Account</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400 leading-relaxed">
-                  You are about to permanently terminate your account and erase all of your data from both local storage and database servers.
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-red-50/55 dark:bg-red-950/20 rounded-xl p-4 border border-red-100 dark:border-red-900/30 text-[11px] leading-relaxed text-red-750 dark:text-red-300 space-y-2">
-              <p className="font-bold uppercase tracking-wider text-[9px] text-red-600 dark:text-red-400 font-mono">CRITICAL WARNING: DELETION IS ABSOLUTELY PERMANENT</p>
-              <ul className="list-disc pl-4 space-y-1 font-medium">
-                <li>Permanently purges all ledger transaction records on the cloud database.</li>
-                <li>Erases all of your active and archived category budgets.</li>
-                <li>Wipes out all milestones, logs, and targets of savings goals.</li>
-                <li>Deletes your chatbot logs and secure system settings forever.</li>
-                <li>Clears browser tracking preferences and token credentials.</li>
-              </ul>
-              <p className="mt-2 text-red-700/80 dark:text-red-300/80 font-semibold font-sans">
-                Once executed, there is absolutely no recovery.
-              </p>
-            </div>
-
-            {deleteAccountError && (
-              <div className="rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100/50 dark:border-red-950 p-2.5 flex gap-2">
-                <p className="text-[10px] text-red-800 dark:text-red-400 font-medium leading-relaxed">
-                  ⚠️ {deleteAccountError}
-                </p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 dark:border-slate-800">
-              <button
-                onClick={() => setShowDeleteAccountModal(false)}
-                className="py-2.5 px-4 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-750 dark:text-slate-350 text-xs font-bold rounded-xl transition-colors cursor-pointer border-0"
-                disabled={isDeletingAccount}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={isDeletingAccount}
-                className="py-2.5 px-5 bg-red-650 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2 border-0"
-              >
-                {isDeletingAccount ? (
-                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 border-t-white animate-spin" />
-                ) : (
-                  <UserX className="w-3.5 h-3.5" />
-                )}
-                <span>{isDeletingAccount ? 'Purging Account Data...' : 'Terminate Account'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modularized System Modals (Reset, Edit Profile, Terminate Account) */}
+      <AppModals
+        showResetModal={showResetModal}
+        setShowResetModal={setShowResetModal}
+        transactionsCount={transactions.length}
+        budgetsCount={budgets.length}
+        goalsCount={goals.length}
+        customTemplatesCount={customTemplates.length}
+        currency={currency}
+        onClearTemplates={() => {
+          setCustomTemplates([]);
+          localStorage.removeItem('fin_tracker_custom_templates');
+        }}
+        onResetAllData={handleResetAllData}
+        showProfileModal={showProfileModal}
+        setShowProfileModal={setShowProfileModal}
+        userEmail={user?.email}
+        editFirstName={editFirstName}
+        setEditFirstName={setEditFirstName}
+        editLastName={editLastName}
+        setEditLastName={setEditLastName}
+        profileError={profileError}
+        profileSuccess={profileSuccess}
+        isProfileUpdating={isProfileUpdating}
+        onUpdateProfile={handleUpdateProfile}
+        onOpenDeleteAccountModal={() => setShowDeleteAccountModal(true)}
+        showDeleteAccountModal={showDeleteAccountModal}
+        setShowDeleteAccountModal={setShowDeleteAccountModal}
+        isDeletingAccount={isDeletingAccount}
+        deleteAccountError={deleteAccountError}
+        onDeleteAccount={handleDeleteAccount}
+      />
 
     </div>
   );

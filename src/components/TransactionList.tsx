@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Transaction } from '../types';
+import { Account, Transaction } from '../types';
 import { CATEGORIES } from '../data/categories';
 import { formatCurrency } from '../utils/currencyFormatter';
 import { 
@@ -16,7 +16,8 @@ import {
   Download,
   Calendar,
   Receipt,
-  Plus
+  Plus,
+  Wallet
 } from 'lucide-react';
 
 interface TransactionListProps {
@@ -26,6 +27,9 @@ interface TransactionListProps {
   currencySymbol?: string;
   onAskAIAboutTrends?: (question: string) => void;
   onBulkUpdateCategory?: (ids: string[], category: string) => Promise<void>;
+  accounts?: Account[];
+  selectedAccountFilter?: string | null;
+  onClearAccountFilter?: () => void;
 }
 
 export default function TransactionList({
@@ -34,13 +38,24 @@ export default function TransactionList({
   onEditTransaction,
   currencySymbol = "$",
   onAskAIAboutTrends,
-  onBulkUpdateCategory
+  onBulkUpdateCategory,
+  accounts = [],
+  selectedAccountFilter = null,
+  onClearAccountFilter
 }: TransactionListProps) {
   // Filters & State
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [accountFilter, setAccountFilter] = useState<string>(selectedAccountFilter || 'all');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc'>('date-desc');
+
+  useEffect(() => {
+    if (selectedAccountFilter) {
+      setAccountFilter(selectedAccountFilter);
+      setCurrentPage(1);
+    }
+  }, [selectedAccountFilter]);
   
   const [dateRangePreset, setDateRangePreset] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
@@ -164,6 +179,11 @@ export default function TransactionList({
       filtered = filtered.filter(tx => tx.category === categoryFilter);
     }
 
+    // 3b. Account filtering
+    if (accountFilter !== 'all') {
+      filtered = filtered.filter(tx => tx.accountId === accountFilter);
+    }
+
     // 4. Custom Date Range filtering
     if (startDate) {
       filtered = filtered.filter(tx => tx.date && tx.date >= startDate);
@@ -186,7 +206,7 @@ export default function TransactionList({
     });
 
     return filtered;
-  }, [transactions, searchQuery, typeFilter, categoryFilter, sortBy, startDate, endDate]);
+  }, [transactions, searchQuery, typeFilter, categoryFilter, accountFilter, sortBy, startDate, endDate]);
 
   // Paginated chunk
   const totalPages = Math.ceil(processedTransactions.length / itemsPerPage);
@@ -332,7 +352,7 @@ export default function TransactionList({
 
         {/* Date Range & Presets Filter */}
         <div className="bg-white dark:bg-slate-900 border border-gray-150 dark:border-slate-800 p-3.5 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Date Filter:
             </span>
@@ -348,6 +368,30 @@ export default function TransactionList({
               <option value="lastmonth">Last Month</option>
               <option value="custom">Custom Range...</option>
             </select>
+
+            {accounts.length > 0 && (
+              <>
+                <span className="font-semibold text-gray-700 dark:text-slate-300 flex items-center gap-1 ml-2">
+                  <Wallet className="w-3.5 h-3.5 text-blue-500 shrink-0" /> Wallet:
+                </span>
+                <select
+                  value={accountFilter}
+                  onChange={(e) => {
+                    setAccountFilter(e.target.value);
+                    setCurrentPage(1);
+                    if (e.target.value === 'all' && onClearAccountFilter) {
+                      onClearAccountFilter();
+                    }
+                  }}
+                  className="bg-gray-50 border border-gray-200 rounded-lg py-1 px-2 text-xs font-semibold cursor-pointer dark:bg-slate-950 dark:border-slate-800 dark:text-slate-200 focus:outline-hidden"
+                >
+                  <option value="all">All Accounts</option>
+                  {accounts.map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
           </div>
 
           {dateRangePreset === 'custom' ? (
@@ -579,6 +623,15 @@ export default function TransactionList({
                             <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate" title={tx.description}>
                               {tx.description}
                             </p>
+                            {tx.accountId && accounts.length > 0 && (() => {
+                              const linkedAcc = accounts.find(a => a.id === tx.accountId);
+                              return linkedAcc ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: linkedAcc.color }} />
+                                  {linkedAcc.name}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       </td>

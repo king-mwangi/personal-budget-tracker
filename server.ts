@@ -219,7 +219,7 @@ async function handleInsightsRequest(req: any, res: any) {
     }
 
     const response = await generateContentWithRetryAndFallback(ai, {
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: prompt,
       config: {
         systemInstruction: `You are a senior personal finance expert and budget optimization engine. Provide highly practical, personalized, and encouraging advice purely based on the real uploaded numbers. Always frame all monetary advice and estimates around the current active currency: ${currency}.`,
@@ -308,6 +308,103 @@ async function handleInsightsRequest(req: any, res: any) {
 app.post("/api/insights", handleInsightsRequest);
 app.post("/api/analyze", handleInsightsRequest);
 
+// Smart Multimodal Receipt Scanner Endpoint
+app.post("/api/scan-receipt", async (req, res) => {
+  try {
+    const { imageBase64, mimeType = "image/jpeg", currency = "Ksh" } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: "Receipt image data is required." });
+    }
+
+    const cleanBase64 = imageBase64.includes("base64,")
+      ? imageBase64.split("base64,")[1]
+      : imageBase64;
+
+    const ai = getAIClient();
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const response = await generateContentWithRetryAndFallback(ai, {
+      model: "gemini-3.8-flash",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: mimeType || "image/jpeg",
+              data: cleanBase64,
+            },
+          },
+          {
+            text: `Extract structured financial receipt data from this image. Active user currency is ${currency}. If the receipt date is missing or illegible, default to ${todayStr}. Map category to one of: Food, Housing, Utilities, Transport, Shopping, Entertainment, Healthcare, Education, Personal, Debt, Savings, Other.`,
+          },
+        ],
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            merchant: {
+              type: Type.STRING,
+              description: "Name of merchant, store, or vendor on the receipt",
+            },
+            date: {
+              type: Type.STRING,
+              description: "Receipt date in YYYY-MM-DD format",
+            },
+            totalAmount: {
+              type: Type.NUMBER,
+              description: "Total final amount paid on the receipt",
+            },
+            taxAmount: {
+              type: Type.NUMBER,
+              description: "Tax or VAT amount if shown, else 0",
+            },
+            category: {
+              type: Type.STRING,
+              description: "Best matching expense category from: Food, Housing, Utilities, Transport, Shopping, Entertainment, Healthcare, Education, Personal, Debt, Savings, Other",
+            },
+            items: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  price: { type: Type.NUMBER },
+                },
+                required: ["name", "price"],
+              },
+              description: "Individual purchased line items extracted from the receipt",
+            },
+            confidence: {
+              type: Type.STRING,
+              description: "Confidence level: High, Medium, or Low",
+            },
+            summaryNote: {
+              type: Type.STRING,
+              description: "Brief 1-sentence summary of the purchase for ledger description",
+            },
+          },
+          required: ["merchant", "date", "totalAmount", "category", "items", "confidence"],
+        },
+      },
+    });
+
+    let rawText = response.text || "{}";
+    if (rawText.includes("```")) {
+      rawText = rawText.replace(/```json\s*/i, "").replace(/```\s*$/, "").trim();
+    }
+    const parsed = JSON.parse(rawText);
+    return res.json(parsed);
+  } catch (error: any) {
+    console.error("Receipt Scanner Error:", error);
+    const errMsg = error?.message || String(error || "");
+    const status = errMsg.includes("GEMINI_API_KEY") ? 403 : error?.status === 429 ? 429 : 500;
+    return res.status(status).json({
+      error: errMsg || "Failed to scan receipt with Gemini Vision.",
+    });
+  }
+});
+
 function summarizeFinancialData(transactions: any[], budgets: any[], goals: any[], currency: string) {
   const totalIncome = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
   const totalExpense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
@@ -373,7 +470,7 @@ app.post("/api/advisor", async (req, res) => {
     }));
 
     const response = await generateContentWithRetryAndFallback(ai, {
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: contents,
       config: {
         systemInstruction: systemInstruction,
