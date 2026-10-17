@@ -67,14 +67,17 @@ export type ActiveTab =
   | 'ledger'
   | 'accounts'
   | 'import'
+  | 'importer'
   | 'finance'
   | 'savings'
   | 'recurring'
   | 'templates'
   | 'networth'
+  | 'debt'
   | 'labs'
   | 'ai'
-  | 'reports';
+  | 'reports'
+  | 'sheets';
 
 export interface Budget {
   category: string;

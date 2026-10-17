@@ -24,6 +24,8 @@ const FinancialLabs = React.lazy(() => import('./components/FinancialLabs'));
 const AccountsManager = React.lazy(() => import('./components/AccountsManager'));
 const NetWorthAndDebtPlanner = React.lazy(() => import('./components/NetWorthAndDebtPlanner'));
 const SmartImporter = React.lazy(() => import('./components/SmartImporter'));
+const GoogleSheetsHub = React.lazy(() => import('./components/GoogleSheetsHub'));
+import SheetsQuickSyncButton from './components/SheetsQuickSyncButton';
 import { supabase, isSupabaseConfigured } from './lib/supabase';
 import { 
   Building2, 
@@ -226,7 +228,7 @@ function TabSkeleton({ activeTab }: { activeTab: string }) {
 }
 
 export default function App() {
-  const { confirmAction, showToast, setIsCommandPaletteOpen } = useUIModal();
+  const { confirmAction, showToast, setCommandPaletteOpen } = useUIModal();
 
   // Current active frame tab
   const [activeTab, setActiveTab] = useState<ActiveTab>('dash');
@@ -2762,7 +2764,7 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
           <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-center">
             <button
               type="button"
-              onClick={() => setIsCommandPaletteOpen(true)}
+              onClick={() => setCommandPaletteOpen(true)}
               className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs transition-all cursor-pointer flex-1 md:w-56 shadow-2xs"
               title="Open Command Palette (Cmd+K / Ctrl+K)"
             >
@@ -2791,14 +2793,13 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             <button
               type="button"
               onClick={() => {
-                setImporterInitialMode('csv');
-                setActiveTab('importer');
+                setActiveTab('sheets');
               }}
-              title="Bulk Import Bank CSV or Excel Statement"
+              title="Open Google Sheets & Drive Live Sync Hub"
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/70 dark:border-emerald-800/60 text-xs font-bold transition-colors cursor-pointer shrink-0"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden xl:inline">Import CSV</span>
+              <span className="hidden xl:inline">Google Sheets</span>
             </button>
           </div>
 
@@ -3174,6 +3175,61 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             >
               <Receipt className="w-4.5 h-4.5" />
               Transaction Ledger
+            </button>
+
+            {/* Accounts & Wallets Link */}
+            <button
+              onClick={() => { setActiveTab('accounts'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'accounts'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <WalletCards className="w-4.5 h-4.5" />
+              Accounts & Wallets
+            </button>
+
+            {/* Smart Receipt & CSV Importer Link */}
+            <button
+              onClick={() => { setActiveTab('importer'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'importer' || activeTab === 'import'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Camera className="w-4.5 h-4.5" />
+              Receipt & CSV Import
+            </button>
+
+            {/* Net Worth & Debt Payoff Planner Link */}
+            <button
+              onClick={() => { setActiveTab('networth'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'networth' || activeTab === 'debt'
+                  ? 'bg-blue-600 text-white shadow-xs font-bold font-semibold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <TrendingUp className="w-4.5 h-4.5" />
+              Net Worth & Debt
+            </button>
+
+            {/* Google Sheets Live Sync Hub Link */}
+            <button
+              onClick={() => { setActiveTab('sheets'); setEditingTx(null); }}
+              className={`w-full flex items-center gap-3 py-2.5 px-3.5 rounded-xl text-xs font-semibold tracking-wide transition-all cursor-pointer ${
+                activeTab === 'sheets'
+                  ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <FileSpreadsheet className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
+              <span className="truncate">Google Sheets Sync</span>
+              <span className="ml-auto bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-extrabold px-1.5 py-0.5 rounded text-[8.5px] font-mono tracking-wide uppercase leading-none">
+                Sync
+              </span>
             </button>
 
             {/* Budgets Link */}
@@ -4115,90 +4171,249 @@ Hello! I have reviewed your personal finance files and am ready to assist you:
             )}
 
             {activeTab === 'ledger' && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <TransactionList
-                     transactions={transactions}
-                     onDeleteTransaction={handleDeleteTransaction}
-                     onEditTransaction={(tx) => {
-                       setEditingTx(tx);
-                     }}
-                     currencySymbol={currencySymbol}
-                     onAskAIAboutTrends={(q) => {
-                       setActiveTab('ai');
-                       handleSendMessage(q);
-                     }}
-                     onBulkUpdateCategory={handleBulkUpdateCategory}
-                     accounts={accounts}
-                     selectedAccountFilter={selectedAccountFilter}
-                     onClearAccountFilter={() => setSelectedAccountFilter(null)}
-                  />
+              <div className="space-y-4">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-800 dark:text-white">
+                      Google Sheets Live Transaction Companion
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Push your {transactions.length} ledger records directly to the Transactions tab in your Master Workbook.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <SheetsQuickSyncButton
+                      tabKey="transactions"
+                      payload={{
+                        transactions,
+                        budgets,
+                        accounts,
+                        assets,
+                        liabilities,
+                        currencySymbol,
+                        selectedPeriod,
+                      }}
+                      recordCountLabel={`${transactions.length} transactions`}
+                      onOpenSheetsHub={() => setActiveTab('sheets')}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('sheets')}
+                      className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 cursor-pointer"
+                    >
+                      Sheets Hub
+                    </button>
+                  </div>
                 </div>
-                <div className="lg:col-span-1">
-                  <TransactionForm
-                    onAddTransaction={handleAddTransaction}
-                    onUpdateTransaction={handleUpdateTransaction}
-                    editingTransaction={editingTx}
-                    onCancelEdit={() => setEditingTx(null)}
-                    currencySymbol={currencySymbol}
-                    accounts={accounts}
-                  />
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <TransactionList
+                       transactions={transactions}
+                       onDeleteTransaction={handleDeleteTransaction}
+                       onEditTransaction={(tx) => {
+                         setEditingTx(tx);
+                       }}
+                       currencySymbol={currencySymbol}
+                       onAskAIAboutTrends={(q) => {
+                         setActiveTab('ai');
+                         handleSendMessage(q);
+                       }}
+                       onBulkUpdateCategory={handleBulkUpdateCategory}
+                       accounts={accounts}
+                       selectedAccountFilter={selectedAccountFilter}
+                       onClearAccountFilter={() => setSelectedAccountFilter(null)}
+                    />
+                  </div>
+                  <div className="lg:col-span-1">
+                    <TransactionForm
+                      onAddTransaction={handleAddTransaction}
+                      onUpdateTransaction={handleUpdateTransaction}
+                      editingTransaction={editingTx}
+                      onCancelEdit={() => setEditingTx(null)}
+                      currencySymbol={currencySymbol}
+                      accounts={accounts}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'accounts' && (
-              <AccountsManager
-                accounts={accounts}
-                transactions={transactions}
-                currencySymbol={currencySymbol}
-                onAddAccount={handleAddAccount}
-                onUpdateAccount={handleUpdateAccount}
-                onDeleteAccount={handleDeleteAccountItem}
-                onTransferBetweenAccounts={handleTransferBetweenAccounts}
-                onSelectAccountForLedger={(accountId) => {
-                  setSelectedAccountFilter(accountId);
-                  setActiveTab('ledger');
-                }}
-              />
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <SheetsQuickSyncButton
+                    tabKey="accounts"
+                    payload={{
+                      transactions,
+                      budgets,
+                      accounts,
+                      assets,
+                      liabilities,
+                      currencySymbol,
+                      selectedPeriod,
+                    }}
+                    recordCountLabel={`${accounts.length} accounts & wallets`}
+                    onOpenSheetsHub={() => setActiveTab('sheets')}
+                  />
+                </div>
+                <AccountsManager
+                  accounts={accounts}
+                  transactions={transactions}
+                  currencySymbol={currencySymbol}
+                  onAddAccount={handleAddAccount}
+                  onUpdateAccount={handleUpdateAccount}
+                  onDeleteAccount={handleDeleteAccountItem}
+                  onTransferFunds={handleTransferBetweenAccounts}
+                />
+              </div>
             )}
 
-            {activeTab === 'importer' && (
+            {(activeTab === 'importer' || activeTab === 'import') && (
               <SmartImporter
                 accounts={accounts}
                 existingTransactions={transactions}
                 currencySymbol={currencySymbol}
-                onBatchImportTransactions={handleBatchImportTransactions}
-                initialMode={importerInitialMode}
+                currency={currency}
+                onAddTransaction={handleAddTransaction}
+                onBulkAddTransactions={handleBatchImportTransactions}
               />
             )}
 
             {(activeTab === 'networth' || activeTab === 'debt') && (
-              <NetWorthAndDebtPlanner
-                accounts={accounts}
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <SheetsQuickSyncButton
+                    tabKey="networth"
+                    payload={{
+                      transactions,
+                      budgets,
+                      accounts,
+                      assets,
+                      liabilities,
+                      currencySymbol,
+                      selectedPeriod,
+                    }}
+                    recordCountLabel={`${assets.length} assets & ${liabilities.length} liabilities`}
+                    onOpenSheetsHub={() => setActiveTab('sheets')}
+                  />
+                </div>
+                <NetWorthAndDebtPlanner
+                  accounts={accounts}
+                  transactions={transactions}
+                  assets={assets}
+                  liabilities={liabilities}
+                  currencySymbol={currencySymbol}
+                  onAddAsset={handleAddAsset}
+                  onDeleteAsset={handleDeleteAsset}
+                  onAddLiability={handleAddLiability}
+                  onUpdateLiability={handleUpdateLiability}
+                  onDeleteLiability={handleDeleteLiability}
+                  onRecordDebtPayment={(liability, paymentAmount) => {
+                    handleUpdateLiability(liability.id, {
+                      balance: Math.max(0, liability.balance - paymentAmount),
+                    });
+                    handleAddTransaction({
+                      type: 'expense',
+                      amount: paymentAmount,
+                      category: 'Utilities',
+                      date: new Date().toISOString().split('T')[0],
+                      description: `Debt Payoff Payment: ${liability.name}`,
+                    });
+                  }}
+                />
+              </div>
+            )}
+
+            {activeTab === 'sheets' && (
+              <GoogleSheetsHub
                 transactions={transactions}
+                budgets={budgets}
+                accounts={accounts}
                 assets={assets}
                 liabilities={liabilities}
                 currencySymbol={currencySymbol}
-                initialSubTab={activeTab === 'debt' ? 'debt' : 'networth'}
-                onAddAsset={handleAddAsset}
-                onUpdateAsset={handleUpdateAsset}
-                onDeleteAsset={handleDeleteAsset}
-                onAddLiability={handleAddLiability}
-                onUpdateLiability={handleUpdateLiability}
-                onDeleteLiability={handleDeleteLiability}
+                selectedPeriod={selectedPeriod}
+                onReplaceTransactions={async (pulledTxs) => {
+                  setTransactions(pulledTxs);
+                  setIsInsightsStale(true);
+                  if (user && !user.isDemo) {
+                    for (const tx of pulledTxs) {
+                      const rowPayload = {
+                        id: tx.id,
+                        user_id: user.id,
+                        type: tx.type,
+                        amount: tx.amount,
+                        category: tx.category,
+                        date: tx.date,
+                        description: tx.description,
+                      };
+                      if (!navigator.onLine) {
+                        enqueueSync('transactions', 'upsert', rowPayload);
+                      } else {
+                        await supabase.from('transactions').upsert(rowPayload);
+                      }
+                    }
+                  }
+                }}
+                onReplaceBudgets={async (pulledBudgets) => {
+                  setBudgets(pulledBudgets);
+                  setIsInsightsStale(true);
+                  if (user && !user.isDemo) {
+                    for (const b of pulledBudgets) {
+                      const bPayload = {
+                        id: `b-${user.id}-${b.category}`,
+                        user_id: user.id,
+                        category: b.category,
+                        limit: b.limit,
+                      };
+                      if (!navigator.onLine) {
+                        enqueueSync('budgets', 'upsert', bPayload);
+                      } else {
+                        await supabase.from('budgets').upsert(bPayload);
+                      }
+                    }
+                  }
+                }}
+                onReplaceAccounts={(pulledAccounts) => {
+                  setAccounts(pulledAccounts);
+                }}
+                onReplaceAssets={(pulledAssets) => {
+                  setAssets(pulledAssets);
+                }}
+                onReplaceLiabilities={(pulledLiabilities) => {
+                  setLiabilities(pulledLiabilities);
+                }}
               />
             )}
 
             {activeTab === 'finance' && (
-              <BudgetManager
-                budgets={budgets}
-                transactions={transactions}
-                onUpdateBudget={handleUpdateBudget}
-                onDeleteBudget={handleDeleteBudget}
-                currencySymbol={currencySymbol}
-                onAskAIAboutBudget={triggerAIBudgetAssistant}
-              />
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <SheetsQuickSyncButton
+                    tabKey="budgets"
+                    payload={{
+                      transactions,
+                      budgets,
+                      accounts,
+                      assets,
+                      liabilities,
+                      currencySymbol,
+                      selectedPeriod,
+                    }}
+                    recordCountLabel={`${budgets.length} category budgets`}
+                    onOpenSheetsHub={() => setActiveTab('sheets')}
+                  />
+                </div>
+                <BudgetManager
+                  budgets={budgets}
+                  transactions={transactions}
+                  onUpdateBudget={handleUpdateBudget}
+                  onDeleteBudget={handleDeleteBudget}
+                  currencySymbol={currencySymbol}
+                  onAskAIAboutBudget={triggerAIBudgetAssistant}
+                />
+              </div>
             )}
 
             {activeTab === 'savings' && (

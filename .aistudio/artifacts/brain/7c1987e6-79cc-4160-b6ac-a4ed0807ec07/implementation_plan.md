@@ -1,131 +1,121 @@
-# Ledger Smart — Next-Generation Architecture & Wealth Suite
+# Ledger Smart — Google Sheets & Google Drive Live Sync Integration
 
-This upgrade transforms Ledger Smart from a single-file monolithic state container into a modular, offline-resilient personal finance workspace, while introducing multi-account wallet tracking, a net worth and debt payoff strategist, and an AI receipt scanner with bulk statement import.
+Connect Ledger Smart directly with Google Sheets and Google Drive so your financial ledger, budgets, multi-account balances, and net worth items stay synchronized with a live, formatted master spreadsheet in your Google Drive.
 
-## User Review & Critical Decisions
+### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> All core feature and architectural priorities from our planning session have been locked in below. Review the proposed UX flows and architecture, then click **Proceed** to begin implementation.
+> The following architectural and product choices have been configured based on your selections:
 
-- **Confirmed Decision 1 (New Financial Capabilities)**: Add **Multi-Account & Wallet Tracking** (Bank, Cash, Credit Card, Mobile Money, Crypto), **Net Worth, Assets & Debt Payoff Planner** (Snowball vs. Avalanche amortization engine), and **Smart Receipt Scanner & CSV/Bank Statement Bulk Importer** (server-side Gemini multimodal extraction + interactive CSV column mapper).
-- **Confirmed Decision 2 (Architectural Overhaul)**: Decompose the monolithic application state into domain-specific React Contexts and custom hooks, replace browser `window.confirm` / `window.alert` calls with a **Unified Modal & Confirmation Manager**, and introduce an **Offline-First Local Cache with a Real-Time Supabase Sync Queue**.
-- **Confirmed Decision 3 (Workspace Navigation & Layout)**: Upgrade the interface to a **Collapsible Grouped Sidebar** paired with a **Top Quick-Action & Breadcrumb Bar** and a keyboard-driven **Global Command Palette (`Cmd+K` / `Ctrl+K`)**.
-
----
-
-## 1. Overview & Core Concept
-
-- **What It Does**: Provides an end-to-end personal wealth command center where users can track daily cash flow across multiple accounts, scan receipts or bulk-import bank CSV statements, simulate debt payoff timelines, monitor net worth growth, and interact with an AI financial advisor—all backed by instant local persistence and resilient background cloud synchronization.
-- **Target Audience / Persona**: Individuals, freelancers, and household financial planners who want institutional-grade clarity over their accounts, liabilities, and budgets without spreadsheet friction.
-- **Key Value**: Eliminates manual data-entry bottlenecks via receipt scanning and CSV batch imports, unifies fragmented accounts into a single net-worth view, and replaces a 4,100-line monolithic component with a fast, maintainable, keyboard-navigable workspace.
-
----
-
-## 2. User Experience & Visual Design
-
-### Key User Flows
-
-1. **Collapsible Grouped Navigation & Command Palette (`Cmd+K`)**:
-   - Navigation is organized into four clear domain groups: **Core** (Overview, Ledger, Accounts & Wallets), **Planning** (Budgets, Savings Goals, Recurring Bills, Templates), **Wealth & Debt** (Net Worth & Assets, Debt Payoff Planner, Financial Labs), and **Intelligence** (AI Advisor, Monthly Reports).
-   - Pressing `Cmd+K` (or clicking the command trigger in the top bar) opens an instant search modal to jump to any view, trigger quick actions (*Scan Receipt*, *Import CSV*, *Log Transaction*, *Toggle Theme*), or filter ledger entries by keyword.
-2. **Multi-Account & Wallet Management**:
-   - Users can create and manage accounts (*Checking*, *Savings*, *Cash*, *Credit Card*, *Mobile Money / M-Pesa*, *Investment / Crypto*) with starting balances, custom colors, and account-specific filtering.
-   - Logging or importing a transaction optionally links it to an account and automatically computes live running balances, plus supports inter-account transfers.
-3. **Smart Receipt Scanner & Bulk CSV Importer**:
-   - **Receipt Scanner**: Users drop or capture a photo of a paper or digital receipt. The server-side Gemini vision endpoint (`gemini-3.8-flash`) extracts merchant name, date, total amount, line items, and suggested category into an editable preview card before committing to the ledger.
-   - **CSV / Statement Importer**: Users upload any bank CSV/Excel file, map columns (Date, Description, Amount or Debit/Credit, Category, Account), auto-categorize unrecognized rows, preview duplicate detection, and batch-import hundreds of rows in one click.
-4. **Net Worth, Assets & Debt Payoff Strategist**:
-   - **Net Worth Tracker**: Aggregates liquid account balances, manual assets (Real Estate, Vehicles, Equity, Crypto), and liabilities into a live Net Worth balance sheet with asset-allocation breakdowns.
-   - **Debt Payoff Planner**: Users enter liabilities (balance, APR %, minimum payment) and an optional extra monthly payment slider. The engine compares **Debt Avalanche** (highest APR first) vs. **Debt Snowball** (lowest balance first), displaying total interest saved, payoff date acceleration, and an interactive month-by-month amortization schedule.
-
-### Visual Identity & Theme
-
-- **Aesthetic Direction**: High-craft financial workspace combining crisp editorial clarity with dense, scannable tabular precision.
-- **Color Palette & Mood** (60-30-10 Discipline):
-  - **60% Canvas**: Crisp cool alabaster (`#F8FAFC`) in light mode; deep obsidian slate (`#0F172A`) in dark mode.
-  - **30% Structural Surfaces**: Pure white (`#FFFFFF`) or elevated slate (`#1E293B`) containers with `1px` hairline borders (`border-slate-200` / `dark:border-slate-800`) and single-elevation depth.
-  - **10% Semantic & Action Accents**: Royal cobalt (`#2563EB`) for primary actions and active states; emerald (`#16A34A`) for inflows/assets; amber (`#D97706`) for approaching budget thresholds; crimson (`#DC2626`) for outflows/liabilities.
-- **Typography & Hierarchy**:
-  - **Display & Navigation**: `Plus Jakarta Sans` (600/700 weights) for crisp section headers and navigation labels.
-  - **Body & Controls**: `Plus Jakarta Sans` / `DM Sans` (400/500 weights) for effortless legibility at 12px–15px.
-  - **Financial Telemetry & Figures**: `JetBrains Mono` with strict `tabular-nums` alignment across all balances, tables, percentages, and amortization schedules.
-- **Interactive Feedback & Motion**:
-  - Fast $\le 180\text{ms}$ compositor transitions (`transform`, `opacity`) for sidebar collapse, command palette reveal, and tab switches.
-  - Non-blocking sync status indicator in the workspace header showing offline cache readiness and background cloud sync queue completion.
+- **Confirmed Decision 1 — Comprehensive Multi-Tab Workflows**:
+  - **Live Transaction Export & Sync**: Push and pull ledger transactions (`Date`, `Description`, `Category`, `Type`, `Amount`, `Account`, `ID`) to a dedicated `Transactions` sheet tab.
+  - **Formatted Multi-Tab Financial Reports**: Generate executive-ready tabs (`Executive Summary`, `Monthly Cash Flow`) complete with styled header bands, currency formatting, and live `SUM`/`SUMIFS` spreadsheet formulas.
+  - **Two-Way Sync for Budgets, Accounts & Net Worth**: Read and write updates between Ledger Smart and dedicated `Budgets`, `Accounts & Wallets`, and `Net Worth & Debt` tabs so edits made directly inside Google Sheets can be pulled back into Ledger Smart.
+- **Confirmed Decision 2 — Dedicated Sync Hub + Contextual Quick-Export Buttons**:
+  - Add a **Google Sheets Sync Hub** view in the grouped sidebar navigation (and `Cmd+K` Command Palette) alongside contextual **"Sync to Sheets"** quick action buttons inside the Transaction Ledger, Accounts, Budgets, and Net Worth views.
+- **Confirmed Decision 3 — Automatic Single Master Spreadsheet Management**:
+  - Automatically locate or provision a single master workbook named **`Ledger Smart — Master Financial Workbook`** in Google Drive, while also displaying your connected Drive spreadsheet status, direct "Open in Google Sheets" link, and an option to inspect or relink existing spreadsheets in Drive.
+- **Confirmed Decision 4 — Mandatory Confirmation Before Mutating Drive/Sheets Data**:
+  - Every operation that overwrites, updates, or clears cells in Google Sheets or modifies files in Google Drive will present Ledger Smart's custom confirmation modal detailing the affected sheet tabs and record counts before executing.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+### 1. Overview & Core Concept
 
-- **Decision 1: Context + Custom Hook Domain Architecture vs. Single-Component State**
-  - *Chosen Approach*: Extract state and business logic into dedicated providers (`FinanceDataContext`, `UIModalContext`, `SyncQueueContext`) and focused workspace shell components (`AppSidebar`, `AppHeader`, `CommandPalette`, `ConfirmDialog`).
-  - *Why*: Reduces the root application component size by over 70%, prevents unnecessary full-tree re-renders when typing or filtering, and makes every financial module independently testable and maintainable.
-  - *Alternatives Considered*: Keeping state in the root file and passing props down; rejected due to severe prop-drilling and maintenance complexity.
-- **Decision 2: Offline-First Local Storage + Optimistic Sync Queue**
-  - *Chosen Approach*: Persist all state mutations immediately to indexed `localStorage` namespaces and enqueue Supabase mutations in a resilient background sync queue that retries automatically when connectivity returns.
-  - *Why*: Guarantees zero data loss and instantaneous UI responsiveness whether the user is in demo mode, on a flaky connection, or authenticated with Supabase.
-- **Decision 3: Server-Side Gemini Vision (`gemini-3.8-flash`) with Structured JSON Schema for Receipt Parsing**
-  - *Chosen Approach*: Route receipt images through an Express endpoint (`/api/scan-receipt`) using `@google/genai` and `gemini-3.8-flash` with a strict `responseSchema` returning merchant, date, amount, category, and confidence.
-  - *Why*: Keeps the Gemini API key strictly server-side while delivering fast, deterministic JSON extraction that populates the transaction preview without manual typing.
+- **What It Does**: Bridges Ledger Smart's local/Supabase financial engine with Google Workspace. With one click after signing in with Google, users can provision a structured 5-tab Master Financial Workbook in Google Drive, push live updates from any module, pull spreadsheet edits back into the app, or generate formatted monthly financial statement tabs.
+- **Target Audience / Persona**: Personal finance power users, freelancers, and household CFOs who love the speed, AI receipt scanning, and guided analytics of Ledger Smart while wanting full spreadsheet ownership and formula flexibility in Google Sheets.
+- **Key Value**: Eliminates manual CSV downloads and re-imports by treating a structured Google Sheet in the user's Drive as a live, two-way companion ledger.
 
 ---
 
-## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+### 2. User Experience & Visual Design
 
-### Architecture & Component Diagram
+- **Key User Flows**:
+  1. **Google Workspace Authentication**: Users click the official **"Sign in with Google"** button in the Google Sheets Sync Hub (or from a quick-export action). Authentication uses Firebase Google OAuth in-memory token management with the approved Google Drive and Google Sheets scopes.
+  2. **Automatic Master Workbook Discovery & Provisioning**: Upon connecting, Ledger Smart searches Google Drive for `Ledger Smart — Master Financial Workbook`. If found, it binds automatically and displays last-synced metadata; if not found, users can create and format all 5 structured tabs with a single click.
+  3. **Two-Way Sync & Conflict-Safe Pull**:
+     - **Push to Google Sheets**: Users can push all modules at once or push individual tabs (`Transactions`, `Budgets`, `Accounts`, `Net Worth`). A confirmation dialog summarizes the exact rows and tabs that will be updated.
+     - **Pull from Google Sheets**: Users can pull changes edited in the `Transactions`, `Budgets`, `Accounts`, or `Net Worth` tabs back into Ledger Smart, previewing row counts before confirming the merge.
+  4. **Formatted Multi-Tab Executive Report Builder**: Users can trigger **"Generate Formatted Financial Report Tab"**, which builds or updates a styled summary sheet using `spreadsheets.batchUpdate` (boldemerald/slate header styling, frozen header rows, currency number formats, and live `=SUM()` formulas).
+  5. **Drive Spreadsheet Browser & Backup Snapshots**: Inside the Sync Hub, users can view their Master Workbook metadata, open it directly in a new browser tab, switch to another existing spreadsheet in their Google Drive, or save a timestamped read-only monthly snapshot sheet in Drive.
+
+- **Visual Identity & Theme**:
+  - *Aesthetic Direction*: High-craft financial precision matching Ledger Smart's existing SaaS workspace canvas—clean `1px` structural borders (`border-slate-200 dark:border-slate-800`), crisp single-elevation cards, and zero visual clutter.
+  - *Color Palette & Semantic Accents*: Deep slate workspace surfaces paired with Google Sheets emerald (`#16A34A` / `emerald-600`) for active sync states, royal blue (`#2563EB`) for primary actions, amber (`#D97706`) for pending sync diffs, and crimson (`#DC2626`) for destructive confirmations.
+  - *Typography & Tabular Numerals*: `Plus Jakarta Sans` for headings and navigation paired with `JetBrains Mono` / `tabular-nums` for all row counts, monetary totals, spreadsheet cell ranges, and sync timestamps.
+  - *State Completeness*: Every panel in the Sync Hub supports unauthenticated (official Google Sign-In button), connected/idle, active syncing skeleton/progress indicators, and empty/error states with one-click retry.
+
+---
+
+### 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1: Single Master Multi-Tab Workbook vs. Separate Files per Module**
+  - *Chosen Approach*: A single master spreadsheet (`Ledger Smart — Master Financial Workbook`) containing five standardized tabs: `Overview & Summary`, `Transactions`, `Budgets`, `Accounts & Wallets`, and `Net Worth & Debt`.
+  - *Why*: Keeps all financial data in one cohesive file in Google Drive so cross-tab formulas (like `Overview & Summary` referencing `Transactions` and `Accounts`) work seamlessly without cluttering the user's Google Drive root folder.
+  - *Alternatives Considered*: Creating separate spreadsheets for transactions, budgets, and net worth—rejected because it fragments reporting and complicates Drive file management.
+
+- **Decision 2: In-Memory OAuth Access Token Caching via Firebase Auth**
+  - *Chosen Approach*: Authenticate client-side using Firebase `signInWithPopup` with `GoogleAuthProvider` configured with the user-approved Drive and Sheets scopes, caching the OAuth access token strictly in memory.
+  - *Why*: Complies with security best practices (never persisting raw OAuth access tokens to `localStorage`) and avoids server-side OAuth redirect URI mismatches in dynamic preview environments.
+
+- **Decision 3: Deterministic ID Column for Two-Way Sync**
+  - *Chosen Approach*: Include a stable `Record ID` column in the `Transactions`, `Budgets`, `Accounts & Wallets`, and `Net Worth & Debt` tabs (while generating new IDs for rows added manually in Google Sheets without an ID).
+  - *Why*: Enables reliable two-way reconciliation when pulling rows back from Google Sheets into Ledger Smart without duplicating existing items.
+
+---
+
+### 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+- **Architecture & Component Diagram**:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                         Application Providers Layer                          │
+│                        Ledger Smart Workspace Shell                          │
+│  ┌──────────────────────┐   ┌─────────────────────────────────────────────┐  │
+│  │ Grouped Sidebar Nav  │   │ Top Header Bar & Command Palette (Cmd+K)    │  │
+│  │ + Google Sheets Hub  │   │ + Quick "Sync to Sheets" Action Triggers    │  │
+│  └──────────┬───────────┘   └──────────────────────┬──────────────────────┘  │
+└─────────────┼──────────────────────────────────────┼─────────────────────────┘
+              │                                      │
+              ▼                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                     Google Sheets Sync Hub & Quick Actions                   │
 │  ┌────────────────────────┐ ┌──────────────────────┐ ┌────────────────────┐  │
-│  │   FinanceDataContext   │ │   SyncQueueManager   │ │   UIModalContext   │  │
-│  │ (Tx, Accounts, Debts,  │◄┼─(Offline LocalCache  │ │ (ConfirmDialog,    │  │
-│  │  Assets, Budgets, AI)  │ │  + Supabase Sync)    │ │  Toast, Cmd+K)     │  │
+│  │ Google OAuth Card      │ │ Master Workbook      │ │ Two-Way Sync       │  │
+│  │ (Official GSI Button & │ │ Controller (Auto-    │ │ Inspector (Push /  │  │
+│  │  In-Memory Token State)│ │ Find / Create / Link)│ │ Pull / Report Gen) │  │
 │  └───────────┬────────────┘ └──────────┬───────────┘ └─────────┬──────────┘  │
 └──────────────┼─────────────────────────┼───────────────────────┼─────────────┘
                │                         │                       │
                ▼                         ▼                       ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                           Workspace Layout Shell                             │
-│  ┌────────────────────────┐ ┌─────────────────────────────────────────────┐  │
-│  │   CollapsibleSidebar   │ │              TopWorkspaceHeader             │  │
-│  │ (Grouped Nav: Core,    │ │ (Breadcrumbs, Account Filter, Sync Badge,   │  │
-│  │  Planning, Wealth, AI) │ │  Quick Scan/Import CTA, Cmd+K Trigger)      │  │
-│  └────────────────────────┘ └──────────────────────┬──────────────────────┘  │
-│                                                    │                         │
-│  ┌─────────────────────────────────────────────────▼──────────────────────┐  │
-│  │                        Active Module Viewport                          │  │
-│  │  • Overview Dashboard          • Multi-Account & Wallet Manager        │  │
-│  │  • Ledger + Bulk Categorizer   • Smart Receipt & CSV Bulk Importer     │  │
-│  │  • Net Worth & Asset Sheet     • Debt Payoff Planner (Snowball/Avl.)   │  │
-│  │  • Budgets / Goals / Recurring • Financial Labs / Reports / AI Chat    │  │
-│  └─────────────────────────────────────────────────┬──────────────────────┘  │
-└────────────────────────────────────────────────────┼─────────────────────────┘
-                                                     │
-                                                     ▼
+│                  Confirmation Modal Gate (showConfirm)                       │
+│   Verifies user approval before any Sheets write, clear, or Drive mutation   │
+└────────────────────────────────────────┬─────────────────────────────────────┘
+                                         │
+                                         ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        Express Backend Proxy (/api/*)                        │
-│  • POST /api/scan-receipt  ──► Gemini 3.8 Flash Multimodal Receipt Parser    │
-│  • POST /api/insights      ──► Gemini 3.8 Flash Financial Diagnostics        │
-│  • POST /api/advisor       ──► Gemini 3.8 Flash Wealth Advisor Chat          │
-│  • POST /api/send-report   ──► Executive PDF Statement Email Dispatch        │
+│               Google Workspace Client Service (REST APIs)                    │
+│  ┌───────────────────────────────────┐ ┌──────────────────────────────────┐  │
+│  │ Google Drive API v3               │ │ Google Sheets API v4             │  │
+│  │ • Search Master Workbook by name  │ │ • Provision 5 structured tabs    │  │
+│  │ • List user spreadsheets          │ │ • values.batchUpdate / clear     │  │
+│  │ • Delete / unlink files (confirmed│ │ •values.batchGet (Two-Way Pull)  │  │
+│  │   by user)                        │ │ • batchUpdate ( Cell Styling &   │  │
+│  │                                   │ │   Executive Report Formulas)     │  │
+│  └───────────────────────────────────┘ └──────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Model & State Extensions
+- **Data Model & Master Spreadsheet Tab Schema**:
+  - **Tab 1 — `Overview & Summary`**: Executive financial report header, generation timestamp, KPI summary block (`Total Income`, `Total Expenses`, `Net Savings`, `Savings Rate %`, `Total Liquid Accounts`, `Total Net Worth`), and live category breakdown formulas.
+  - **Tab 2 — `Transactions`**: Columns `ID | Date | Type | Category | Description | Amount | Account ID`. Supports full push from Ledger Smart and two-way pull (updating matching IDs and importing newly added spreadsheet rows).
+  - **Tab 3 — `Budgets`**: Columns `Category | Monthly Limit ($) | Current Spent ($) | Remaining ($) | Utilization %`. Supports two-way sync of category budget limits.
+  - **Tab 4 — `Accounts & Wallets`**: Columns `ID | Account Name | Type | Institution | Initial Balance | Current Calculated Balance | Color`. Supports two-way sync of account definitions and starting balances.
+  - **Tab 5 — `Net Worth & Debt`**: Two structured sections or unified table with `Record Type (Asset / Liability) | ID | Name | Category | Value / Balance ($) | APR % | Minimum Payment ($) | Notes`. Supports two-way sync back into Assets and Liabilities state.
 
-- **`Account` (Wallet)**: `id`, `name`, `type` (`'checking' | 'savings' | 'credit' | 'cash' | 'mobile_money' | 'crypto' | 'investment'`), `initialBalance`, `currency`, `color`, `institution`.
-- **`Transaction` (Extended)**: Adds optional `accountId`, `receiptItems`, and `tags` while maintaining 100% backward compatibility with existing ledger records.
-- **`AssetItem` & `LiabilityItem`**:
-  - `AssetItem`: `id`, `name`, `category` (`'real_estate' | 'vehicle' | 'equity' | 'crypto' | 'valuables' | 'other'`), `value`, `notes`, `lastUpdated`.
-  - `LiabilityItem`: `id`, `name`, `category` (`'credit_card' | 'student_loan' | 'mortgage' | 'auto_loan' | 'personal_loan'`), `balance`, `apr`, `minimumPayment`, `dueDate`.
-- **`SyncQueueItem`**: `id`, `entity`, `action` (`'insert' | 'update' | 'delete'`), `payload`, `timestamp`, `retryCount`.
-
-### Interactive Component & State Mapping
-
-- **Global Command Palette (`Cmd+K`)**: Listens for `keydown` (`Meta+K` / `Ctrl+K`), filters navigation destinations, accounts, and quick actions in real time, and executes view switches or modal triggers on `Enter`.
-- **Unified Confirmation Dialog**: Exposes an async `confirmAction({ title, message, confirmLabel, variant })` hook so destructive actions (deleting transactions, resetting data, removing accounts) render an accessible modal instead of native `window.confirm()`.
-- **Smart Receipt & CSV Importer**:
-  - *Receipt Mode*: Converts uploaded image to base64, posts to `/api/scan-receipt`, renders extracted fields in an editable form, and commits to the selected account and ledger.
-  - *CSV Mode*: Parses CSV/Excel files client-side, auto-detects headers (`date`, `amount`, `description`, `category`), flags potential duplicates against existing transactions, and commits approved rows in a single batch state update.
-- **Debt Payoff Engine**: Pure calculation utility computing month-by-month amortization arrays under both Snowball and Avalanche rules, dynamically updating payoff date, total interest paid, and interest saved as the user adjusts their extra monthly contribution slider.
+- **Interactive Component & State Mapping**:
+  - **Google Workspace Auth State**: Tracks `googleUser`, `accessToken` (in-memory), `needsGoogleAuth`, and `isAuthenticating`. Automatically prompts with the official Google Sign-In button when a token is needed.
+  - **Master Sheet Controller**: Stores the bound `masterSpreadsheetId` and `spreadsheetUrl` in user preferences, verifies existence via Drive API `files.list`, and creates + formats the 5 tabs if missing.
+  - **Quick Export Triggers**: Contextual buttons in the **Transaction Ledger**, **Accounts**, **Budgets**, and **Net Worth** modules let users push the current module's table directly to its corresponding tab in the Master Workbook (with confirmation dialog and completion toast).
+  - **Two-Way Pull Reconciliation**: Reads ranges via `spreadsheets.values.batchGet`, parses numeric and date cells safely, asks for confirmation with a summary of detected records, and updates both React state and the offline-first Supabase sync queue.

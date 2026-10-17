@@ -145,6 +145,14 @@ export default function CommandPalette({
         action: () => onSelectTab('labs'),
       },
       {
+        id: 'nav-sheets',
+        title: 'Go to Google Sheets & Drive Live Sync Hub',
+        subtitle: 'Two-way Master Workbook sync, Drive spreadsheets & formula reports',
+        group: 'Quick Actions',
+        icon: BarChart3,
+        action: () => onSelectTab('sheets'),
+      },
+      {
         id: 'nav-reports',
         title: 'Go to Monthly Reports & Excel Export',
         subtitle: 'Executive PDF statements & historical snapshots',
